@@ -33,42 +33,83 @@ generate_hash() {
     
     # Use the SHA256_BIN variable to compute the hash
     $SHA256_BIN "$file" | awk '{print $1}' > "$hash_file"
+	echo -n " -- hash written"
+}
+
+# Function to delete hash files
+delete_hash() {
+    local file="$1"
+    local hash_file=".$(basename "$file").sha256"
+    
+    # Check if hash file exists before attempting to delete
+    if [ -f "$hash_file" ]; then
+        rm "$hash_file"
+        echo -n " -- hash deleted"
+    else
+        echo -n " -- no hash to delete"
+    fi
 }
 
 # Function to process directory contents recursively
 process_directory() {
     local dir="$1"
-    
-    # Iterate over each entry in the directory
+    local write_mode="$2"
+    local delete_mode="$3"
+
     for entry in "$dir"/*; do
         if [ -d "$entry" ]; then
             # If the entry is a directory, echo it and process it recursively
             echo "Directory: $entry"
-            process_directory "$entry"
+			process_directory "$entry" "$write_mode" "$delete_mode"
         elif [ -f "$entry" ]; then
-            # If it's a file, check its extension before echoing
             if check_extension "$entry"; then
                 echo "Error: Encountered file with restricted extension: $(basename "$entry")"
                 exit 1
             else
-                echo "File: $(basename "$entry")"
-                generate_hash "$entry"
+                echo -n "File: $(basename "$entry")"
+                if [ "$delete_mode" = "true" ]; then
+                    delete_hash "$entry"
+                elif [ "$write_mode" = "true" ]; then
+                    generate_hash "$entry"
+                else
+                    echo -n " - No hash operation performed"
+                fi
+                echo  # New line after the operation message
             fi
         fi
     done
 }
 
-# If no argument, use the current directory
-if [ -z "$1" ]; then
-    dir="."
+# Parse command line options
+write_mode="false"
+delete_mode="false"
+while getopts ":dw" opt; do
+  case $opt in
+    d)
+      delete_mode="true"
+      write_mode="false"  # Ensure only one operation is performed
+      ;;
+    w)
+      write_mode="true"
+      delete_mode="false"  # Ensure only one operation is performed
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Use the first non-option argument as the directory, if provided
+if [ $OPTIND -le $# ]; then
+    dir="${@:$OPTIND:1}"
 else
-    dir="$1"
+    dir="."
 fi
 
-# Check if the directory exists
 if [ -d "$dir" ]; then
     echo "Processing directory: $dir"
-    process_directory "$dir"
+    process_directory "$dir" "$write_mode" "$delete_mode"
 else
     echo "Error: Directory $dir does not exist."
     exit 1
