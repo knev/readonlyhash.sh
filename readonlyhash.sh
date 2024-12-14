@@ -3,6 +3,11 @@
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
+# Variable for SHA-256 hash command
+SHA256_BIN="sha256sum" # linux native, macOS via brew install coreutils
+SHA256_BIN="shasum -a 256" # macOS native
+SHA256_BIN="openssl sha256" # pre-installed on macOS
+
 # Function to check if a file's extension is in the list to avoid
 check_extension() {
     local file="$1"
@@ -18,6 +23,16 @@ check_extension() {
         fi
     done
     return 1  # Extension not found
+}
+
+
+# New function for hashing
+generate_hash() {
+    local file="$1"
+    local hash_file=".$(basename "$file").sha256"
+    
+    # Use the SHA256_BIN variable to compute the hash
+    $SHA256_BIN "$file" | awk '{print $1}' > "$hash_file"
 }
 
 # Function to process directory contents recursively
@@ -37,6 +52,7 @@ process_directory() {
                 exit 1
             else
                 echo "File: $(basename "$entry")"
+                generate_hash "$entry"
             fi
         fi
     done
