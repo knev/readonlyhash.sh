@@ -50,6 +50,24 @@ delete_hash() {
     fi
 }
 
+compare_hash() {
+    local file="$1"
+    local hash_file=".$(basename "$file").sha256"
+    
+    if [ -f "$hash_file" ]; then
+        local current_hash=$($SHA256_BIN "$file" | awk '{print $1}')
+        local stored_hash=$(cat "$hash_file")
+        
+        if [ "$current_hash" = "$stored_hash" ]; then
+            echo -n " -- hash matches"
+        else
+            echo -n " -- hash mismatch"
+        fi
+    else
+        echo -n " - no hash file exists"
+    fi
+}
+
 # Function to process directory contents recursively
 process_directory() {
     local dir="$1"
@@ -72,7 +90,7 @@ process_directory() {
                 elif [ "$write_mode" = "true" ]; then
                     generate_hash "$entry"
                 else
-                    echo -n " - No hash operation performed"
+                    compare_hash "$entry"
                 fi
                 echo  # New line after the operation message
             fi
