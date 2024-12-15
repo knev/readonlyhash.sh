@@ -16,6 +16,8 @@ SHA256_BIN="sha256sum" # linux native, macOS via brew install coreutils
 SHA256_BIN="shasum -a 256" # macOS native
 SHA256_BIN="openssl sha256" # pre-installed on macOS
 
+ERROR_COUNT=0
+
 # Function to check if a file's extension is in the list to avoid
 check_extension() {
     local file="$1"
@@ -37,11 +39,16 @@ check_extension() {
 # New function for hashing
 generate_hash() {
     local file="$1"
-    local hash_file=".$(basename "$file").sha256"
+    local dot_hash_file=".$(basename "$file").sha256"
+    local hash_file="$(basename "$file").sha256"
     
-    # Use the SHA256_BIN variable to compute the hash
-    $SHA256_BIN "$file" | awk '{print $1}' > "$hash_file"
-	echo -n " -- hash written"
+    if [ -f "$dot_hash_file" ] || [ -f "$hash_file" ]; then
+        echo -n " -- ERROR: hash file already exists for $(basename "$file")"
+        ((ERROR_COUNT++))
+    else
+        $SHA256_BIN "$file" | awk '{print $1}' > "$dot_hash_file"
+        echo -n " -- hash written"
+    fi
 }
 
 # Function to delete hash files
@@ -115,7 +122,7 @@ process_directory() {
             # If the entry is a directory, echo it and process it recursively
             echo "Directory: $entry"
 			process_directory "$entry" "$write_mode" "$delete_mode" "$rename_mode" "$hide_mode"
-        elif [ -f "$entry" ]; then
+		elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.sha256$ ]]; then
             if check_extension "$entry"; then
                 echo "Error: Encountered file with restricted extension: $(basename "$entry")"
                 exit 1
@@ -173,8 +180,13 @@ fi
 
 if [ -d "$dir" ]; then
     echo "Processing directory: $dir"
-	process_directory "$dir" "$write_mode" "$delete_mode" "$rename_mode" "$hide_mode"
+    process_directory "$dir" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode"
+    
+    if [ $ERROR_COUNT -gt 0 ]; then
+        echo "Number of ERRORs encountered: $ERROR_COUNT"
+        exit 1
+    fi
 else
-    echo "Error: Directory $dir does not exist."
+    echo "ERROR: directory [$dir] does not exist."
     exit 1
 fi
