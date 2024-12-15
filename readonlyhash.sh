@@ -49,7 +49,7 @@ generate_hash() {
     else
         local hash=$($SHA256_BIN "$file" | awk '{print $1}')
         echo "$hash" > "$dot_hash_file"
-        echo "$hash"
+        echo "File: $(basename "$file") -- hash written: [$hash]"
         return 0  # No error
     fi
 }
@@ -150,9 +150,7 @@ process_directory() {
                 if [ "$delete_mode" = "true" ]; then
                     delete_hash "$entry"
                 elif [ "$write_mode" = "true" ]; then
-                    if hash=$(generate_hash "$entry"); then
-                        echo "File: $(basename "$entry") -- hash written: [$hash]"
-                    fi
+					generate_hash "$entry"
                 elif [ "$show_mode" = "true" ]; then
                     manage_hash_visibility "$entry" "show"
                 elif [ "$hide_mode" = "true" ]; then
