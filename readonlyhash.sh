@@ -1,5 +1,13 @@
 #!/bin/bash
 
+#TODO;
+# - output the actual hash when on is generated
+# - not equal hashes should be BOLDLY output
+# - hashes should only be written when they don't exist
+# - deal with moved files? git?
+# - deal with orphaned hash files? git?
+# - what about entirely missing directories? git?
+
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
@@ -68,17 +76,45 @@ compare_hash() {
     fi
 }
 
+rename_hash() {
+    local file="$1"
+    local old_hash_file=".$(basename "$file").sha256"
+    local new_hash_file="$(basename "$file").sha256"
+    
+    if [ -f "$old_hash_file" ]; then
+        mv "$old_hash_file" "$new_hash_file"
+        echo -n " -- hash renamed"
+    else
+        echo -n " -- no hash to rename"
+    fi
+}
+
+hide_hash() {
+    local file="$1"
+    local old_hash_file="$(basename "$file").sha256"
+    local new_hash_file=".$(basename "$file").sha256"
+    
+    if [ -f "$old_hash_file" ]; then
+        mv "$old_hash_file" "$new_hash_file"
+        echo -n " -- hash hidden"
+    else
+        echo -n " -- no hash to hide"
+    fi
+}
+
 # Function to process directory contents recursively
 process_directory() {
     local dir="$1"
     local write_mode="$2"
     local delete_mode="$3"
+    local rename_mode="$4"
+    local hide_mode="$5"
 
     for entry in "$dir"/*; do
         if [ -d "$entry" ]; then
             # If the entry is a directory, echo it and process it recursively
             echo "Directory: $entry"
-			process_directory "$entry" "$write_mode" "$delete_mode"
+			process_directory "$entry" "$write_mode" "$delete_mode" "$rename_mode" "$hide_mode"
         elif [ -f "$entry" ]; then
             if check_extension "$entry"; then
                 echo "Error: Encountered file with restricted extension: $(basename "$entry")"
@@ -89,6 +125,10 @@ process_directory() {
                     delete_hash "$entry"
                 elif [ "$write_mode" = "true" ]; then
                     generate_hash "$entry"
+                elif [ "$rename_mode" = "true" ]; then
+                    rename_hash "$entry"
+                elif [ "$hide_mode" = "true" ]; then
+                    hide_hash "$entry"
                 else
                     compare_hash "$entry"
                 fi
@@ -101,15 +141,21 @@ process_directory() {
 # Parse command line options
 write_mode="false"
 delete_mode="false"
-while getopts ":dw" opt; do
+rename_mode="false"
+hide_mode="false"
+while getopts ":dwuh" opt; do
   case $opt in
     d)
       delete_mode="true"
-      write_mode="false"  # Ensure only one operation is performed
       ;;
     w)
       write_mode="true"
-      delete_mode="false"  # Ensure only one operation is performed
+      ;;
+    u)
+      rename_mode="true"
+      ;;
+    h)
+      hide_mode="true"
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -127,7 +173,7 @@ fi
 
 if [ -d "$dir" ]; then
     echo "Processing directory: $dir"
-    process_directory "$dir" "$write_mode" "$delete_mode"
+	process_directory "$dir" "$write_mode" "$delete_mode" "$rename_mode" "$hide_mode"
 else
     echo "Error: Directory $dir does not exist."
     exit 1
