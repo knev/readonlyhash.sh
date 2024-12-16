@@ -7,11 +7,11 @@ usage() {
     echo "  -w, --write    Write SHA256 hashes for files into .roh directory"
     echo "  -d, --delete   Delete hash files for specified files"
     echo "  -s, --show     Move hash files from .roh to file's directory"
-    echo "  -h, --hide     Move hash files from file's directory to .roh"
+    echo "  -i, --hide     Move hash files from file's directory to .roh"
     echo "      --force    Force operation even if hash files do not match"
     echo "  -h, --help     Display this help and exit"
     echo
-	echo "Note: Options -w, -d, -s, -h, and -v are mutually exclusive."
+	echo "Note: Options -v, -w, -d, and -s are mutually exclusive."
     echo "If no directory is specified, the current directory is used."
 }
 
@@ -289,26 +289,30 @@ process_directory() {
 verify_mode="false"
 write_mode="false"
 delete_mode="false"
-show_mode="false"
 hide_mode="false"
+show_mode="false"
 force_mode="false"
-while getopts ":vwdsh:-:" opt; do
+while getopts ":vwdsih:-:" opt; do
   case $opt in
     v)
       verify_mode="true"
       ;;	
+    w)
+      write_mode="true"
+      ;;
     d)
       delete_mode="true"
       ;;
-    w)
-      write_mode="true"
+    i)
+      hide_mode="true"
       ;;
     s)
       show_mode="true"
       ;;
     h)
-      hide_mode="true"
-      ;;
+      usage
+      exit 0
+      ;;	  
     -)
       case "${OPTARG}" in
         verify)
@@ -320,11 +324,11 @@ while getopts ":vwdsh:-:" opt; do
         delete)
           delete_mode="true"
           ;;
-        show)
-          show_mode="true"
-          ;;
         hide)
           hide_mode="true"
+          ;;
+        show)
+          show_mode="true"
           ;;
         force)
           force_mode="true"
@@ -352,12 +356,6 @@ while getopts ":vwdsh:-:" opt; do
       ;;
   esac
 done
-
-# Handle -h for help after getopts processing
-if [ "$hide_mode" = "false" ] && [[ " $@ " =~ " -h " ]]; then
-    usage
-    exit 0
-fi
 
 # Check if no mode is specified
 if [ "$write_mode" = "false" ] && [ "$delete_mode" = "false" ] && [ "$show_mode" = "false" ] && [ "$hide_mode" = "false" ] && [ "$verify_mode" = "false" ]; then
