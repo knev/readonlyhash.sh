@@ -1,5 +1,20 @@
 #!/bin/bash
 
+usage() {
+    echo "Usage: $(basename "$0") [OPTIONS|((-w|-d) --force)] [PATH]"
+    echo "Options:"
+	echo "  -v, --verify   Verify computed hashes against stored hashes"
+    echo "  -w, --write    Write SHA256 hashes for files into .roh directory"
+    echo "  -d, --delete   Delete hash files for specified files"
+    echo "  -s, --show     Move hash files from .roh to file's directory"
+    echo "  -h, --hide     Move hash files from file's directory to .roh"
+    echo "      --force    Force operation even if hash files do not match"
+    echo "  -h, --help     Display this help and exit"
+    echo
+	echo "Note: Options -w, -d, -s, -h, and -v are mutually exclusive."
+    echo "If no directory is specified, the current directory is used."
+}
+
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
@@ -223,11 +238,12 @@ manage_hash_visibility() {
 # Function to process directory contents recursively
 process_directory() {
     local dir="$1"
-    local write_mode="$2"
-    local delete_mode="$3"
-    local show_mode="$4"
-    local hide_mode="$5"
-    local force_mode="$6"
+    local verify_mode="$2"
+    local write_mode="$3"
+    local delete_mode="$4"
+    local show_mode="$5"
+    local hide_mode="$6"
+    local force_mode="$7"
 	
 	echo "Processing directory: [$dir]"
 	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
@@ -237,7 +253,7 @@ process_directory() {
     for entry in "$dir"/*; do
 		# If the entry is a directory, process it recursively
         if [ -d "$entry" ]; then
-			process_directory "$entry" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode" "$force_mode"
+			process_directory "$entry" "$verify_mode" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode" "$force_mode"
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.sha256$ ]]; then
@@ -253,8 +269,9 @@ process_directory() {
                     manage_hash_visibility "$dir" "$entry" "show"
                 elif [ "$hide_mode" = "true" ]; then
                     manage_hash_visibility "$dir" "$entry" "hide"
-                else
+                elif [ "$verify_mode" = "true" ]; then
                     verify_hash "$dir" "$entry" 
+				#else	
                 fi
             fi
         fi
@@ -268,27 +285,18 @@ process_directory() {
 	fi
 }
 
-usage() {
-    echo "Usage: $0 [OPTIONS] [DIRECTORY]"
-    echo "Options:"
-    echo "  -w, --write    Write SHA256 hashes for files into .roh directory"
-    echo "  -d, --delete   Delete hash files for specified files"
-    echo "  -s, --show     Move hash files from .roh to file's directory"
-    echo "  -h, --hide     Move hash files from file's directory to .roh"
-    echo "      --force    Force deletion of hash files even if they don't match"
-    echo "  -h, --help     Display this help and exit"
-    echo
-    echo "If no directory is specified, the current directory is used."
-}
-
 # Parse command line options
+verify_mode="false"
 write_mode="false"
 delete_mode="false"
 show_mode="false"
 hide_mode="false"
 force_mode="false"
-while getopts ":wdsh:-:" opt; do
+while getopts ":vwdsh:-:" opt; do
   case $opt in
+    v)
+      verify_mode="true"
+      ;;	
     d)
       delete_mode="true"
       ;;
@@ -303,6 +311,9 @@ while getopts ":wdsh:-:" opt; do
       ;;
     -)
       case "${OPTARG}" in
+        verify)
+          verify_mode="true"
+          ;;		
         write)
           write_mode="true"
           ;;
@@ -348,6 +359,12 @@ if [ "$hide_mode" = "false" ] && [[ " $@ " =~ " -h " ]]; then
     exit 0
 fi
 
+# Check if no mode is specified
+if [ "$write_mode" = "false" ] && [ "$delete_mode" = "false" ] && [ "$show_mode" = "false" ] && [ "$hide_mode" = "false" ] && [ "$verify_mode" = "false" ]; then
+    usage
+    exit 0
+fi
+
 # Check for mutually exclusive flags
 mutual_exclusive_count=0
 for mode in "$write_mode" "$delete_mode" "$show_mode" "$hide_mode"; do
@@ -377,7 +394,7 @@ else
 fi
 
 if [ -d "$dir" ]; then
-    process_directory "$dir" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode" "$force_mode"
+    process_directory "$dir" "$verify_mode" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode" "$force_mode"
     if [ $ERROR_COUNT -gt 0 ]; then
         echo "Number of ERRORs encountered: [$ERROR_COUNT]"
 		echo
