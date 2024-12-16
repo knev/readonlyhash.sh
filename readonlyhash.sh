@@ -15,6 +15,7 @@ ERROR_COUNT=0
 # Function to check if a file's extension is in the list to avoid
 check_extension() {
     local file="$1"
+
     # Convert comma separated list to a space separated list for easier comparison
     local extensions=$(echo "$EXTENSIONS_TO_AVOID" | tr ',' ' ')
     
@@ -51,6 +52,8 @@ stored_hash() {
 write_hash() {
     local dir="$1"
     local fpath="$2"
+    local force_mode="$3"
+
     local hash_fname="$(basename "$fpath").sha256"
     #local roh_hash_file="$(dirname "$file")/$ROH_DIR/$hash_file"
     local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
@@ -70,14 +73,21 @@ write_hash() {
 			# echo "File: [$new_hash]: [$dir] $(basename "$fpath") -- OK"
 			return 0
 		else
-			echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] exists with stored [$stored]"
-			((ERROR_COUNT++))
-			return 1  # Signal that an error occurred
+			if [ "$force_mode" = "true" ]; then
+				echo "File: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] exists; new hash stored [$new_hash] -- FORCED!"
+				# fall through ...
+			else
+				echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] exists with stored [$stored]"
+				((ERROR_COUNT++))
+				return 1  # Signal that an error occurred
+			fi
 		fi
 	fi
 
 	if echo "$new_hash" > "$roh_hash_fpath"; then
-		echo "File: [$new_hash]: [$dir] $(basename "$fpath") -- OK"
+		if [ "$force_mode" != "true" ]; then
+			echo "File: [$new_hash]: [$dir] $(basename "$fpath") -- $status_output"
+		fi
 		return 0  # No error
 	else
 		echo "ERROR: [$dir] $(basename "$fpath") -- failed to write hash to [$roh_hash_fpath]"
@@ -90,6 +100,8 @@ write_hash() {
 delete_hash() {
     local dir="$1"
     local fpath="$2"
+    local force_mode="$3"
+
     local hash_fname="$(basename "$fpath").sha256"
     local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
 
@@ -114,15 +126,22 @@ delete_hash() {
 		echo "File: [$dir] $(basename "$fpath") -- hash file in [$dir/$ROH_DIR] deleted -- OK"
 		return 0  # No error
 	else
-		echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, cannot delete [$roh_hash_fpath] with stored [$stored]"
-		((ERROR_COUNT++))
-		return 1  # Error, hash mismatch
+		if [ "$force_mode" = "true" ]; then
+			rm "$roh_hash_fpath"
+			echo "File: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] deleted with stored [$stored] -- FORCED!"
+			return 0
+		else
+			echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, cannot delete [$roh_hash_fpath] with stored [$stored]"
+			((ERROR_COUNT++))
+			return 1  # Error, hash mismatch
+		fi
 	fi
 }
 
 verify_hash() {
     local dir="$1"
     local fpath="$2"
+
     local hash_fname="$(basename "$fpath").sha256"
     local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
 
@@ -150,6 +169,7 @@ manage_hash_visibility() {
     local dir="$1"
     local fpath="$2"
     local action="$3"
+
     local hash_fname="$(basename "$fpath").sha256"
 
 	local src_path
@@ -207,7 +227,8 @@ process_directory() {
     local delete_mode="$3"
     local show_mode="$4"
     local hide_mode="$5"
-
+    local force_mode="$6"
+	
 	echo "Processing directory: [$dir]"
 	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
 	    ensure_dir "$dir/$ROH_DIR"
@@ -216,7 +237,7 @@ process_directory() {
     for entry in "$dir"/*; do
 		# If the entry is a directory, process it recursively
         if [ -d "$entry" ]; then
-            process_directory "$entry" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode"
+			process_directory "$entry" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode" "$force_mode"
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.sha256$ ]]; then
@@ -225,9 +246,9 @@ process_directory() {
                 exit 1
             else
                 if [ "$delete_mode" = "true" ]; then
-                    delete_hash "$dir" "$entry"
+                    delete_hash "$dir" "$entry" "$force_mode"
                 elif [ "$write_mode" = "true" ]; then
-					write_hash "$dir" "$entry"
+					write_hash "$dir" "$entry" "$force_mode"
                 elif [ "$show_mode" = "true" ]; then
                     manage_hash_visibility "$dir" "$entry" "show"
                 elif [ "$hide_mode" = "true" ]; then
@@ -247,12 +268,26 @@ process_directory() {
 	fi
 }
 
+usage() {
+    echo "Usage: $0 [OPTIONS] [DIRECTORY]"
+    echo "Options:"
+    echo "  -w, --write    Write SHA256 hashes for files into .roh directory"
+    echo "  -d, --delete   Delete hash files for specified files"
+    echo "  -s, --show     Move hash files from .roh to file's directory"
+    echo "  -h, --hide     Move hash files from file's directory to .roh"
+    echo "      --force    Force deletion of hash files even if they don't match"
+    echo "  -h, --help     Display this help and exit"
+    echo
+    echo "If no directory is specified, the current directory is used."
+}
+
 # Parse command line options
 write_mode="false"
 delete_mode="false"
 show_mode="false"
 hide_mode="false"
-while getopts ":dwsh" opt; do
+force_mode="false"
+while getopts ":wdsh:-:" opt; do
   case $opt in
     d)
       delete_mode="true"
@@ -266,13 +301,75 @@ while getopts ":dwsh" opt; do
     h)
       hide_mode="true"
       ;;
+    -)
+      case "${OPTARG}" in
+        write)
+          write_mode="true"
+          ;;
+        delete)
+          delete_mode="true"
+          ;;
+        show)
+          show_mode="true"
+          ;;
+        hide)
+          hide_mode="true"
+          ;;
+        force)
+          force_mode="true"
+          ;;
+        help)
+          usage
+          exit 0
+          ;;
+        *)
+          echo "Invalid option: --${OPTARG}" >&2
+          usage
+          exit 1
+          ;;
+      esac
+      ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
+      usage
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
       exit 1
       ;;
   esac
 done
 
+# Handle -h for help after getopts processing
+if [ "$hide_mode" = "false" ] && [[ " $@ " =~ " -h " ]]; then
+    usage
+    exit 0
+fi
+
+# Check for mutually exclusive flags
+mutual_exclusive_count=0
+for mode in "$write_mode" "$delete_mode" "$show_mode" "$hide_mode"; do
+    if [ "$mode" = "true" ]; then
+        ((mutual_exclusive_count++))
+    fi
+done
+
+if [ $mutual_exclusive_count -gt 1 ]; then
+    echo "Error: Options -w, -d, -s, and -h are mutually exclusive. Please use only one." >&2
+    usage
+    exit 1
+fi
+
+# Check for force_mode usage
+if [ "$force_mode" = "true" ] && [ "$delete_mode" != "true" ] && [ "$write_mode" != "true" ]; then
+    echo "Error: --force can only be used with -d/--delete or -w/--write." >&2
+    usage
+    exit 1
+fi
+
+# Main execution
 if [ $OPTIND -le $# ]; then
     dir="${@:$OPTIND:1}"
 else
@@ -280,7 +377,7 @@ else
 fi
 
 if [ -d "$dir" ]; then
-    process_directory "$dir" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode"
+    process_directory "$dir" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode" "$force_mode"
     if [ $ERROR_COUNT -gt 0 ]; then
         echo "Number of ERRORs encountered: [$ERROR_COUNT]"
 		echo
