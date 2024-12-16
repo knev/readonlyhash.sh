@@ -1,15 +1,9 @@
 #!/bin/bash
 
-#TODO;
-# - output the actual hash when on is generated
-# - not equal hashes should be BOLDLY output
-# - hashes should only be written when they don't exist
-# - deal with moved files? git?
-# - deal with orphaned hash files? git?
-# - what about entirely missing directories? git?
-
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
+
+ROH_DIR=".roh"
 
 # Variable for SHA-256 hash command
 #SHA256_BIN="sha256sum" # linux native, macOS via brew install coreutils
@@ -35,41 +29,60 @@ check_extension() {
     return 1  # Extension not found
 }
 
+# Ensure .roh directory exists
+ensure_dir() {
+    local dir="$1"
+    if [ ! -d "$dir" ]; then
+        mkdir "$dir"
+    fi
+}
 
 # New function for hashing
 generate_hash() {
-    local file="$1"
-    local dot_hash_file=".$(basename "$file").sha256"
+    local dir="$1"
+    local file="$2"
     local hash_file="$(basename "$file").sha256"
-    
-    if [ -f "$dot_hash_file" ] || [ -f "$hash_file" ]; then
-        echo "ERROR: $(basename "$file") -- hash file already exists"
+    local roh_hash_file="$(dirname "$file")/$ROH_DIR/$hash_file"
+
+    if [ -f "$roh_hash_file" ]; then
+        echo "ERROR: [$dir] $(basename "$file") -- hash file [$roh_hash_file] already exists"
+        ((ERROR_COUNT++))
+        return 1  # Signal that an error occurred
+    elif [ -f "$hash_file" ]; then
+        echo "ERROR: [$dir] $(basename "$file") -- hash file [$hash_file] already exists"
         ((ERROR_COUNT++))
         return 1  # Signal that an error occurred
     else
         local hash=$($SHA256_BIN "$file" | awk '{print $1}')
-        echo "$hash" > "$dot_hash_file"
-        echo "File: $(basename "$file") -- hash written: [$hash]"
-        return 0  # No error
+        if echo "$hash" > "$roh_hash_file"; then
+            # echo "File: $dir $(basename "$file") -- hash written: [$hash]"
+            echo "File: [$dir] $(basename "$file") -- hash written: [$hash] -- OK"
+            return 0  # No error
+        else
+            echo "ERROR: [$dir] $(basename "$file") -- failed to write hash to [$roh_hash_file]"
+            ((ERROR_COUNT++))
+            return 1  # Signal that an error occurred
+        fi
     fi
 }
 
 # Function to delete hash files
 delete_hash() {
-    local file="$1"
-    local dot_hash_file=".$(basename "$file").sha256"
+    local dir="$1"
+    local file="$2"
     local hash_file="$(basename "$file").sha256"
-    
-    if [ -f "$dot_hash_file" ]; then
-        rm "$dot_hash_file"
-        echo "File: $(basename "$file") -- hash deleted: [$dot_hash_file]"
+    local roh_hash_file="$(dirname "$file")/$ROH_DIR/$hash_file"
+
+    if [ -f "$roh_hash_file" ]; then
+        rm "$roh_hash_file"
+        echo "File: [$dir] $(basename "$file") -- hash deleted: [$roh_hash_file] -- OK"
         return 0  # No error
     elif [ -f "$hash_file" ]; then
-        rm "$hash_file"
-        echo "File: $(basename "$file") -- hash deleted: [$hash_file]"
-        return 0  # No error
+        echo "ERROR: [$dir] $(basename "$file") -- found [$hash_file]; can only delete hidden hashes"
+        ((ERROR_COUNT++))
+        return 1  # Error, hash file does not exist
     else
-        echo "ERROR: $(basename "$file") -- NO hash file found"
+        echo "ERROR: [$dir] $(basename "$file") -- NO hash file found in [$dir/$ROH_DIR]"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist
     fi
@@ -101,29 +114,32 @@ compare_hash() {
 }
 
 manage_hash_visibility() {
-    local file="$1"
-    local action="$2"
+    local dir="$1"
+    local file="$2"
+    local action="$3"
+    local hash_file="$(basename "$file").sha256"
+    local roh_hash_file="$(dirname "$file")/$ROH_DIR/$hash_file"
     local old_hash_file
     local new_hash_file
     
     if [ "$action" = "show" ]; then
-        old_hash_file=".$(basename "$file").sha256"
-        new_hash_file="$(basename "$file").sha256"
+        old_hash_file=$roh_hash_file
+        new_hash_file=$hash_file
     elif [ "$action" = "hide" ]; then
-        old_hash_file="$(basename "$file").sha256"
-        new_hash_file=".$(basename "$file").sha256"
+        old_hash_file=$hash_file
+        new_hash_file=$roh_hash_file
     else
         echo "ERROR: $(basename "$file") -- invalid hash visibility action"
         ((ERROR_COUNT++))
         return 1
     fi
-    
+
     if [ -f "$old_hash_file" ]; then
         mv "$old_hash_file" "$new_hash_file"
-        echo "File: $(basename "$file") -- hash ${action}: [$new_hash_file]"
+        echo "File: [$dir] $(basename "$file") -- ${action}ing hash: [$new_hash_file] -- OK"
         return 0  # No error
     else
-        echo "ERROR: $(basename "$file") -- hash file not found for ${action}ing"
+        echo "ERROR: [$dir] $(basename "$file") -- hash file [$old_hash_file] NOT found for ${action}ing"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist for the action
     fi
@@ -137,32 +153,44 @@ process_directory() {
     local show_mode="$4"
     local hide_mode="$5"
 
+	echo "Processing directory: [$dir]"
+	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
+	    ensure_dir "$dir/$ROH_DIR"
+	fi
+
     for entry in "$dir"/*; do
+		# If the entry is a directory, process it recursively
         if [ -d "$entry" ]; then
-            # If the entry is a directory, echo it and process it recursively
-            echo "Directory: $entry"
             process_directory "$entry" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode"
+
+		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.sha256$ ]]; then
             if check_extension "$entry"; then
                 echo "ERROR: $(basename "$entry") -- encountered file with restricted extension"
                 exit 1
             else
                 if [ "$delete_mode" = "true" ]; then
-                    delete_hash "$entry"
+                    delete_hash "$dir" "$entry"
                 elif [ "$write_mode" = "true" ]; then
-					generate_hash "$entry"
+					generate_hash "$dir" "$entry"
                 elif [ "$show_mode" = "true" ]; then
-                    manage_hash_visibility "$entry" "show"
+                    manage_hash_visibility "$dir" "$entry" "show"
                 elif [ "$hide_mode" = "true" ]; then
-                    manage_hash_visibility "$entry" "hide"
+                    manage_hash_visibility "$dir" "$entry" "hide"
                 else
                     compare_hash "$entry" 
                 fi
             fi
         fi
     done
-}
 
+	if [ "$delete_mode" = "true" ] && [ -d "$dir/$ROH_DIR" ]; then
+		if ! rmdir "$dir/$ROH_DIR" 2>/dev/null; then
+			echo "Directory [$dir/$ROH_DIR] not empty"
+			((ERROR_COUNT++))
+		fi
+	fi
+}
 
 # Parse command line options
 write_mode="false"
@@ -197,9 +225,7 @@ else
 fi
 
 if [ -d "$dir" ]; then
-    echo "Processing directory: $dir"
     process_directory "$dir" "$write_mode" "$delete_mode" "$show_mode" "$hide_mode"
-    
     if [ $ERROR_COUNT -gt 0 ]; then
         echo "Number of ERRORs encountered: [$ERROR_COUNT]"
         exit 1
