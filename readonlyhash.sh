@@ -261,22 +261,25 @@ process_directory() {
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.sha256$ ]]; then
-            if check_extension "$entry"; then
-                echo "ERROR: [$dir] $(basename "$entry") -- file with restricted extension"
-				((ERROR_COUNT++))
-            else
-                if [ "$delete_mode" = "true" ]; then
-                    delete_hash "$dir" "$entry" "$force_mode"
+			if [ "$delete_mode" != "true" ]; then
+				if check_extension "$entry"; then
+					echo "ERROR: [$dir] \"$(basename "$entry")\" -- file with restricted extension"
+					((ERROR_COUNT++))
+					continue;
+				fi
+
+                if [ "$verify_mode" = "true" ]; then
+                    verify_hash "$dir" "$entry" 
                 elif [ "$write_mode" = "true" ]; then
 					write_hash "$dir" "$entry" "$force_mode"
-                elif [ "$show_mode" = "true" ]; then
-                    manage_hash_visibility "$dir" "$entry" "show"
                 elif [ "$hide_mode" = "true" ]; then
                     manage_hash_visibility "$dir" "$entry" "hide"
-                elif [ "$verify_mode" = "true" ]; then
-                    verify_hash "$dir" "$entry" 
+                elif [ "$show_mode" = "true" ]; then
+                    manage_hash_visibility "$dir" "$entry" "show"
 				#else	
                 fi
+			else
+				delete_hash "$dir" "$entry" "$force_mode"
             fi
         fi
     done

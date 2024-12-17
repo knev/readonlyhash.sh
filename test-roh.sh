@@ -180,12 +180,18 @@ run_test "$ROH_SCRIPT -s test" "1" "ERROR: [test] \"file with spaces.txt\" -- NO
 echo
 echo "process_directory()"
 
+touch "$TEST/file with spaces.rslsz"
+run_test "$ROH_SCRIPT -w test" "1" "ERROR: [test] \"file with spaces.rslsz\" -- file with restricted extension" 
+
+run_test "$ROH_SCRIPT -d test" "0" "ERROR: [test] \"file with spaces.rslsz\" -- file with restricted extension" "true"
+rm "$TEST/file with spaces.rslsz"
+ 
+mkdir -p "$TEST/$ROH_DIR"
 touch "$TEST/$ROH_DIR/file with spaces.txt.sha256~"
 run_test "$ROH_SCRIPT -d test" "1" "Directory [test/.roh] not empty" 
 
 rm "$TEST/$ROH_DIR/file with spaces.txt.sha256~"
 run_test "$ROH_SCRIPT -d test" "0" "Directory [test/.roh] not empty" "true"
-
 
 # Parse command line options
 echo
@@ -194,7 +200,6 @@ echo "Parse command line options"
 run_test "$ROH_SCRIPT -dw" "1" "Usage: readonlyhash.sh"
 run_test "$ROH_SCRIPT -v --force" "1" "Usage: readonlyhash.sh"
 run_test "$ROH_SCRIPT -v THIS_DIR_SHOULD_NOT_EXIST" "1" "Error: Directory THIS_DIR_SHOULD_NOT_EXIST does not exist"
-
 
 # Clean up test files
 echo
