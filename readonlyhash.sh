@@ -210,8 +210,8 @@ manage_hash_visibility() {
 	if [ -f "$src_path/$hash_fname" ]; then
 		if [ -f "$dest_path/$hash_fname" ]; then
 			local stored=$(stored_hash "$dest_path/$hash_fname")
-			if [ "$computed_hash" != "$stored_hash" ]; then
-				echo "ERROR: [$dir] $(basename "$fpath") -- existing hash file found in [$src_path], not ${action}ing"
+			if [ "$computed_hash" != "$stored" ]; then
+				echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, [$dest_path/$hash_fname] exists with stored [$stored], not moving (${action})"
 				((ERROR_COUNT++))
 				return 1
 			fi
@@ -223,13 +223,13 @@ manage_hash_visibility() {
 	else
 		if [ -f "$dest_path/$hash_fname" ]; then
 			local stored=$(stored_hash "$dest_path/$hash_fname")
-			if [ "$computed_hash" = "$stored_hash" ]; then
-				echo "File: [$dir] $(basename "$fpath") -- ${action}ing hash file [$dest_path/$hash_fname] -- OK"
+			if [ "$computed_hash" = "$stored" ]; then
+				echo "File: [$dir] $(basename "$fpath") -- hash file [$dest_path/$hash_fname] exists, not moving (${action}) -- OK"
 				return 0  # No error
 			fi
 		fi
 
-        echo "ERROR: [$dir] $(basename "$fpath") -- hash file NOT found in [$src_path], not ${action}ing"
+        echo "ERROR: [$dir] $(basename "$fpath") -- NO hash file found in [$src_path], not ${action}ing"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist for the action
     fi
@@ -399,7 +399,7 @@ if [ -d "$dir" ]; then
         exit 1
     fi
 else
-    echo "Error: Directory $dir does not exist."
+    echo "Error: Directory $dir does not exist"
 	echo
     exit 1
 fi
