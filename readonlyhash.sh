@@ -74,7 +74,7 @@ write_hash() {
     local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
 
     if [ -f "$dir/$hash_fname" ]; then
-        echo "ERROR: [$dir] $(basename "$fpath") -- hash file [$dir/$hash_fname] exists and is NOT hidden"
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir/$hash_fname] exists and is NOT hidden"
         ((ERROR_COUNT++))
         return 1  # Signal that an error occurred
 	fi
@@ -90,15 +90,15 @@ write_hash() {
 		else
 			if [ "$force_mode" = "true" ]; then
 				if echo "$new_hash" > "$roh_hash_fpath"; then
-					echo "File: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] exists; new hash stored [$new_hash] -- FORCED!"
+					echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] exists; new hash stored [$new_hash] -- FORCED!"
 					return 0  # No error
 				else
-					echo "ERROR: [$dir] $(basename "$fpath") -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
+					echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
 					((ERROR_COUNT++))
 					return 1  # Signal that an error occurred
 				fi
 			else
-				echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] exists with stored [$stored]"
+				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] exists with stored [$stored]"
 				((ERROR_COUNT++))
 				return 1  # Signal that an error occurred
 			fi
@@ -106,10 +106,10 @@ write_hash() {
 	fi
 
 	if echo "$new_hash" > "$roh_hash_fpath"; then
-		echo "File: [$new_hash]: [$dir] $(basename "$fpath") -- OK"
+		echo "File: [$new_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
 		return 0  # No error
 	else
-		echo "ERROR: [$dir] $(basename "$fpath") -- failed to write hash to [$roh_hash_fpath]"
+		echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath]"
 		((ERROR_COUNT++))
 		return 1  # Signal that an error occurred
 	fi
@@ -125,13 +125,13 @@ delete_hash() {
     local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
 
     if [ -f "$dir/$hash_fname" ]; then
-        echo "ERROR: [$dir] $(basename "$fpath") -- found existing hash in [$dir]; can only delete hidden hashes"
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- found existing hash in [$dir]; can only delete hidden hashes"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist
 	fi
 
     if [ ! -f "$roh_hash_fpath" ]; then
-        # echo "ERROR: [$dir] $(basename "$file") -- NO hash file found in [$dir/$ROH_DIR]"
+        # echo "ERROR: [$dir] \"$(basename "$file")\" -- NO hash file found in [$dir/$ROH_DIR]"
         # ((ERROR_COUNT++))
         # return 1  # Error, hash file does not exist
 		return 0
@@ -142,15 +142,15 @@ delete_hash() {
 	
 	if [ "$computed_hash" = "$stored" ]; then
 		rm "$roh_hash_fpath"
-		echo "File: [$dir] $(basename "$fpath") -- hash file in [$dir/$ROH_DIR] deleted -- OK"
+		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file in [$dir/$ROH_DIR] deleted -- OK"
 		return 0  # No error
 	else
 		if [ "$force_mode" = "true" ]; then
 			rm "$roh_hash_fpath"
-			echo "File: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] deleted with stored [$stored] -- FORCED!"
+			echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] deleted with stored [$stored] -- FORCED!"
 			return 0
 		else
-			echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, cannot delete [$roh_hash_fpath] with stored [$stored]"
+			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, cannot delete [$roh_hash_fpath] with stored [$stored]"
 			((ERROR_COUNT++))
 			return 1  # Error, hash mismatch
 		fi
@@ -165,7 +165,7 @@ verify_hash() {
     local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
 
     if [ ! -f "$roh_hash_fpath" ]; then
-        echo "ERROR: [$dir] $(basename "$fpath") -- no hash file exists in [$dir/$ROH_DIR]"
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- no hash file exists in [$dir/$ROH_DIR]"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist
 	fi
@@ -175,10 +175,10 @@ verify_hash() {
         
 	if [ "$computed_hash" = "$stored" ]; then
 		#echo "File: $(basename "$file") -- hash matches: [$computed_hash]"
-		echo "File: [$computed_hash]: [$dir] $(basename "$file") -- OK"
+		echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
 		return 0  # No error
 	else
-		echo "ERROR: [$dir] $(basename "$fpath") - hash mismatch: [$roh_hash_fpath] stored [$stored], computed [$computed_hash]"
+		echo "ERROR: [$dir] \"$(basename "$fpath")\" - hash mismatch: [$roh_hash_fpath] stored [$stored], computed [$computed_hash]"
 		((ERROR_COUNT++))
 		return 1  # Error, hash mismatch
 	fi
@@ -215,25 +215,25 @@ manage_hash_visibility() {
 		if [ -f "$dest_path/$hash_fname" ]; then
 			local stored=$(stored_hash "$dest_path/$hash_fname")
 			if [ "$computed_hash" != "$stored" ]; then
-				echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, [$dest_path/$hash_fname] exists with stored [$stored], not moving (${action})"
+				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$dest_path/$hash_fname] exists with stored [$stored], not moving (${action})"
 				((ERROR_COUNT++))
 				return 1
 			fi
 		fi
 
         mv "$src_path/$hash_fname" "$dest_path/$hash_fname"
-        echo "File: [$dir] $(basename "$fpath") -- ${action}ing hash file [$dest_path/$hash_fname] -- OK"
+        echo "File: [$dir] \"$(basename "$fpath")\" -- ${action}ing hash file [$dest_path/$hash_fname] -- OK"
         return 0  # No error
 	else
 		if [ -f "$dest_path/$hash_fname" ]; then
 			local stored=$(stored_hash "$dest_path/$hash_fname")
 			if [ "$computed_hash" = "$stored" ]; then
-				echo "File: [$dir] $(basename "$fpath") -- hash file [$dest_path/$hash_fname] exists, not moving (${action}) -- OK"
+				echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_path/$hash_fname] exists, not moving (${action}) -- OK"
 				return 0  # No error
 			fi
 		fi
 
-        echo "ERROR: [$dir] $(basename "$fpath") -- NO hash file found in [$src_path], not ${action}ing"
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found in [$src_path], not ${action}ing"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist for the action
     fi

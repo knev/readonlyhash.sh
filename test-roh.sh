@@ -111,39 +111,39 @@ echo "write_hash()"
 
 mkdir -p "$TEST"
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -w test" "0" "File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST] file with spaces.txt -- OK"
+run_test "$ROH_SCRIPT -w test" "0" "File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST] \"file with spaces.txt\" -- OK"
 run_test "$ROH_SCRIPT -w test" "0" "File: " "true"
 
 mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w test" "1" "ERROR: [$TEST] file with spaces.txt -- hash file [$TEST/file with spaces.txt.sha256] exists and is NOT hidden" "1"
+run_test "$ROH_SCRIPT -w test" "1" "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists and is NOT hidden" "1"
 
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
 echo "ZYXW" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -w test" "1" "ERROR: [test] file with spaces.txt -- hash mismatch, [test/.roh/file with spaces.txt.sha256] exists with stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]"
+run_test "$ROH_SCRIPT -w test" "1" "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, [test/.roh/file with spaces.txt.sha256] exists with stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]"
 
 chmod 000 "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w --force test" "1" "ERROR: [test] file with spaces.txt -- failed to write hash to [test/.roh/file with spaces.txt.sha256] -- (FORCED)"
+run_test "$ROH_SCRIPT -w --force test" "1" "ERROR: [test] \"file with spaces.txt\" -- failed to write hash to [test/.roh/file with spaces.txt.sha256] -- (FORCED)"
 
 chmod 700 "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w --force test" "0" "File: [test] file with spaces.txt -- hash mismatch, [test/.roh/file with spaces.txt.sha256] exists; new hash stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!"
+run_test "$ROH_SCRIPT -w --force test" "0" "File: [test] \"file with spaces.txt\" -- hash mismatch, [test/.roh/file with spaces.txt.sha256] exists; new hash stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!"
 
 # delete_hash()
 echo
 echo "delete_hash()"
 
 mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -d test" "1" "ERROR: [test] file with spaces.txt -- found existing hash in [test]; can only delete hidden hashes"
+run_test "$ROH_SCRIPT -d test" "1" "ERROR: [test] \"file with spaces.txt\" -- found existing hash in [test]; can only delete hidden hashes"
 
 mkdir -p "$TEST/$ROH_DIR"
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -d test" "1" "ERROR: [test] file with spaces.txt -- hash mismatch, cannot delete [test/.roh/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]"
+run_test "$ROH_SCRIPT -d test" "1" "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, cannot delete [test/.roh/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]"
 
-run_test "$ROH_SCRIPT -d --force test" "0" "File: [test] file with spaces.txt -- hash mismatch, [test/.roh/file with spaces.txt.sha256] deleted with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!"
+run_test "$ROH_SCRIPT -d --force test" "0" "File: [test] \"file with spaces.txt\" -- hash mismatch, [test/.roh/file with spaces.txt.sha256] deleted with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!"
 
 echo "ZYXW" > "$TEST/file with spaces.txt"
 $ROH_SCRIPT -w test >/dev/null 2>&1
-run_test "$ROH_SCRIPT -d test" "0" "File: [test] file with spaces.txt -- hash file in [test/.roh] deleted -- OK"
+run_test "$ROH_SCRIPT -d test" "0" "File: [test] \"file with spaces.txt\" -- hash file in [test/.roh] deleted -- OK"
 
 run_test "$ROH_SCRIPT -d test" "0" "File: " "true"
 
@@ -151,30 +151,30 @@ run_test "$ROH_SCRIPT -d test" "0" "File: " "true"
 echo
 echo "verify_hash()"
 
-run_test "$ROH_SCRIPT -v test" "1" "ERROR: [test] file with spaces.txt -- no hash file exists in [test/.roh]"
+run_test "$ROH_SCRIPT -v test" "1" "ERROR: [test] \"file with spaces.txt\" -- no hash file exists in [test/.roh]"
 
 $ROH_SCRIPT -w test >/dev/null 2>&1
-run_test "$ROH_SCRIPT -v test" "0" "File: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test]  -- OK"
+run_test "$ROH_SCRIPT -v test" "0" "File: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test] \"file with spaces.txt\" -- OK"
 
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -v test" "1" "ERROR: [test] file with spaces.txt - hash mismatch: [test/.roh/file with spaces.txt.sha256] stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]"
+run_test "$ROH_SCRIPT -v test" "1" "ERROR: [test] \"file with spaces.txt\" - hash mismatch: [test/.roh/file with spaces.txt.sha256] stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]"
 
 # manage_hash_visibility
 echo
 echo "manage_hash_visibility()"
 
 cp "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -s test" "1" "ERROR: [test] file with spaces.txt -- hash mismatch, [test/file with spaces.txt.sha256] exists with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], not moving (show)"
+run_test "$ROH_SCRIPT -s test" "1" "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, [test/file with spaces.txt.sha256] exists with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], not moving (show)"
 
 rm "$TEST/$ROH_DIR/file with spaces.txt.sha256"
 echo "ZYXW" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -s test" "0" "File: [test] file with spaces.txt -- hash file [test/file with spaces.txt.sha256] exists, not moving (show) -- OK"
+run_test "$ROH_SCRIPT -s test" "0" "File: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists, not moving (show) -- OK"
 
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -s test" "0" "File: [test] file with spaces.txt -- showing hash file [test/file with spaces.txt.sha256] -- OK"
+run_test "$ROH_SCRIPT -s test" "0" "File: [test] \"file with spaces.txt\" -- showing hash file [test/file with spaces.txt.sha256] -- OK"
 
 rm "$TEST/file with spaces.txt.sha256"
-run_test "$ROH_SCRIPT -s test" "1" "ERROR: [test] file with spaces.txt -- NO hash file found in [test/.roh], not showing"
+run_test "$ROH_SCRIPT -s test" "1" "ERROR: [test] \"file with spaces.txt\" -- NO hash file found in [test/.roh], not showing"
 
 # process_directory()
 echo
