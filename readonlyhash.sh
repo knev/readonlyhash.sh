@@ -63,6 +63,33 @@ stored_hash() {
     cat "$hash_file" 2>/dev/null || echo "no_hash_file"
 }
 
+verify_hash() {
+    local dir="$1"
+    local fpath="$2"
+
+    local hash_fname="$(basename "$fpath").sha256"
+    local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
+
+    if [ ! -f "$roh_hash_fpath" ]; then
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- no hash file exists in [$dir/$ROH_DIR]"
+        ((ERROR_COUNT++))
+        return 1  # Error, hash file does not exist
+	fi
+
+	local computed_hash=$(generate_hash "$fpath")
+	local stored=$(stored_hash "$roh_hash_fpath")
+        
+	if [ "$computed_hash" = "$stored" ]; then
+		#echo "File: $(basename "$file") -- hash matches: [$computed_hash]"
+		echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
+		return 0  # No error
+	else
+		echo "ERROR: [$dir] \"$(basename "$fpath")\" - hash mismatch: [$roh_hash_fpath] stored [$stored], computed [$computed_hash]"
+		((ERROR_COUNT++))
+		return 1  # Error, hash mismatch
+	fi
+}
+
 # New function for hashing
 write_hash() {
     local dir="$1"
@@ -154,33 +181,6 @@ delete_hash() {
 			((ERROR_COUNT++))
 			return 1  # Error, hash mismatch
 		fi
-	fi
-}
-
-verify_hash() {
-    local dir="$1"
-    local fpath="$2"
-
-    local hash_fname="$(basename "$fpath").sha256"
-    local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
-
-    if [ ! -f "$roh_hash_fpath" ]; then
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- no hash file exists in [$dir/$ROH_DIR]"
-        ((ERROR_COUNT++))
-        return 1  # Error, hash file does not exist
-	fi
-
-	local computed_hash=$(generate_hash "$fpath")
-	local stored=$(stored_hash "$roh_hash_fpath")
-        
-	if [ "$computed_hash" = "$stored" ]; then
-		#echo "File: $(basename "$file") -- hash matches: [$computed_hash]"
-		echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
-		return 0  # No error
-	else
-		echo "ERROR: [$dir] \"$(basename "$fpath")\" - hash mismatch: [$roh_hash_fpath] stored [$stored], computed [$computed_hash]"
-		((ERROR_COUNT++))
-		return 1  # Error, hash mismatch
 	fi
 }
 
