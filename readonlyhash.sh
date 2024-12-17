@@ -89,8 +89,14 @@ write_hash() {
 			return 0
 		else
 			if [ "$force_mode" = "true" ]; then
-				echo "File: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] exists; new hash stored [$new_hash] -- FORCED!"
-				# fall through ...
+				if echo "$new_hash" > "$roh_hash_fpath"; then
+					echo "File: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] exists; new hash stored [$new_hash] -- FORCED!"
+					return 0  # No error
+				else
+					echo "ERROR: [$dir] $(basename "$fpath") -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
+					((ERROR_COUNT++))
+					return 1  # Signal that an error occurred
+				fi
 			else
 				echo "ERROR: [$dir] $(basename "$fpath") -- hash mismatch, [$roh_hash_fpath] exists with stored [$stored]"
 				((ERROR_COUNT++))
@@ -100,9 +106,7 @@ write_hash() {
 	fi
 
 	if echo "$new_hash" > "$roh_hash_fpath"; then
-		if [ "$force_mode" != "true" ]; then
-			echo "File: [$new_hash]: [$dir] $(basename "$fpath") -- $status_output"
-		fi
+		echo "File: [$new_hash]: [$dir] $(basename "$fpath") -- OK"
 		return 0  # No error
 	else
 		echo "ERROR: [$dir] $(basename "$fpath") -- failed to write hash to [$roh_hash_fpath]"
