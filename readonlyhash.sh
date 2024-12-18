@@ -18,7 +18,7 @@ usage() {
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
-ROH_DIR=".roh"
+ROH_DIR=".roh.git"
 
 # Variable for SHA-256 hash command
 #SHA256_BIN="sha256sum" # linux native, macOS via brew install coreutils
@@ -60,8 +60,9 @@ generate_hash() {
 
 stored_hash() {
     local hash_file="$1"
-    cat "$hash_file" 2>/dev/null || echo "no_hash_file"
+    cat "$hash_file" 2>/dev/null || echo "0000000000000000000000000000000000000000000000000000000000000000"
 }
+
 
 verify_hash() {
     local dir="$1"
@@ -70,13 +71,14 @@ verify_hash() {
     local hash_fname="$(basename "$fpath").sha256"
     local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
 
+	local computed_hash=$(generate_hash "$fpath")
+
     if [ ! -f "$roh_hash_fpath" ]; then
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- no hash file exists in [$dir/$ROH_DIR]"
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found in [$dir/$ROH_DIR] for [$fpath][$computed_hash]"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist
 	fi
 
-	local computed_hash=$(generate_hash "$fpath")
 	local stored=$(stored_hash "$roh_hash_fpath")
         
 	if [ "$computed_hash" = "$stored" ]; then
@@ -84,7 +86,7 @@ verify_hash() {
 		echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
 		return 0  # No error
 	else
-		echo "ERROR: [$dir] \"$(basename "$fpath")\" - hash mismatch: [$roh_hash_fpath] stored [$stored], computed [$computed_hash]"
+		echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: stored [$roh_hash_fpath][$stored], computed [$fpath][$computed_hash]"
 		((ERROR_COUNT++))
 		return 1  # Error, hash mismatch
 	fi
@@ -284,12 +286,27 @@ process_directory() {
         fi
     done
 
-	if [ "$delete_mode" = "true" ] && [ -d "$dir/$ROH_DIR" ]; then
-		if ! rmdir "$dir/$ROH_DIR" 2>/dev/null; then
-			echo "Directory [$dir/$ROH_DIR] not empty"
-			((ERROR_COUNT++))
-		fi
+	if [ "$verify_mode" = "true" ]; then
+		# Now check for hash files without corresponding files
+		for roh_hash_fpath in "$dir/$ROH_DIR"/*.sha256; do
+			[ ! -f "$roh_hash_fpath" ] && continue
+
+			local file_fname=$(basename "$roh_hash_fpath" .sha256)
+			local fpath="$dir/$file_fname"
+			if ! stat "$fpath" >/dev/null 2>&1; then
+				local stored=$(stored_hash "$roh_hash_fpath")
+				echo "ERROR: [$dir] -- NO file [$fpath] found for corresponding hash [$roh_hash_fpath][$stored]"
+				((ERROR_COUNT++))
+			fi
+		done
 	fi
+
+	#	if [ "$delete_mode" = "true" ] && [ -d "$dir/$ROH_DIR" ]; then
+	#		if ! rmdir "$dir/$ROH_DIR" 2>/dev/null; then
+	#			echo "Directory [$dir/$ROH_DIR] not empty"
+	#			((ERROR_COUNT++))
+	#		fi
+	#	fi
 }
 
 # Parse command line options

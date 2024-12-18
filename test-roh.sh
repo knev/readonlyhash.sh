@@ -101,7 +101,7 @@ run_test() {
 	fi
 }
 
-ROH_DIR=".roh"
+ROH_DIR=".roh.git"
 TEST="test"
 rm -rf "$TEST"
 
@@ -158,8 +158,12 @@ run_test "$ROH_SCRIPT -v $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- N
 $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
 run_test "$ROH_SCRIPT -v $TEST" "0" "File: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test] \"file with spaces.txt\" -- OK"
 
+mkdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
+run_test "$ROH_SCRIPT -v $TEST" "0" "ERROR: [test] -- NO file [] found for corresponding hash [test/.roh.git/this_is_a_directory.sha256]" "true"
+rmdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
+
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -v $TEST" "1" "ERROR: [test] \"file with spaces.txt\" - hash mismatch: [test/$ROH_DIR/file with spaces.txt.sha256] stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]"
+run_test "$ROH_SCRIPT -v $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- hash mismatch: stored [test/$ROH_DIR/file with spaces.txt.sha256][349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], computed [test/file with spaces.txt][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]"
 
 # manage_hash_visibility
 echo
@@ -188,12 +192,12 @@ run_test "$ROH_SCRIPT -w $TEST" "1" "ERROR: [test] \"file with spaces.rslsz\" --
 run_test "$ROH_SCRIPT -d $TEST" "0" "ERROR: [test] \"file with spaces.rslsz\" -- file with restricted extension" "true"
 rm "$TEST/file with spaces.rslsz"
  
-mkdir -p "$TEST/$ROH_DIR"
-touch "$TEST/$ROH_DIR/file with spaces.txt.sha256~"
-run_test "$ROH_SCRIPT -d $TEST" "1" "Directory [test/$ROH_DIR] not empty" 
-
-rm "$TEST/$ROH_DIR/file with spaces.txt.sha256~"
-run_test "$ROH_SCRIPT -d $TEST" "0" "Directory [test/$ROH_DIR] not empty" "true"
+#	mkdir -p "$TEST/$ROH_DIR"
+#	touch "$TEST/$ROH_DIR/file with spaces.txt.sha256~"
+#	run_test "$ROH_SCRIPT -d $TEST" "1" "Directory [test/$ROH_DIR] not empty" 
+	
+#	rm "$TEST/$ROH_DIR/file with spaces.txt.sha256~"
+#	run_test "$ROH_SCRIPT -d $TEST" "0" "Directory [test/$ROH_DIR] not empty" "true"
 
 # Parse command line options
 echo
@@ -207,6 +211,8 @@ run_test "$ROH_SCRIPT -v THIS_DIR_SHOULD_NOT_EXIST" "1" "Error: Directory THIS_D
 echo
 echo "# Clean up test files"
 
+rm -rf "$TEST/$ROH_DIR/.git"
+rmdir "$TEST/$ROH_DIR"
 rm "$TEST/file with spaces.txt"
 rmdir "$TEST"
 #  rm -f test_file.txt .roh/test_file.txt.sha256 test_file.txt.sha256 .roh-restricted .roh-ignore
@@ -225,8 +231,7 @@ mkdir -p "$TEST/$ROH_DIR"
 pushd "$TEST" >/dev/null 2>&1
 ROH_SCRIPT="../readonlyhash.sh"
 
-GIT="git -C $ROH_DIR"
-git -C "$ROH_DIR" init >/dev/null 2>&1
+roh_git init >/dev/null 2>&1
 
 # File Added
 echo
@@ -236,8 +241,8 @@ echo "one" > "one.txt"
 echo "two" > "two.txt"
 echo "five" > "five.txt"
 $ROH_SCRIPT -w >/dev/null 2>&1
-git -C "$ROH_DIR" add *.sha256
-git -C "$ROH_DIR" commit -m "File Added" >/dev/null 2>&1
+roh_git add *.sha256 >/dev/null 2>&1
+roh_git commit -m "File Added" >/dev/null 2>&1
 echo "four" > "four.txt"
 # roh will report files that don't have a corresponding hash file
 run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] \"four.txt\" -- NO hash file found in [./$ROH_DIR] for [./four.txt]"
@@ -250,21 +255,26 @@ run_test "git -C $ROH_DIR status" "0" "four.txt.sha256"
 echo
 echo "# File Modified: Content of a file is altered, which updates the file's last modified timestamp"
 
+echo "six" > "two.txt"
+run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] \"two.txt\" -- hash mismatch: stored [./$ROH_DIR/two.txt.sha256][27dd8ed44a83ff94d557f9fd0412ed5a8cbca69ea04922d88c01184a07300a5a], computed [./two.txt][fe2547fe2604b445e70fc9d819062960552f9145bdb043b51986e478a4806a2b]"
+echo "two" > "two.txt"
 
 # File Renamed 
 echo
 echo "# File Renamed: The name of a file is changed"
 
+mv "five.txt" "seven.txt"
+run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] -- NO file found for corresponding hash [./$ROH_DIR/four.txt.sha256]"
+mv "seven.txt" "five.txt"
+
 # File Removed 
 echo
 echo "# File Removed: A file is deleted from the directory"
-#	- roh: shouldn't delete hash files, if the file doesn't exist
-#	- git: hash exists, but file doesn't
-
 # File Moved 
-echo
 echo "# File Moved: A file is moved either within the directory or outside of it"
 
+rm "four.txt"
+run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] -- NO file [./four.txt] found for corresponding hash [./$ROH_DIR/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]"
 
 
 
