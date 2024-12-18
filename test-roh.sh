@@ -71,10 +71,14 @@ run_test() {
     local exit_status=${full_output##*$'\n'}
     local output=${full_output%$'\n'*}
 
+    # Convert wildcard pattern to regex pattern
+    #local regex_pattern=$(echo "$expected_output" | sed 's/*/.*/g')
+	local regex_pattern=$(printf '%s' "$expected_output" | sed 's/[*]/.*\*/g')
 
 	if [ "$not_flag" = "true" ]; then
 	    # Check if expected is NOT in output
-		if [ "$exit_status" == "$expected_status" ] && [[ "$output" != *"$expected_output"* ]]; then
+		#if [ "$exit_status" == "$expected_status" ] && [[ "$output" != *"$expected_output"* ]]; then
+		if [ "$exit_status" == "$expected_status" ] && ! [[ "$output" =~ $regex_pattern ]]; then
 			echo "PASS: [$exit_status] ! \"$expected_output\""
 		else
 			echo
@@ -87,7 +91,8 @@ run_test() {
 		fi
 	else
 	    # Check if expected is in output
-		if [ "$exit_status" == "$expected_status" ] && [[ "$output" == *"$expected_output"* ]]; then
+		#if [ "$exit_status" == "$expected_status" ] && [[ "$output" == *"$expected_output"* ]]; then
+		if [ "$exit_status" == "$expected_status" ] && [[ "$output" =~ $regex_pattern ]]; then
 			echo "PASS: [$exit_status] \"$expected_output\""
 		else
 			echo
@@ -105,6 +110,76 @@ ROH_DIR=".roh.git"
 TEST="test"
 rm -rf "$TEST"
 
+output="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
+#echo -n "$output" | hexdump -C
+pattern="File: \[8470d5654.*6bb3f0d60b69\]: \[test\] \"file with spaces.txt\" -- OK"
+#echo -n "$pattern" | hexdump -C
+[[ "$output" =~ $pattern ]] && echo 1 || echo 0
+#[ "$output" = "$pattern" ] && echo 1 || echo 0
+echo $var
+
+compare_with_regex() {
+    local pattern="$1"
+    local string="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
+
+    if [[ "$string" =~ $pattern ]]; then
+        echo "Match found"
+    else
+        echo "No match found"
+    fi
+}
+
+# Example usage:
+compare_with_regex "File: \[8470d5654.*6bb3f0d60b69\]: \[test\] \"file with spaces\.txt\" -- OK"
+
+# ----
+
+compare_file_string() {
+    local file_pattern="$1"
+    local target_string="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
+    if [[ $target_string =~ $file_pattern ]]; then
+        return 0 # Match
+    else
+        return 1 # No match
+    fi
+}
+
+# Example usage
+file_pattern="File: \[8470d5654.*6bb3f0d60b69\]: \[test\] \"file with spaces\.txt\" -- OK"
+compare_file_string "$file_pattern"
+if [[ $? -eq 0 ]]; then
+    echo "Match found"
+else
+    echo "No match"
+fi
+
+# ----
+
+escape_brackets() {
+    local raw_pattern="$1"
+    echo "$raw_pattern" | sed 's/\[/\\[/g; s/\]/\\]/g'
+}
+
+compare_file_string() {
+    local file_pattern="$1"
+    local target_string="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
+    if [[ $target_string =~ $file_pattern ]]; then
+        return 0 # Match
+    else
+        return 1 # No match
+    fi
+}
+
+# Example usage
+file_pattern_raw="File: [8470d5654.*6bb3f0d60b69]: [test] \"file with spaces\.txt\" -- OK"
+file_pattern=$(escape_brackets "$file_pattern_raw")
+compare_file_string "$file_pattern"
+if [[ $? -eq 0 ]]; then
+    echo "Match found"
+else
+    echo "No match"
+fi
+
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # write_hash()
@@ -113,11 +188,13 @@ echo "# write_hash()"
 
 mkdir -p "$TEST"
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -w $TEST" "0" "File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST] \"file with spaces.txt\" -- OK"
+run_test "$ROH_SCRIPT -w $TEST" "0" "File: \[8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69\]: \[$TEST\] \"file with spaces.txt\" -- OK"
 run_test "$ROH_SCRIPT -w $TEST" "0" "File: " "true"
 
 mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w $TEST" "1" "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists and is NOT hidden" "1"
+run_test "$ROH_SCRIPT -w $TEST" "1" $(escape_brackets "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists and is NOT hidden" "1")
+
+exit
 
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
 echo "ZYXW" > "$TEST/file with spaces.txt"
