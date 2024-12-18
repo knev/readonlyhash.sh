@@ -6,11 +6,18 @@
 ROH_SCRIPT="./readonlyhash.sh"
 chmod +x $ROH_SCRIPT
 
+# !!!NOTE:  this means we can not use [] and () in the regex's passed to run_test()
+#
+escape_expected() {
+    local raw_pattern="$1"
+    echo "$raw_pattern" | sed 's/\[/\\[/g; s/\]/\\]/g; s/(/\\(/g; s/)/\\)/g'
+}
+	
 # Helper function to run commands and check their output
 run_test() {
     local cmd="$1"
     local expected_status="$2"
-    local expected_output="$3"
+    local expected_regex="$3"
     local not_flag="${4:-false}"  # Default not_flag to false if not provided
 
     #	local output=$(eval "$cmd" 2>&1)
@@ -71,34 +78,28 @@ run_test() {
     local exit_status=${full_output##*$'\n'}
     local output=${full_output%$'\n'*}
 
-    # Convert wildcard pattern to regex pattern
-    #local regex_pattern=$(echo "$expected_output" | sed 's/*/.*/g')
-	local regex_pattern=$(printf '%s' "$expected_output" | sed 's/[*]/.*\*/g')
-
 	if [ "$not_flag" = "true" ]; then
 	    # Check if expected is NOT in output
-		#if [ "$exit_status" == "$expected_status" ] && [[ "$output" != *"$expected_output"* ]]; then
-		if [ "$exit_status" == "$expected_status" ] && ! [[ "$output" =~ $regex_pattern ]]; then
-			echo "PASS: [$exit_status] ! \"$expected_output\""
+		if [ "$exit_status" == "$expected_status" ] && ! [[ "$output" =~ $expected_regex ]]; then
+			echo "PASS: [$exit_status] ! \"$expected_regex\""
 		else
 			echo
 			echo "FAIL: $cmd"
 			echo "Exit status: [$exit_status]"
-			echo "Expected to NOT contain: \"$expected_output\""
+			echo "Expected to NOT contain: \"$expected_regex\""
 			echo "----"
 			echo "$output"
 			echo "----"
 		fi
 	else
 	    # Check if expected is in output
-		#if [ "$exit_status" == "$expected_status" ] && [[ "$output" == *"$expected_output"* ]]; then
-		if [ "$exit_status" == "$expected_status" ] && [[ "$output" =~ $regex_pattern ]]; then
-			echo "PASS: [$exit_status] \"$expected_output\""
+		if [ "$exit_status" == "$expected_status" ] && [[ "$output" =~ $expected_regex ]]; then
+			echo "PASS: [$exit_status] \"$expected_regex\""
 		else
 			echo
 			echo "FAIL: $cmd"
 			echo "Exit status: [$exit_status]"
-			echo "Expected to contain: \"$expected_output\""
+			echo "Expected to contain: \"$expected_regex\""
 			echo "----"
 			echo "$output"
 			echo "----"
@@ -106,79 +107,42 @@ run_test() {
 	fi
 }
 
+#	output="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
+#	pattern="File: \[8470d5654.*6bb3f0d60b69\]: \[test\] \"file with spaces.txt\" -- OK"
+#	[[ "$output" =~ $pattern ]] && echo 1 || echo 0
+#	
+#	# ----
+#	
+#	escape_brackets() {
+#	    local raw_pattern="$1"
+#	    echo "$raw_pattern" | sed 's/\[/\\[/g; s/\]/\\]/g'
+#	}
+#	
+#	compare_file_string() {
+#	    local file_pattern="$1"
+#	    local target_string="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
+#	    if [[ $target_string =~ $file_pattern ]]; then
+#	        return 0 # Match
+#	    else
+#	        return 1 # No match
+#	    fi
+#	}
+#	
+#	# Example usage
+#	file_pattern_raw="File: [8470d5654.*6bb3f0d60b69]: [test] \"file with spaces\.txt\" -- OK"
+#	file_pattern=$(escape_brackets "$file_pattern_raw")
+#	compare_file_string "$file_pattern"
+#	if [[ $? -eq 0 ]]; then
+#	    echo "Match found"
+#	else
+#	    echo "No match"
+#	fi
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 ROH_DIR=".roh.git"
 TEST="test"
 rm -rf "$TEST"
-
-output="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
-#echo -n "$output" | hexdump -C
-pattern="File: \[8470d5654.*6bb3f0d60b69\]: \[test\] \"file with spaces.txt\" -- OK"
-#echo -n "$pattern" | hexdump -C
-[[ "$output" =~ $pattern ]] && echo 1 || echo 0
-#[ "$output" = "$pattern" ] && echo 1 || echo 0
-echo $var
-
-compare_with_regex() {
-    local pattern="$1"
-    local string="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
-
-    if [[ "$string" =~ $pattern ]]; then
-        echo "Match found"
-    else
-        echo "No match found"
-    fi
-}
-
-# Example usage:
-compare_with_regex "File: \[8470d5654.*6bb3f0d60b69\]: \[test\] \"file with spaces\.txt\" -- OK"
-
-# ----
-
-compare_file_string() {
-    local file_pattern="$1"
-    local target_string="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
-    if [[ $target_string =~ $file_pattern ]]; then
-        return 0 # Match
-    else
-        return 1 # No match
-    fi
-}
-
-# Example usage
-file_pattern="File: \[8470d5654.*6bb3f0d60b69\]: \[test\] \"file with spaces\.txt\" -- OK"
-compare_file_string "$file_pattern"
-if [[ $? -eq 0 ]]; then
-    echo "Match found"
-else
-    echo "No match"
-fi
-
-# ----
-
-escape_brackets() {
-    local raw_pattern="$1"
-    echo "$raw_pattern" | sed 's/\[/\\[/g; s/\]/\\]/g'
-}
-
-compare_file_string() {
-    local file_pattern="$1"
-    local target_string="File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\" -- OK"
-    if [[ $target_string =~ $file_pattern ]]; then
-        return 0 # Match
-    else
-        return 1 # No match
-    fi
-}
-
-# Example usage
-file_pattern_raw="File: [8470d5654.*6bb3f0d60b69]: [test] \"file with spaces\.txt\" -- OK"
-file_pattern=$(escape_brackets "$file_pattern_raw")
-compare_file_string "$file_pattern"
-if [[ $? -eq 0 ]]; then
-    echo "Match found"
-else
-    echo "No match"
-fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -188,85 +152,83 @@ echo "# write_hash()"
 
 mkdir -p "$TEST"
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -w $TEST" "0" "File: \[8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69\]: \[$TEST\] \"file with spaces.txt\" -- OK"
-run_test "$ROH_SCRIPT -w $TEST" "0" "File: " "true"
+run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST] \"file with spaces.txt\" -- OK")"
+run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: ")" "true"
 
 mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w $TEST" "1" $(escape_brackets "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists and is NOT hidden" "1")
-
-exit
+run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists and is NOT hidden")"
 
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
 echo "ZYXW" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -w $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, [test/$ROH_DIR/file with spaces.txt.sha256] exists with stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]"
+run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, [test/$ROH_DIR/file with spaces.txt.sha256] exists with stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]")"
 
 chmod 000 "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w --force $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- failed to write hash to [test/$ROH_DIR/file with spaces.txt.sha256] -- (FORCED)"
+run_test "$ROH_SCRIPT -w --force $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- failed to write hash to [test/$ROH_DIR/file with spaces.txt.sha256] -- (FORCED)")"
 
 chmod 700 "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w --force $TEST" "0" "File: [test] \"file with spaces.txt\" -- hash mismatch, [test/$ROH_DIR/file with spaces.txt.sha256] exists; new hash stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!"
+run_test "$ROH_SCRIPT -w --force $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash mismatch, [test/$ROH_DIR/file with spaces.txt.sha256] exists; new hash stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!")"
 
 # delete_hash()
 echo
 echo "# delete_hash()"
 
 mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -d $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- found existing hash in [test]; can only delete hidden hashes"
+run_test "$ROH_SCRIPT -d $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- found existing hash in [test]; can only delete hidden hashes")"
 
 mkdir -p "$TEST/$ROH_DIR"
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -d $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, cannot delete [test/$ROH_DIR/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]"
+run_test "$ROH_SCRIPT -d $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, cannot delete [test/$ROH_DIR/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]")"
 
-run_test "$ROH_SCRIPT -d --force $TEST" "0" "File: [test] \"file with spaces.txt\" -- hash mismatch, [test/$ROH_DIR/file with spaces.txt.sha256] deleted with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!"
+run_test "$ROH_SCRIPT -d --force $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash mismatch, [test/$ROH_DIR/file with spaces.txt.sha256] deleted with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!")"
 
 echo "ZYXW" > "$TEST/file with spaces.txt"
 $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
-run_test "$ROH_SCRIPT -d $TEST" "0" "File: [test] \"file with spaces.txt\" -- hash file in [test/$ROH_DIR] deleted -- OK"
+run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash file in [test/$ROH_DIR] deleted -- OK")"
 
-run_test "$ROH_SCRIPT -d $TEST" "0" "File: " "true"
+run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "File: ")" "true"
 
 # verify_hash
 echo
 echo "# verify_hash()"
 
-run_test "$ROH_SCRIPT -v $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- NO hash file found in [test/$ROH_DIR] for [test/file with spaces.txt]"
+run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- NO hash file found in [test/$ROH_DIR] for [test/file with spaces.txt]")"
 
 $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
-run_test "$ROH_SCRIPT -v $TEST" "0" "File: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test] \"file with spaces.txt\" -- OK"
+run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "File: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test] \"file with spaces.txt\" -- OK")"
 
 mkdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
-run_test "$ROH_SCRIPT -v $TEST" "0" "ERROR: [test] -- NO file [] found for corresponding hash [test/.roh.git/this_is_a_directory.sha256]" "true"
+run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: [test] -- NO file [] found for corresponding hash [test/.roh.git/this_is_a_directory.sha256]")" "true"
 rmdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
 
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -v $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- hash mismatch: stored [test/$ROH_DIR/file with spaces.txt.sha256][349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], computed [test/file with spaces.txt][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]"
+run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch: stored [test/$ROH_DIR/file with spaces.txt.sha256][349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], computed [test/file with spaces.txt][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]")"
 
 # manage_hash_visibility
 echo
 echo "# manage_hash_visibility()"
 
 cp "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -s $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, [test/file with spaces.txt.sha256] exists with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], not moving (show)"
+run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, [test/file with spaces.txt.sha256] exists with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], not moving (show)")"
 
 rm "$TEST/$ROH_DIR/file with spaces.txt.sha256"
 echo "ZYXW" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -s $TEST" "0" "File: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists, not moving (show) -- OK"
+run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists, not moving (show) -- OK")"
 
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -s $TEST" "0" "File: [test] \"file with spaces.txt\" -- showing hash file [test/file with spaces.txt.sha256] -- OK"
+run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- showing hash file [test/file with spaces.txt.sha256] -- OK")"
 
 rm "$TEST/file with spaces.txt.sha256"
-run_test "$ROH_SCRIPT -s $TEST" "1" "ERROR: [test] \"file with spaces.txt\" -- NO hash file found in [test/$ROH_DIR], not showing"
+run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- NO hash file found in [test/$ROH_DIR], not showing")"
 
 # process_directory()
 echo
 echo "# process_directory()"
 
 touch "$TEST/file with spaces.rslsz"
-run_test "$ROH_SCRIPT -w $TEST" "1" "ERROR: [test] \"file with spaces.rslsz\" -- file with restricted extension" 
+run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.rslsz\" -- file with restricted extension")"
 
-run_test "$ROH_SCRIPT -d $TEST" "0" "ERROR: [test] \"file with spaces.rslsz\" -- file with restricted extension" "true"
+run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "ERROR: [test] \"file with spaces.rslsz\" -- file with restricted extension")" "true"
 rm "$TEST/file with spaces.rslsz"
  
 #	mkdir -p "$TEST/$ROH_DIR"
@@ -322,7 +284,7 @@ roh_git add *.sha256 >/dev/null 2>&1
 roh_git commit -m "File Added" >/dev/null 2>&1
 echo "four" > "four.txt"
 # roh will report files that don't have a corresponding hash file
-run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] \"four.txt\" -- NO hash file found in [./$ROH_DIR] for [./four.txt]"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"four.txt\" -- NO hash file found in [./$ROH_DIR] for [./four.txt]")"
 
 $ROH_SCRIPT -w >/dev/null 2>&1
 # git will show hashes that are untracked
@@ -333,7 +295,7 @@ echo
 echo "# File Modified: Content of a file is altered, which updates the file's last modified timestamp"
 
 echo "six" > "two.txt"
-run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] \"two.txt\" -- hash mismatch: stored [./$ROH_DIR/two.txt.sha256][27dd8ed44a83ff94d557f9fd0412ed5a8cbca69ea04922d88c01184a07300a5a], computed [./two.txt][fe2547fe2604b445e70fc9d819062960552f9145bdb043b51986e478a4806a2b]"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"two.txt\" -- hash mismatch: stored [./$ROH_DIR/two.txt.sha256][27dd8ed44a83ff94d557f9fd0412ed5a8cbca69ea04922d88c01184a07300a5a], computed [./two.txt][fe2547fe2604b445e70fc9d819062960552f9145bdb043b51986e478a4806a2b]")"
 echo "two" > "two.txt"
 
 # File Renamed 
@@ -341,7 +303,7 @@ echo
 echo "# File Renamed: The name of a file is changed"
 
 mv "five.txt" "seven.txt"
-run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] -- NO file found for corresponding hash [./$ROH_DIR/four.txt.sha256]"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] -- NO file found for corresponding hash [./$ROH_DIR/four.txt.sha256]")"
 mv "seven.txt" "five.txt"
 
 # File Removed 
@@ -351,7 +313,25 @@ echo "# File Removed: A file is deleted from the directory"
 echo "# File Moved: A file is moved either within the directory or outside of it"
 
 rm "four.txt"
-run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] -- NO file [./four.txt] found for corresponding hash [./$ROH_DIR/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] -- NO file [./four.txt] found for corresponding hash [./$ROH_DIR/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
+echo "four" > "four.txt"
+
+# File Permissions Changed: The permissions (read, write, execute) of a file are modified.
+echo
+echo "#File Permissions Changed: The permissions (read, write, execute) of a file are modified"
+
+chmod 777 "four.txt"
+run_test "ls -al" "0" "$(escape_expected "-rwxrwxrwx   1 dev  staff.*four.txt")"
+exit
+#run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] -- NO file [./four.txt] found for corresponding hash [./$ROH_DIR/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]"
+
+# File Ownership Changed: The owner or group of a file is changed.
+echo
+echo "#File Ownership Changed: The owner or group of a file is changed"
+
+# File Attributes Changed: Other metadata like timestamps (creation, last access) or file attributes (hidden, system) are modified.
+echo
+echo "#File Attributes Changed: Other metadata like timestamps (creation, last access) or file attributes (hidden, system) are modified"
 
 
 
@@ -369,3 +349,6 @@ popd >/dev/null 2>&1
 
 echo "Done."
 echo
+
+
+
