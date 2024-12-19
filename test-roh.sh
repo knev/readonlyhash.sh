@@ -93,7 +93,7 @@ run_test() {
 		echo
 		echo "# FAIL: [$exit_status] $cmd"
 		echo "# Expected EXIT status: [$expected_status]"
-		echo "# Expected to NOT contain: \"$expected_regex\""
+		echo "# Expected to NOT contain [$ok]: \"$expected_regex\""
 		echo "#----"
 		echo "$output" | sed 's/^/  /'
 		echo "#----"
