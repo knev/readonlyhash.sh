@@ -1,19 +1,24 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $(basename "$0") [OPTIONS|((-w|-d) --force)] [PATH]"
+	echo
+    echo "Usage: $(basename "$0") [OPTIONS|(-w|-d) --force] [PATH]"
     echo "Options:"
 	echo "  -v, --verify   Verify computed hashes against stored hashes"
     echo "  -w, --write    Write SHA256 hashes for files into .roh directory"
     echo "  -d, --delete   Delete hash files for specified files"
-    echo "  -s, --show     Move hash files from .roh to file's directory"
     echo "  -i, --hide     Move hash files from file's directory to .roh"
-    echo "      --force    Force operation even if hash files do not match"
+    echo "  -s, --show     Move hash files from .roh to file's directory"
     echo "  -r, --recover  Attempt to recover orphaned hashes using verify"
     echo "  -h, --help     Display this help and exit"
+	echo 
 	echo "Note: options -v, -w, -d, -i, -s and -r are mutually exclusive."
+	echo 
+	echo "Flags:"
+    echo "  --force        Force operation even if hash files do not match"
     echo
     echo "If no directory is specified, the current directory is used."
+	echo
 }
 
 # List of file extensions to avoid, comma separated
@@ -382,8 +387,9 @@ delete_mode="false"
 hide_mode="false"
 show_mode="false"
 force_mode="false"
-while getopts ":vwdsih:-:" opt; do
 recover_mode="false"
+while getopts "vwdisrh-:" opt; do
+  # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
     v)
       verify_mode="true"
@@ -454,22 +460,22 @@ recover_mode="false"
   esac
 done
 
-# Check if no mode is specified
-if [ "$write_mode" = "false" ] && [ "$delete_mode" = "false" ] && [ "$show_mode" = "false" ] && [ "$hide_mode" = "false" ] && [ "$verify_mode" = "false" ]; then
+# Check if no mode is specified: if there is a [:space:] in getopts, this will fail e.g., hide_mode= "true"
+if [ "$write_mode" = "false" ] && [ "$delete_mode" = "false" ] && [ "$show_mode" = "false" ] && [ "$hide_mode" = "false" ] && [ "$verify_mode" = "false" ] && [ "$recover_mode" = "false" ]; then
     usage
     exit 0
 fi
 
 # Check for mutually exclusive flags
 mutual_exclusive_count=0
-for mode in "$write_mode" "$delete_mode" "$show_mode" "$hide_mode"; do
+for mode in "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode"; do
     if [ "$mode" = "true" ]; then
         ((mutual_exclusive_count++))
     fi
 done
 
 if [ $mutual_exclusive_count -gt 1 ]; then
-    echo "Error: Options -w, -d, -s, and -h are mutually exclusive. Please use only one." >&2
+    echo "Error: options -v, -w, -d, -i, -s and -r are mutually exclusive. Please use only one." >&2
     usage
     exit 1
 fi
