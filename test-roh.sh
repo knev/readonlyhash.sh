@@ -77,6 +77,7 @@ run_test() {
     local full_output=$( { eval "$cmd" 2>&1; echo $? >&3; } 3>&1 | cat )
     local exit_status=${full_output##*$'\n'}
     local output=${full_output%$'\n'*}
+	output=${output%$'\n'} # Remove the last newline
 
 	local ok="no"
 	if [ "$not_flag" = "true" ]; then
