@@ -327,7 +327,7 @@ rmdir "$TEST"
 echo
 echo "# Requirements"
 
-TEST="test.git"
+TEST="test.roh"
 rm -rf "$TEST"
 mkdir -p "$TEST/$ROH_DIR"
 
