@@ -78,32 +78,43 @@ run_test() {
     local exit_status=${full_output##*$'\n'}
     local output=${full_output%$'\n'*}
 
+	local ok="no"
 	if [ "$not_flag" = "true" ]; then
 	    # Check if expected is NOT in output
-		if [ "$exit_status" == "$expected_status" ] && ! [[ "$output" =~ $expected_regex ]]; then
-			echo "PASS: [$exit_status] ! \"$expected_regex\""
-		else
-			echo
-			echo "FAIL: $cmd"
-			echo "Exit status: [$exit_status]"
-			echo "Expected to NOT contain: \"$expected_regex\""
-			echo "----"
-			echo "$output"
-			echo "----"
+		if ! [[ "$output" =~ $expected_regex ]]; then
+			ok="YES"
+			if [ "$exit_status" == "$expected_status" ]; then
+				echo "PASS: [$exit_status] ! \"$expected_regex\""
+				return 0
+			fi 
 		fi
+
+		echo
+		echo "# FAIL: [$exit_status] $cmd"
+		echo "# Expected EXIT status: [$expected_status]"
+		echo "# Expected to NOT contain: \"$expected_regex\""
+		echo "#----"
+		echo "$output" | sed 's/^/  /'
+		echo "#----"
+		echo
 	else
 	    # Check if expected is in output
-		if [ "$exit_status" == "$expected_status" ] && [[ "$output" =~ $expected_regex ]]; then
-			echo "PASS: [$exit_status] \"$expected_regex\""
-		else
-			echo
-			echo "FAIL: $cmd"
-			echo "Exit status: [$exit_status]"
-			echo "Expected to contain: \"$expected_regex\""
-			echo "----"
-			echo "$output"
-			echo "----"
+		if [[ "$output" =~ $expected_regex ]]; then
+			ok="YES"
+			if [ "$exit_status" == "$expected_status" ]; then
+				echo "PASS: [$exit_status] \"$expected_regex\""
+				return 0
+			fi
 		fi
+
+		echo
+		echo "# FAIL: [$exit_status] $cmd"
+		echo "# Expected EXIT status: [$expected_status]"
+		echo "# Expected to contain [$ok]: \"$expected_regex\""
+		echo "#----"
+		echo "$output" | sed 's/^/  /'
+		echo "#----"
+		echo
 	fi
 }
 
