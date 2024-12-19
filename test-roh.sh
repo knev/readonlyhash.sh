@@ -168,7 +168,7 @@ run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: [8470d56547eea6236
 run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: ")" "true"
 
 mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists and is NOT hidden")"
+run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists/(NOT hidden)")"
 
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
 echo "ZYXW" > "$TEST/file with spaces.txt"
@@ -208,17 +208,27 @@ mkdir "$TEST-empty"
 run_test "$ROH_SCRIPT -v $TEST-empty" "1" "$(escape_expected "ERROR: [test-empty] -- not a ROH directory, missing [$ROH_DIR]")"
 rmdir "$TEST-empty"
 
+echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.sha256"
+run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists/(NOT hidden)")"
+# see also first test in manage_hash_visibility: ERROR:.* -- hash file [.*] exists/(NOT hidden)
+rm "$TEST/file with spaces.txt.sha256"
+
 run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- NO hash file found in [test/$ROH_DIR] for [test/file with spaces.txt]")"
 
 $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
-run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "File: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test] \"file with spaces.txt\" -- OK")"
-
-mkdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
-run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: [test] -- NO file [] found for corresponding hash [test/.roh.git/this_is_a_directory.sha256]")" "true"
-rmdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
+run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "File: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test] \"file with spaces.txt\" -- [test/file with spaces.txt] -- OK")"
 
 echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch: stored [test/$ROH_DIR/file with spaces.txt.sha256][349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], computed [test/file with spaces.txt][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]")"
+run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch:.* stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test/$ROH_DIR/file with spaces.txt.sha256].* computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test/file with spaces.txt]")"
+echo "ZYXW" > "$TEST/file with spaces.txt"
+
+mkdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
+run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: [test] -- NO file [.*] found for corresponding hash [test/$ROH_DIR/this_is_a_directory.sha256][.*]")" "true"
+rmdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
+
+rm "$TEST/file with spaces.txt"
+run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] -- NO file [test/file with spaces.txt] found for corresponding hash [test/$ROH_DIR/file with spaces.txt.sha256][349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]")" 
+echo "ZYXW" > "$TEST/file with spaces.txt"
 
 # recover_hash
 echo
@@ -245,18 +255,25 @@ $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
 echo
 echo "# manage_hash_visibility()"
 
+$ROH_SCRIPT -s "$TEST" >/dev/null 2>&1
+run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR:.* -- hash file [.*] exists/(NOT hidden)")"
+$ROH_SCRIPT -i "$TEST" >/dev/null 2>&1
+
 cp "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, [test/file with spaces.txt.sha256] exists with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], not moving (show)")"
+run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, [test/file with spaces.txt.sha256] exists/(shown) with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], not moving/(showing)")"
+$ROH_SCRIPT -i "$TEST" >/dev/null 2>&1
+rm "$TEST/file with spaces.txt.sha256"
 
-rm "$TEST/$ROH_DIR/file with spaces.txt.sha256"
-echo "ZYXW" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists, not moving (show) -- OK")"
+run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] moved(shown) -- OK")"
+$ROH_SCRIPT -i "$TEST" >/dev/null 2>&1
 
-mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- showing hash file [test/file with spaces.txt.sha256] -- OK")"
+mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
+run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists(shown), NOT moving/(showing) -- OK")"
 
 rm "$TEST/file with spaces.txt.sha256"
 run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- NO hash file found in [test/$ROH_DIR], not showing")"
+$ROH_SCRIPT -i "$TEST" >/dev/null 2>&1
+$ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
 
 # process_directory()
 echo
@@ -314,12 +331,17 @@ run_test "$ROH_SCRIPT -v SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST" "1" "$(escape_e
 echo
 echo "# Clean up test files"
 
+$ROH_SCRIPT -d "$TEST" >/dev/null 2>&1
+
+rm -rf "$TEST/directory with spaces/$ROH_DIR/.git"
+rmdir "$TEST/directory with spaces/$ROH_DIR"
+rm "$TEST/directory with spaces/zyxw.txt"
+rmdir "$TEST/directory with spaces"
 rm -rf "$TEST/$ROH_DIR/.git"
 rmdir "$TEST/$ROH_DIR"
+rm "$TEST/abc.txt"
 rm "$TEST/file with spaces.txt"
 rmdir "$TEST"
-#  rm -f test_file.txt .roh/test_file.txt.sha256 test_file.txt.sha256 .roh-restricted .roh-ignore
-#  rmdir .roh
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
