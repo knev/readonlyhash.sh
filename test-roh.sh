@@ -350,6 +350,7 @@ echo
 echo "# Requirements"
 
 TEST="test.roh"
+SUBDIR="subdir"
 rm -rf "$TEST"
 mkdir -p "$TEST/$ROH_DIR"
 
@@ -358,6 +359,10 @@ ROH_SCRIPT="../readonlyhash.sh"
 
 roh_git init >/dev/null 2>&1
 
+#--
+# File Changes:
+#
+
 # File Added
 echo
 echo "# File Added: A new file is added to the directory"
@@ -365,12 +370,18 @@ echo "# File Added: A new file is added to the directory"
 echo "one" > "one.txt"
 echo "two" > "two.txt"
 echo "five" > "five.txt"
+
+mkdir $SUBDIR
+echo "ten" > "$SUBDIR/ten.txt"
+echo "eleven" > "$SUBDIR/eleven.txt"
+echo "23" > "$SUBDIR/[23].txt"
+
 $ROH_SCRIPT -w >/dev/null 2>&1
 roh_git add *.sha256 >/dev/null 2>&1
 roh_git commit -m "File Added" >/dev/null 2>&1
 echo "four" > "four.txt"
 # roh will report files that don't have a corresponding hash file
-run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"four.txt\" -- NO hash file found in [./$ROH_DIR] for [./four.txt]")"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"four.txt\" -- NO hash file found in [./$ROH_DIR] for [./four.txt][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
 
 $ROH_SCRIPT -w >/dev/null 2>&1
 # git will show hashes that are untracked
@@ -381,55 +392,93 @@ echo
 echo "# File Modified: Content of a file is altered, which updates the file's last modified timestamp"
 
 echo "six" > "two.txt"
-run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"two.txt\" -- hash mismatch: stored [./$ROH_DIR/two.txt.sha256][27dd8ed44a83ff94d557f9fd0412ed5a8cbca69ea04922d88c01184a07300a5a], computed [./two.txt][fe2547fe2604b445e70fc9d819062960552f9145bdb043b51986e478a4806a2b]")"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"two.txt\" -- hash mismatch:.* stored [27dd8ed44a83ff94d557f9fd0412ed5a8cbca69ea04922d88c01184a07300a5a]: [./$ROH_DIR/two.txt.sha256].* computed [fe2547fe2604b445e70fc9d819062960552f9145bdb043b51986e478a4806a2b]: [./two.txt]")"
 echo "two" > "two.txt"
-
-# File Renamed 
-echo
-echo "# File Renamed: The name of a file is changed"
-
-mv "five.txt" "seven.txt"
-run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] -- NO file found for corresponding hash [./$ROH_DIR/four.txt.sha256]")"
-mv "seven.txt" "five.txt"
 
 # File Removed 
 echo
 echo "# File Removed: A file is deleted from the directory"
-# File Moved 
-echo "# File Moved: A file is moved either within the directory or outside of it"
 
 rm "four.txt"
 run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] -- NO file [./four.txt] found for corresponding hash [./$ROH_DIR/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
-echo "four" > "four.txt"
+
+# remove orphaned hashes (in bulk)
+run_test "$ROH_SCRIPT -s" "1" "$(escape_expected "ERROR: [.] -- NO file [./four.txt] found for corresponding hash [./$ROH_DIR/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
+# it should be safe to remove the hashes (!NOT the ROH_DIR!), because hashes have been moved next to files, but we don't want to kill the git repo
+run_test "rm -v $ROH_DIR/*.sha256" "0" ".roh.git/four.txt.sha256"
+run_test "$ROH_SCRIPT -i" "0" "$(escape_expected "ERROR:.* NO file.* found for corresponding hash")" "true"
+
+# File Renamed 
+echo
+echo "# File Renamed: The name of a file is changed"
+# File Moved 
+echo "# File Moved: A file is moved either within the directory or outside of it"
+
+mv "five.txt" "seven.txt"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"seven.txt\" -- NO hash file found in [./$ROH_DIR] for [./seven.txt][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].*ERROR: [.] -- NO file [./five.txt] found for corresponding hash [./$ROH_DIR/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35]")"
+run_test "$ROH_SCRIPT -r" "0" "$(escape_expected "Recovered: [.] \"seven.txt\" -- hash in [./.roh.git/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].* restored for [./seven.txt].* in [./.roh.git/seven.txt.sha256]")"
 
 # File Permissions Changed: The permissions (read, write, execute) of a file are modified.
 echo
 echo "#File Permissions Changed: The permissions (read, write, execute) of a file are modified"
 
-chmod 777 "four.txt"
-run_test "ls -al" "0" "$(escape_expected "-rwxrwxrwx   1 dev  staff.*four.txt")"
-exit
-#run_test "$ROH_SCRIPT -v" "1" "ERROR: [.] -- NO file [./four.txt] found for corresponding hash [./$ROH_DIR/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]"
+chmod 777 "seven.txt"
+run_test "ls -al" "0" "$(escape_expected "-rwxrwxrwx   1 dev  staff.*seven.txt")"
+run_test "$ROH_SCRIPT -v" "0" "$(escape_expected "Number of ERRORs encountered:")" "true"
+
+chmod 000 "seven.txt"
+run_test "ls -al" "0" "$(escape_expected "----------   1 dev  staff.*seven.txt")"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "shasum: ./seven.txt: Permission denied")"
+
+chmod 644 "seven.txt"
 
 # File Ownership Changed: The owner or group of a file is changed.
-echo
-echo "#File Ownership Changed: The owner or group of a file is changed"
+#echo
+#echo "#File Ownership Changed: The owner or group of a file is changed"
 
 # File Attributes Changed: Other metadata like timestamps (creation, last access) or file attributes (hidden, system) are modified.
+#echo
+#echo "#File Attributes Changed: Other metadata like timestamps (creation, last access) or file attributes (hidden, system) are modified"
+
+#--
+#  Directory Structure Changes:
+# 
+
+# Subdirectory Added: A new subdirectory is created within the directory.
+
+
+# Subdirectory Removed
 echo
-echo "#File Attributes Changed: Other metadata like timestamps (creation, last access) or file attributes (hidden, system) are modified"
+echo "# Subdirectory Removed: An existing subdirectory is deleted"
+
+rm -rf "$SUBDIR"
 
 
 
+
+# Subdirectory Moved: A subdirectory is moved either within the directory or outside of it.
+# Subdirectory Renamed: The name of a subdirectory is changed.
+# Directory Permissions Changed: The permissions of the directory itself are modified.
+# Directory Ownership Changed: The owner or group of the directory is changed.
+# 
+# # Miscellaneous Changes:
+# 
+# Missing Directory: The entire directory might be removed or become inaccessible due to permissions or other system issues.
+# Corrupted Files: Files within the directory could become corrupted, although this might not directly change the directory listing but would affect file integrity.
+# Symlinks: Creation, deletion, or modification of symbolic links within the directory.
+# Hard Links: Changes in hard links could affect how files appear within the directory, although this is less common and more OS-specific.
+# 
+# # System-Related Changes:
+# 
+# Mount Points: If the directory is a mount point, changes in the mounted filesystem (like unmounting or remounting) would affect the directory's content or availability.
+# Network Drives: For directories on network drives, network issues or server-side changes can lead to perceived changes in the directory.
 
 # Clean up test files
 echo
 echo "# Clean up test files"
 
-#rm -rf "$TEST/.git"
-#rmdir "$TEST"
-
 popd >/dev/null 2>&1
+rm -rf "$TEST"
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

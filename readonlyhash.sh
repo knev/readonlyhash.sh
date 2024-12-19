@@ -91,7 +91,6 @@ recover_hash() {
 
     # Search for hash files in current directory and subdirectories
 	while IFS= read -r -d '' found_roh_hash_fpath; do
-		echo $found_roh_hash_fpath
         if [ -f "$found_roh_hash_fpath" ]; then
 			local stored=$(stored_hash "$found_roh_hash_fpath")
 			# echo "$found_roh_hash_fpath [$stored]"
@@ -338,6 +337,10 @@ process_directory() {
 	    ensure_dir "$dir/$ROH_DIR"
 	fi
 
+	# diff <(cd test.git && find . -maxdepth 1 -type f -printf "%f\n") <(cd test.git/.roh.git && find . -maxdepth 1 -type f -name "*.sha256" -printf "%f\n" | sed 's/\.sha256$//')
+	# 	- find: -printf: unknown primary or operator
+	# diff <(cd Fotos && find . -maxdepth 1 -type f | sed 's|^./||') <(cd Fotos/.hashes && find . -maxdepth 1 -type f -name "*.sha256" | sed 's|^./||;s/.sha256$//')
+
     for entry in "$dir"/*; do
 		# If the entry is a directory, process it recursively
         if [ -d "$entry" ]; then
@@ -370,7 +373,7 @@ process_directory() {
         fi
     done
 
-	if [ "$verify_mode" = "true" ]; then
+	if [ "$verify_mode" = "true" ] || [ "$show_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
 		# Now check for hash files without corresponding files
 		for roh_hash_fpath in "$dir/$ROH_DIR"/*.sha256; do
 			[ ! -f "$roh_hash_fpath" ] && continue
