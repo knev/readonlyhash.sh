@@ -220,6 +220,27 @@ rmdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
 echo "ABC" > "$TEST/file with spaces.txt"
 run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch: stored [test/$ROH_DIR/file with spaces.txt.sha256][349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff], computed [test/file with spaces.txt][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]")"
 
+# recover_hash
+echo
+echo "# recover_hash()"
+
+mkdir "$TEST/directory with spaces"
+echo "ABC" > "$TEST/abc.txt"
+echo "ABC" > "$TEST/directory with spaces/abc.txt"
+$ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
+mv "$TEST/abc.txt" "$TEST/zyxw.txt"
+
+run_test "$ROH_SCRIPT -r $TEST" "0" "$(escape_expected "WARN: [test] \"zyxw.txt\" -- identical stored [test/directory with spaces/$ROH_DIR/abc.txt.sha256] found for computed [test/zyxw.txt][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]")" 
+
+mv "$TEST/directory with spaces/abc.txt" "$TEST/directory with spaces/zyxw.txt"
+run_test "$ROH_SCRIPT -r $TEST" "0" "$(escape_expected "Recovered: [test/directory with spaces] \"zyxw.txt\" -- hash in [test/directory with spaces/$ROH_DIR/abc.txt.sha256][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69].* restored for [test/directory with spaces/zyxw.txt].* in [test/directory with spaces/$ROH_DIR/zyxw.txt.sha256]")" 
+
+mv "$TEST/zyxw.txt" "$TEST/abc.txt"
+echo "ABC-D" > "$TEST/abc.txt"
+run_test "$ROH_SCRIPT -r $TEST" "1" "$(escape_expected "ERROR: [test] \"abc.txt\" -- could not recover hash for file [test/abc.txt][50962f50838f8cacda3a9c00a6c04880bc0b2de8717df3b2f2cc6d8a72f026c8]")" 
+rm "$TEST/$ROH_DIR/zyxw.txt.sha256"
+$ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
+
 # manage_hash_visibility
 echo
 echo "# manage_hash_visibility()"
