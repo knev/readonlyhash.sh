@@ -320,6 +320,14 @@ process_directory() {
     local recover_mode="$7"	
     local force_mode="$8"
 
+	if [ "$verify_mode" = "true" ]; then
+		if [ ! -d "$dir/$ROH_DIR" ]; then
+			echo "ERROR: [$dir] -- not a ROH directory, missing [$ROH_DIR]"
+			((ERROR_COUNT++))
+			return 1 
+		fi
+	fi
+
 	echo "Processing directory: [$dir]"
 	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
 	    ensure_dir "$dir/$ROH_DIR"

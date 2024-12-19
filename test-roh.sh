@@ -204,6 +204,10 @@ run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "File: ")" "true"
 echo
 echo "# verify_hash()"
 
+mkdir "$TEST-empty"
+run_test "$ROH_SCRIPT -v $TEST-empty" "1" "$(escape_expected "ERROR: [test-empty] -- not a ROH directory, missing [$ROH_DIR]")"
+rmdir "$TEST-empty"
+
 run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- NO hash file found in [test/$ROH_DIR] for [test/file with spaces.txt]")"
 
 $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
