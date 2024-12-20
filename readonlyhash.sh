@@ -31,6 +31,7 @@ ROH_DIR=".roh.git"
 #SHA256_BIN="sha256sum" # linux native, macOS via brew install coreutils
 SHA256_BIN="shasum -a 256" # macOS native
 #SHA256_BIN="openssl sha256" # pre-installed on macOS
+HASH="sha256"
 
 ERROR_COUNT=0
 
@@ -52,6 +53,8 @@ check_extension() {
     return 1  # Extension not found
 }
 
+#------------------------------------------------------------------------------------------------------------------------------------------
+
 # Ensure .roh directory exists
 ensure_dir() {
     local dir="$1"
@@ -70,47 +73,80 @@ stored_hash() {
     cat "$hash_file" 2>/dev/null || echo "0000000000000000000000000000000000000000000000000000000000000000"
 }
 
-strip_roh_dir() {
-    local filepath="$1"
-    local fname=$(basename "$filepath")
-    local fname_no_ext="${fname%.sha256}"
-    local path=$(dirname "$filepath")
+#------------------------------------------------------------------------------------------------------------------------------------------
 
-    # Remove .roh.git from the path
-    local new_path="${path%/$ROH_DIR}"
+remove_top_dir() { [ "$1" = "$2" ] && echo || echo "${2#$1/}"; }
+# remove_top_dir() {
+#     local parent_dir="$1"
+#     local dir="$2"
+#     local result=${dir#${parent_dir}/}
+#     # If string1 is the same as string2, result should be an empty string
+#     if [ "$parent_dir" = "$dir" ]; then
+#         result=""
+#     fi
+#     echo "$result"
+# }
 
-    echo "$new_path/$fname_no_ext"
+fpath_to_hash_fpath() {
+    local dir="$1"
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+    local fpath="$2"
+
+    local hash_fname="$(basename "$fpath").$HASH"
+    local roh_hash_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir/$hash_fname"
+    echo "$roh_hash_path"
 }
+
+fpath_to_dir_hash_fpath() {
+    local dir="$1"
+    local fpath="$2"
+
+    local hash_fname="$(basename "$fpath").$HASH"
+    echo "$dir/$hash_fname"
+}
+
+hash_fpath_to_fpath() {
+    local roh_hash_fpath="$1"
+
+	local sub_filepath="$(remove_top_dir "$ROOT/$ROH_DIR" "$roh_hash_fpath")"
+	local fpath="$ROOT/${sub_filepath%.$HASH}"
+	echo "$fpath"
+}
+
+#------------------------------------------------------------------------------------------------------------------------------------------
 
 # Function to recover hash files
 recover_hash() {
     local dir="$1"
     local fpath="$2"
  	
+	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
+
 	local computed_hash=$(generate_hash "$fpath")
 
     # Search for hash files in current directory and subdirectories
 	while IFS= read -r -d '' found_roh_hash_fpath; do
-        if [ -f "$found_roh_hash_fpath" ]; then
-			local stored=$(stored_hash "$found_roh_hash_fpath")
-			# echo "$found_roh_hash_fpath [$stored]"
-            if [ "$computed_hash" = "$stored" ]; then
- 				local found_fpath=$(strip_roh_dir "$found_roh_hash_fpath")
- 				if [ -f "$found_fpath" ]; then
- 					echo "WARN: [$dir] \"$(basename "$fpath")\" -- identical stored [$found_roh_hash_fpath] found for computed [$fpath][$computed_hash]"
- 				else
-					local hash_fname="$(basename "$fpath").sha256"
-					local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
-					#echo $found_roh_hash_fpath $hash_fname $roh_hash_fpath
-					mv "$found_roh_hash_fpath" "$roh_hash_fpath"
- 					echo "Recovered: [$dir] \"$(basename "$fpath")\" -- hash in [$found_roh_hash_fpath][$stored]"
- 					echo "           ... restored for [$fpath]"
- 					echo "           ...           in [$roh_hash_fpath]"
- 					return 0 
- 				fi
-            fi
+        #if [ -f "$found_roh_hash_fpath" ]; then # "find -type f" takes care of this
+		local found_stored=$(stored_hash "$found_roh_hash_fpath")
+		#echo "FOUND: $found_roh_hash_fpath [$found_stored]"
+        if [ "$computed_hash" = "$found_stored" ]; then
+			# check if the hash has a valid corresponding file
+			local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
+			if [ -f "$found_fpath" ]; then
+				echo "WARN: [$dir] \"$(basename "$fpath")\" -- ..."
+				echo "            ... stored [$found_roh_hash_fpath] -- identical file"
+				echo "      ... for computed [$fpath][$computed_hash]"
+			else
+				echo "MV: [$found_roh_hash_fpath] [$roh_hash_fpath]"
+				mv "$found_roh_hash_fpath" "$roh_hash_fpath"
+				echo "Recovered: [$dir] \"$(basename "$fpath")\" -- hash in [$found_roh_hash_fpath][$found_stored]"
+				echo "           ... restored for [$fpath]"
+				echo "           ...           in [$roh_hash_fpath]"
+				return 0 
+			fi
         fi
-	done < <(find "$ROOT" -name "*.sha256" -print0)
+	done < <(find "$ROOT/$ROH_DIR" -name "*.$HASH" -type f -print0)
 
     echo "ERROR: [$dir] \"$(basename "$fpath")\" -- could not recover hash for file [$fpath][$computed_hash]"
     ((ERROR_COUNT++))
@@ -122,13 +158,18 @@ verify_hash() {
     local fpath="$2"
     local recover_mode="$3"	
 
-    local hash_fname="$(basename "$fpath").sha256"
-    local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
+	# local hash_fname="$(basename "$fpath").$HASH"
+	# local roh_hash_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
+	# local roh_hash_fpath=$roh_hash_path/$hash_fname
+
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 
 	local computed_hash=$(generate_hash "$fpath")
 
-    if [ -f "$dir/$hash_fname" ]; then
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir/$hash_fname] exists/(NOT hidden)"
+	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
+    if [ -f "$dir_hash_fpath" ]; then
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden)"
         ((ERROR_COUNT++))
         return 1  
 	fi
@@ -139,7 +180,10 @@ verify_hash() {
 			recover_hash "$dir" "$fpath"
 			return 1
 		else
-			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found in [$dir/$ROH_DIR] for [$fpath][$computed_hash]"
+			#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file [$roh_hash_fpath] found for [$fpath][$computed_hash]"
+			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- ..."
+			echo "        ... hash file [$roh_hash_fpath] -- NOT found"
+			echo "              ... for [$fpath][$computed_hash]"
 			((ERROR_COUNT++))
 			return 1  # Error, hash file does not exist
 		fi
@@ -169,12 +213,15 @@ write_hash() {
     local fpath="$2"
     local force_mode="$3"
 
-    local hash_fname="$(basename "$fpath").sha256"
-    #local roh_hash_file="$(dirname "$file")/$ROH_DIR/$hash_file"
-    local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 
-    if [ -f "$dir/$hash_fname" ]; then
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir/$hash_fname] exists/(NOT hidden)"
+	#echo "* [$dir]-[$ROOT]= [$sub_dir]; $roh_hash_fpath"
+
+	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
+	echo "**" $dir_hash_fpath
+    if [ -f "$dir_hash_fpath" ]; then
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden)"
         ((ERROR_COUNT++))
         return 1  
 	fi
@@ -189,13 +236,16 @@ write_hash() {
 			return 0
 		else
 			if [ "$force_mode" = "true" ]; then
-				if echo "$new_hash" > "$roh_hash_fpath"; then
-					echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] exists; new hash stored [$new_hash] -- FORCED!"
+				if { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
+					# echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] exists; new hash stored [$new_hash] -- FORCED!"
+					echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
+					echo "       ...   stored [$stored]: [$roh_hash_fpath]"
+					echo "       ... computed [$new_hash]: [$fpath] -- new hash stored -- FORCED!"
 					return 0  # No error
-				else
-					echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
-					((ERROR_COUNT++))
-					return 1  # Signal that an error occurred
+ 				else
+ 					echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
+ 					((ERROR_COUNT++))
+ 					return 1  # Signal that an error occurred
 				fi
 			else
 				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] exists with stored [$stored]"
@@ -205,7 +255,8 @@ write_hash() {
 		fi
 	fi
 
-	if echo "$new_hash" > "$roh_hash_fpath"; then
+	mkdir -p "$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+	if { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
 		echo "File: [$new_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
 		return 0  # No error
 	else
@@ -221,17 +272,18 @@ delete_hash() {
     local fpath="$2"
     local force_mode="$3"
 
-    local hash_fname="$(basename "$fpath").sha256"
-    local roh_hash_fpath="$dir/$ROH_DIR/$hash_fname"
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 
-    if [ -f "$dir/$hash_fname" ]; then
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- found existing hash in [$dir]; can only delete hidden hashes"
+	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
+    if [ -f "$dir_hash_fpath" ]; then
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden); can only delete hidden hashes"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist
 	fi
 
     if [ ! -f "$roh_hash_fpath" ]; then
-        # echo "ERROR: [$dir] \"$(basename "$file")\" -- NO hash file found in [$dir/$ROH_DIR]"
+        # echo "ERROR: [$dir] \"$(basename "$file")\" -- NO hash file found in []"
         # ((ERROR_COUNT++))
         # return 1  # Error, hash file does not exist
 		return 0
@@ -262,16 +314,20 @@ manage_hash_visibility() {
     local fpath="$2"
     local action="$3"
 
-    local hash_fname="$(basename "$fpath").sha256"
+    local hash_fname="$(basename "$fpath").$HASH"
 
-	local src_path
-    local dest_path
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
+
+
+	local src_fpath
+    local dest_fpath
     if [ "$action" = "show" ]; then
-		src_path="$dir/$ROH_DIR"
-		dest_path="$dir"
+		src_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
+		dest_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath") 
     elif [ "$action" = "hide" ]; then
-		src_path="$dir"
-		dest_path="$dir/$ROH_DIR"
+		src_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
+		dest_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
     else
         echo "ERROR: invalid hash visibility action"
         exit 1
@@ -285,37 +341,42 @@ manage_hash_visibility() {
 	local past_tense=$([ "$action" = "show" ] && echo "shown" || echo "hidden")
 	local computed_hash=$(generate_hash "$fpath")
 
-	if [ -f "$src_path/$hash_fname" ]; then
-		if [ -f "$dest_path/$hash_fname" ]; then
-			local stored=$(stored_hash "$dest_path/$hash_fname")
+	if [ -f "$src_fpath" ]; then
+		if [ -f "$dest_fpath" ]; then
+			local stored=$(stored_hash "$dest_fpath")
 			if [ "$computed_hash" = "$stored" ]; then
-				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$dest_path/$hash_fname] exists/($past_tense) with stored [$stored], not moving/(${action}ing)"
+				#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$dest_fpath] exists/($past_tense) with stored [$stored], not moving/(${action}ing)"
+				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
+				echo "       ... [$dest_fpath][$stored] exists/($past_tense), not moving/(${action}ing)"
 				((ERROR_COUNT++))
 				return 1
 			fi
 		fi
 
-        mv "$src_path/$hash_fname" "$dest_path/$hash_fname"
-        echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_path/$hash_fname] moved($past_tense) -- OK"
+        mv "$src_fpath" "$dest_fpath"
+        echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] moved($past_tense) -- OK"
         return 0  # No error
 	else
-		if [ -f "$dest_path/$hash_fname" ]; then
-			local stored=$(stored_hash "$dest_path/$hash_fname")
+		if [ -f "$dest_fpath" ]; then
+			local stored=$(stored_hash "$dest_fpath")
 			if [ "$computed_hash" = "$stored" ]; then
-				echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_path/$hash_fname] exists($past_tense), NOT moving/(${action}ing) -- OK"
+				echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(${action}ing) -- OK"
 				return 0  # No error
 			fi
 		fi
 
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found in [$src_path], not ${action}ing"
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found [$src_fpath] for [$fpath], not ${action}ing"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist for the action
     fi
 }
 
+#------------------------------------------------------------------------------------------------------------------------------------------
+
 # Function to process directory contents recursively
 process_directory() {
     local dir="$1"
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
     local verify_mode="$2"
     local write_mode="$3"
     local delete_mode="$4"
@@ -325,21 +386,14 @@ process_directory() {
     local force_mode="$8"
 
 	if [ "$verify_mode" = "true" ]; then
-		if [ ! -d "$dir/$ROH_DIR" ]; then
-			echo "ERROR: [$dir] -- not a ROH directory, missing [$ROH_DIR]"
+		if [ ! -d "$ROOT/$ROH_DIR" ]; then
+			echo "ERROR: [$dir] -- not a READ-ONLY directory, missing [$ROH_DIR]"
 			((ERROR_COUNT++))
 			return 1 
 		fi
 	fi
 
 	echo "Processing directory: [$dir]"
-	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
-	    ensure_dir "$dir/$ROH_DIR"
-	fi
-
-	# diff <(cd test.git && find . -maxdepth 1 -type f -printf "%f\n") <(cd test.git/.roh.git && find . -maxdepth 1 -type f -name "*.sha256" -printf "%f\n" | sed 's/\.sha256$//')
-	# 	- find: -printf: unknown primary or operator
-	# diff <(cd Fotos && find . -maxdepth 1 -type f | sed 's|^./||') <(cd Fotos/.hashes && find . -maxdepth 1 -type f -name "*.sha256" | sed 's|^./||;s/.sha256$//')
 
     for entry in "$dir"/*; do
 		# If the entry is a directory, process it recursively
@@ -347,7 +401,7 @@ process_directory() {
 			process_directory "$entry" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
 
 		# else ...
-        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.sha256$ ]]; then
+        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]]; then
 			if [ "$delete_mode" != "true" ]; then
 				if check_extension "$entry"; then
 					echo "ERROR: [$dir] \"$(basename "$entry")\" -- file with restricted extension"
@@ -373,28 +427,26 @@ process_directory() {
         fi
     done
 
+	# Now check for hash files without corresponding files
 	if [ "$verify_mode" = "true" ] || [ "$show_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
-		# Now check for hash files without corresponding files
-		for roh_hash_fpath in "$dir/$ROH_DIR"/*.sha256; do
-			[ ! -f "$roh_hash_fpath" ] && continue
-
-			local file_fname=$(basename "$roh_hash_fpath" .sha256)
-			local fpath="$dir/$file_fname"
+		# added "-- maxdepth 1" to find; we actually don't recursive search since process_directory() is recursive 
+		# for roh_hash_fpath in "$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"/*.sha256; do # this probably would have worked
+		while IFS= read -r roh_hash_fpath; do
+			# [ ! -f "$roh_hash_fpath" ] && continue # "find -type f" takes care of this
+			local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
+			# echo "FPATH: [$roh_hash_fpath] [$fpath]"
 			if ! stat "$fpath" >/dev/null 2>&1; then
 				local stored=$(stored_hash "$roh_hash_fpath")
-				echo "ERROR: [$dir] -- NO file [$fpath] found for corresponding hash [$roh_hash_fpath][$stored]"
+				echo "ERROR: [$dir] -- ..."
+				echo "                         ... file [$fpath] -- NOT found"
+				echo "       ... for corresponding hash [$roh_hash_fpath][$stored]"
 				((ERROR_COUNT++))
 			fi
-		done
+		done < <(find "$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir" -maxdepth 1 -name "*.$HASH" -type f)
 	fi
-
-	#	if [ "$delete_mode" = "true" ] && [ -d "$dir/$ROH_DIR" ]; then
-	#		if ! rmdir "$dir/$ROH_DIR" 2>/dev/null; then
-	#			echo "Directory [$dir/$ROH_DIR] not empty"
-	#			((ERROR_COUNT++))
-	#		fi
-	#	fi
 }
+
+#------------------------------------------------------------------------------------------------------------------------------------------
 
 # Parse command line options
 verify_mode="false"
@@ -509,6 +561,9 @@ if [ $OPTIND -le $# ]; then
 fi
 
 if [ -d "$ROOT" ]; then
+	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
+		ensure_dir "$ROOT/$ROH_DIR"
+	fi
 	process_directory "$ROOT" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
     if [ $ERROR_COUNT -gt 0 ]; then
         echo "Number of ERRORs encountered: [$ERROR_COUNT]"
@@ -523,3 +578,5 @@ fi
 
 echo "Done."
 echo
+
+#------------------------------------------------------------------------------------------------------------------------------------------
