@@ -6,9 +6,73 @@
 ROH_SCRIPT="./readonlyhash.sh"
 chmod +x $ROH_SCRIPT
 
-#TODO:
-# -x exit the script on first failure
-# -v always print the output
+usage() {
+	echo
+    echo "Usage: $(basename "$0") [-c|-v]"
+    echo "Options:"
+    echo "  -c, --continue   Continue processing tests even in the event of failure."
+	echo "  -v, --verbose    Display all output regardless if pass or fail."
+    echo "  -h, --help       Display this help and exit"
+	echo 
+	echo "Note: options -c and -v are mutually exclusive."
+	echo 
+}
+
+# Parse command line options
+continue_mode="false"
+verbose_mode="false"
+while getopts "cvh-:" opt; do
+  case $opt in
+    c)
+      continue_mode="true"
+      ;;
+    v)
+      verbose_mode="true"
+      ;;
+    h)
+      usage
+      exit 0
+      ;;
+    -)
+      case "${OPTARG}" in
+        continue)
+          continue_mode="true"
+          ;;
+        verbose)
+          verbose_mode="true"
+          ;;
+        help)
+          usage
+          exit 0
+          ;;
+        *)
+          echo "Invalid option: --${OPTARG}" >&2
+          usage
+          exit 1
+          ;;
+      esac
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+# Check for mutually exclusive flags
+mutual_exclusive_count=0
+for mode in "$continue_mode" "$verbose_mode"; do
+    if [ "$mode" = "true" ]; then
+        ((mutual_exclusive_count++))
+    fi
+done
+
+if [ $mutual_exclusive_count -gt 1 ]; then
+    echo "Error: options -c and -v are mutually exclusive. Please use only one." >&2
+    usage
+    exit 1
+fi
 
 # !!!NOTE:  this means we can not use [] and () in the regex's passed to run_test()
 #
@@ -88,38 +152,58 @@ run_test() {
 	    # Check if expected is NOT in output
 		if ! [[ "$output" =~ $expected_regex ]]; then
 			ok="YES"
-			if [ "$exit_status" == "$expected_status" ]; then
-				echo "PASS: [$exit_status] ! \"$expected_regex\""
+			if [ "$exit_status" == "$expected_status" ] && [ "$verbose_mode" != "true" ]; then
+				echo "PASS: [$cmd][$exit_status] ! \"$expected_regex\""
 				return 0
 			fi 
 		fi
 
 		echo
-		echo "# FAIL: [$exit_status] $cmd"
+		if [ "$verbose_mode" = "true" ]; then
+			echo "# TEST: [$exit_status][$cmd]"
+		else
+			echo "# FAIL: [$exit_status][$cmd]"
+		fi
 		echo "# Expected EXIT status: [$expected_status]"
 		echo "# Expected to NOT contain [$ok]: \"$expected_regex\""
 		echo "#----"
 		echo "$output" | sed 's/^/  /'
 		echo "#----"
 		echo
+
+        if [ "$continue_mode" != "true" ] && [ "$verbose_mode" != "true" ]; then
+			echo "To be continued ..."
+			echo
+			exit 1
+		fi
 	else
 	    # Check if expected is in output
 		if [[ "$output" =~ $expected_regex ]]; then
 			ok="YES"
-			if [ "$exit_status" == "$expected_status" ]; then
-				echo "PASS: [$exit_status] \"$expected_regex\""
+			if [ "$exit_status" == "$expected_status" ] && [ "$verbose_mode" != "true" ]; then
+				echo "PASS: [$cmd][$exit_status] \"$expected_regex\""
 				return 0
 			fi
 		fi
 
 		echo
-		echo "# FAIL: [$exit_status] $cmd"
+		if [ "$verbose_mode" = "true" ]; then
+			echo "# TEST: [$exit_status][$cmd]"
+		else
+			echo "# FAIL: [$exit_status][$cmd]"
+		fi
 		echo "# Expected EXIT status: [$expected_status]"
 		echo "# Expected to contain [$ok]: \"$expected_regex\""
 		echo "#----"
 		echo "$output" | sed 's/^/  /'
 		echo "#----"
 		echo
+
+        if [ "$continue_mode" != "true" ] && [ "$verbose_mode" != "true" ]; then
+			echo "To be continued ..."
+			echo
+			exit 1
+		fi
 	fi
 }
 
