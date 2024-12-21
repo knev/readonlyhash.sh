@@ -65,6 +65,11 @@ ensure_dir() {
 
 generate_hash() {
     local file="$1"
+	if [ ! -r "$file" ]; then
+        echo "ERROR: -- file [$file] not readable or permission denied" >&2
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden)"
+        return 1
+    fi
     echo $($SHA256_BIN "$file" | awk '{print $1}')
 }
 
@@ -87,6 +92,7 @@ remove_top_dir() { [ "$1" = "$2" ] && echo || echo "${2#$1/}"; }
 #     echo "$result"
 # }
 
+# given the path of the file, return the path of the hash (hidden in $ROH_DIR)
 fpath_to_hash_fpath() {
     local dir="$1"
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
@@ -97,6 +103,7 @@ fpath_to_hash_fpath() {
     echo "$roh_hash_path"
 }
 
+# given the path of the file, return the path of the hash (placed/shown next to the file)
 fpath_to_dir_hash_fpath() {
     local dir="$1"
     local fpath="$2"
@@ -105,6 +112,7 @@ fpath_to_dir_hash_fpath() {
     echo "$dir/$hash_fname"
 }
 
+# given the path to the hidden hash, return the path to the corresponding file
 hash_fpath_to_fpath() {
     local roh_hash_fpath="$1"
 
@@ -120,7 +128,7 @@ recover_hash() {
     local dir="$1"
     local fpath="$2"
  	
-	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 
 	local computed_hash=$(generate_hash "$fpath")
@@ -138,8 +146,10 @@ recover_hash() {
 				echo "            ... stored [$found_roh_hash_fpath] -- identical file"
 				echo "      ... for computed [$fpath][$computed_hash]"
 			else
-				echo "MV: [$found_roh_hash_fpath] [$roh_hash_fpath]"
+				local roh_hash_just_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+				mkdir -p "$roh_hash_just_path"
 				mv "$found_roh_hash_fpath" "$roh_hash_fpath"
+				# echo "MV: mkdir $roh_hash_just_path; [$found_roh_hash_fpath] [$roh_hash_fpath]"
 				echo "Recovered: [$dir] \"$(basename "$fpath")\" -- hash in [$found_roh_hash_fpath][$found_stored]"
 				echo "           ... restored for [$fpath]"
 				echo "           ...           in [$roh_hash_fpath]"
@@ -219,7 +229,6 @@ write_hash() {
 	#echo "* [$dir]-[$ROOT]= [$sub_dir]; $roh_hash_fpath"
 
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
-	echo "**" $dir_hash_fpath
     if [ -f "$dir_hash_fpath" ]; then
         echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden)"
         ((ERROR_COUNT++))
@@ -255,7 +264,8 @@ write_hash() {
 		fi
 	fi
 
-	mkdir -p "$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+	local roh_hash_just_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+	mkdir -p "$roh_hash_just_path"
 	if { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
 		echo "File: [$new_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
 		return 0  # No error
@@ -314,11 +324,8 @@ manage_hash_visibility() {
     local fpath="$2"
     local action="$3"
 
-    local hash_fname="$(basename "$fpath").$HASH"
-
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
-
 
 	local src_fpath
     local dest_fpath
@@ -347,12 +354,16 @@ manage_hash_visibility() {
 			if [ "$computed_hash" = "$stored" ]; then
 				#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$dest_fpath] exists/($past_tense) with stored [$stored], not moving/(${action}ing)"
 				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
-				echo "       ... [$dest_fpath][$stored] exists/($past_tense), not moving/(${action}ing)"
+				echo "       ... [$dest_fpath][$stored] exists/($past_tense), not moving/(not $past_tense)"
 				((ERROR_COUNT++))
 				return 1
 			fi
 		fi
 
+		if [ "$action" = "hide" ]; then
+			local roh_hash_just_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+			mkdir -p "$roh_hash_just_path"
+		fi
         mv "$src_fpath" "$dest_fpath"
         echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] moved($past_tense) -- OK"
         return 0  # No error
@@ -360,12 +371,12 @@ manage_hash_visibility() {
 		if [ -f "$dest_fpath" ]; then
 			local stored=$(stored_hash "$dest_fpath")
 			if [ "$computed_hash" = "$stored" ]; then
-				echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(${action}ing) -- OK"
+				echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(NOT $past_tense) -- OK"
 				return 0  # No error
 			fi
 		fi
 
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found [$src_fpath] for [$fpath], not ${action}ing"
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found [$src_fpath] for [$fpath], not $past_tense"
         ((ERROR_COUNT++))
         return 1  # Error, hash file does not exist for the action
     fi
@@ -376,7 +387,7 @@ manage_hash_visibility() {
 # Function to process directory contents recursively
 process_directory() {
     local dir="$1"
-	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
     local verify_mode="$2"
     local write_mode="$3"
     local delete_mode="$4"
@@ -385,13 +396,15 @@ process_directory() {
     local recover_mode="$7"	
     local force_mode="$8"
 
-	if [ "$verify_mode" = "true" ]; then
-		if [ ! -d "$ROOT/$ROH_DIR" ]; then
-			echo "ERROR: [$dir] -- not a READ-ONLY directory, missing [$ROH_DIR]"
-			((ERROR_COUNT++))
-			return 1 
-		fi
-	fi
+	# ?! do we care about empty directories
+	#
+	#	if [ "$verify_mode" = "true" ]; then
+	#		if [ ! -d "$ROOT/$ROH_DIR/$sub_dir" ]; then
+	#			echo "ERROR: [$dir] -- not a READ-ONLY directory, missing [$ROOT/$ROH_DIR/$sub_dir]"
+	#			((ERROR_COUNT++))
+	#			return 1 
+	#		fi
+	#	fi
 
 	echo "Processing directory: [$dir]"
 
@@ -427,23 +440,12 @@ process_directory() {
         fi
     done
 
-	# Now check for hash files without corresponding files
-	if [ "$verify_mode" = "true" ] || [ "$show_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
-		# added "-- maxdepth 1" to find; we actually don't recursive search since process_directory() is recursive 
-		# for roh_hash_fpath in "$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"/*.sha256; do # this probably would have worked
-		while IFS= read -r roh_hash_fpath; do
-			# [ ! -f "$roh_hash_fpath" ] && continue # "find -type f" takes care of this
-			local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
-			# echo "FPATH: [$roh_hash_fpath] [$fpath]"
-			if ! stat "$fpath" >/dev/null 2>&1; then
-				local stored=$(stored_hash "$roh_hash_fpath")
-				echo "ERROR: [$dir] -- ..."
-				echo "                         ... file [$fpath] -- NOT found"
-				echo "       ... for corresponding hash [$roh_hash_fpath][$stored]"
-				((ERROR_COUNT++))
-			fi
-		done < <(find "$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir" -maxdepth 1 -name "*.$HASH" -type f)
-	fi
+	# it is not guaranteed that sub_dir has been created in $ROH_DIR for the
+	# sub_dir we are processing e.g., it could be an empty sub dir.
+	#
+	# local roh_hash_just_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+	# [ ! -d "$roh_hash_just_path" ] && return 0
+	# ...
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -560,20 +562,64 @@ if [ $OPTIND -le $# ]; then
     ROOT="${@:$OPTIND:1}"
 fi
 
-if [ -d "$ROOT" ]; then
+#------------------------------------------------------------------------------------------------------------------------------------------
+
+run_directory_process() {
+    local dir="$1"
+	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+    local verify_mode="$2"
+    local write_mode="$3"
+    local delete_mode="$4"
+    local hide_mode="$5"
+    local show_mode="$6"
+    local recover_mode="$7"	
+    local force_mode="$8"
+	
 	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
 		ensure_dir "$ROOT/$ROH_DIR"
 	fi
-	process_directory "$ROOT" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
-    if [ $ERROR_COUNT -gt 0 ]; then
-        echo "Number of ERRORs encountered: [$ERROR_COUNT]"
-		echo
-        exit 1
-    fi
-else
+
+    process_directory "$@"	
+
+	# Needed for verifying a directory for which write never got called
+	[ ! -d "$ROOT/$ROH_DIR" ] && return 0
+    
+	# Now check for hash files without corresponding files
+	while IFS= read -r roh_hash_fpath; do
+		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
+		# echo "FPATH: [$roh_hash_fpath] [$fpath]"
+
+		if [ -d "$roh_hash_fpath" ] && [ "$(basename "$roh_hash_fpath")" != "$ROH_DIR" ]; then
+			#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
+			if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
+				rmdir "$roh_hash_fpath" || echo "Failed to delete $roh_hash_fpath"
+			fi
+			continue;
+		fi
+
+		if ! stat "$fpath" >/dev/null 2>&1; then
+			local stored=$(stored_hash "$roh_hash_fpath")
+			echo "ERROR: --                ... file [$fpath] -- NOT found"
+			echo "       ... for corresponding hash [$roh_hash_fpath][$stored]"
+			((ERROR_COUNT++))
+		fi
+	# exclude "$ROOT/$ROH_DIR/.git" using --prune, return only files
+	# sort, because we want lower directories removed first, so upper directories can be empty and removed
+	# done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.git" -prune -o -type f -name "*" -print)
+	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.git" -prune -o -print | sort -r)
+}
+
+if [ ! -d "$ROOT" ]; then
     echo "Error: Directory [$ROOT] does not exist"
 	echo
     exit 1
+fi
+
+run_directory_process "$ROOT" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
+if [ $ERROR_COUNT -gt 0 ]; then
+	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
+	echo
+	exit 1
 fi
 
 echo "Done."

@@ -223,13 +223,16 @@ run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "File: [test] \"file with
 echo "ABC" > "$TEST/file with spaces.txt"
 
 run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "File: ")" "true"
+$ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
 
 # verify_hash
 echo
 echo "# verify_hash()"
 
 mkdir "$TEST-empty"
-run_test "$ROH_SCRIPT -v $TEST-empty" "1" "$(escape_expected "ERROR: [test-empty] -- not a READ-ONLY directory, missing [$ROH_DIR]")"
+# we don't care about empty directories
+# run_test "$ROH_SCRIPT -v $TEST-empty" "1" "$(escape_expected "ERROR: [test-empty] -- not a READ-ONLY directory, missing [$ROH_DIR]")"
+run_test "$ROH_SCRIPT -v $TEST-empty" "0" "$(escape_expected "Processing directory: [test-empty]")"
 rm -rf "$TEST-empty"
 
 echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.$HASH"
@@ -252,8 +255,8 @@ run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: [test] -- NO file
 rmdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
 
 # verify_hash, process_directory()
-rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
-run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: [test/sub-directory with spaces/sub-sub-directory] --.* file [test/sub-directory with spaces/sub-sub-directory/jkl.txt] -- NOT found.* for corresponding hash [test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256][c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]")"
+rm -v "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
+run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: --.* file [test/sub-directory with spaces/sub-sub-directory/jkl.txt] -- NOT found.* for corresponding hash [test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256][c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]")"
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 
 # recover_hash
@@ -285,7 +288,7 @@ run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR:.* -- hash file [.
 $ROH_SCRIPT -i "$TEST" >/dev/null 2>&1
 
 cp "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch:.* [test/file with spaces.txt.sha256][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69] exists/(shown), not moving/(showing)")"
+run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch:.* [test/file with spaces.txt.sha256][8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69] exists/(shown), not moving/(not shown)")"
 $ROH_SCRIPT -i "$TEST" >/dev/null 2>&1
 rm "$TEST/file with spaces.txt.sha256"
 
@@ -293,10 +296,10 @@ run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with
 $ROH_SCRIPT -i "$TEST" >/dev/null 2>&1
 
 mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
-run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists(shown), NOT moving/(showing) -- OK")"
+run_test "$ROH_SCRIPT -s $TEST" "0" "$(escape_expected "File: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists(shown), NOT moving/(NOT shown) -- OK")"
 
 rm "$TEST/file with spaces.txt.sha256"
-run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- NO hash file found [test/.roh.git/file with spaces.txt.sha256] for [test/file with spaces.txt], not showing")"
+run_test "$ROH_SCRIPT -s $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- NO hash file found [test/.roh.git/file with spaces.txt.sha256] for [test/file with spaces.txt], not shown")"
 $ROH_SCRIPT -i "$TEST" >/dev/null 2>&1
 $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
 
@@ -429,10 +432,10 @@ echo
 echo "# File Removed: A file is deleted from the directory"
 
 rm "four.txt"
-run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] --.* file [./four.txt] -- NOT found.* for corresponding hash [./.roh.git/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: --.* file [./four.txt] -- NOT found.* for corresponding hash [./.roh.git/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
 
 # remove orphaned hashes (in bulk)
-run_test "$ROH_SCRIPT -s" "1" "$(escape_expected "ERROR: [.] --.*file [./four.txt] -- NOT found.* for corresponding hash [./.roh.git/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
+run_test "$ROH_SCRIPT -s" "1" "$(escape_expected "ERROR: --.*file [./four.txt] -- NOT found.* for corresponding hash [./.roh.git/four.txt.sha256][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
 # it should be safe to remove the hashes (!NOT the ROH_DIR!), because hashes have been moved next to files, but we don't want to kill the git repo
 run_test "rm -v $ROH_DIR/*.sha256" "0" ".roh.git/four.txt.sha256"
 run_test "$ROH_SCRIPT -i" "0" "$(escape_expected "ERROR:.* NO file.* found for corresponding hash")" "true"
@@ -444,7 +447,7 @@ echo "# File Renamed: The name of a file is changed"
 echo "# File Moved: A file is moved either within the directory or outside of it"
 
 mv "five.txt" "seven.txt"
-run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"seven.txt\" --.* hash file [./.roh.git/seven.txt.sha256] -- NOT found.* for [./seven.txt][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].*ERROR: [.] --.* file [./five.txt] -- NOT found.* for corresponding hash [./.roh.git/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35]")"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [.] \"seven.txt\" --.* hash file [./.roh.git/seven.txt.sha256] -- NOT found.* for [./seven.txt][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].*ERROR: --.* file [./five.txt] -- NOT found.* for corresponding hash [./.roh.git/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35]")"
 run_test "$ROH_SCRIPT -r" "0" "$(escape_expected "Recovered: [.] \"seven.txt\" -- hash in [./.roh.git/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].* restored for [./seven.txt].* in [./.roh.git/seven.txt.sha256]")"
 
 # File Permissions Changed: The permissions (read, write, execute) of a file are modified.
@@ -457,7 +460,7 @@ run_test "$ROH_SCRIPT -v" "0" "$(escape_expected "Number of ERRORs encountered:"
 
 chmod 000 "seven.txt"
 run_test "ls -al" "0" "$(escape_expected "----------   1 dev  staff.*seven.txt")"
-run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "shasum: ./seven.txt: Permission denied")"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: -- file [./seven.txt] not readable or permission denied")"
 
 chmod 644 "seven.txt"
 
@@ -477,16 +480,34 @@ chmod 644 "seven.txt"
 echo
 echo "# Subdirectory Added: A new subdirectory is created within the directory."
 
-mkdir "this_does_not_exit"
-run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [./this_does_not_exit] -- not a ROH directory, missing [$ROH_DIR]")"
-rmdir "this_does_not_exit"
+
+# we don't care about empty directories
+mkdir "$SUBDIR/this_does_not_exist"
+# run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: [./subdir/this_does_not_exist] -- not a READ-ONLY directory, missing [./$ROH_DIR/subdir/this_does_not_exist]")"
+run_test "$ROH_SCRIPT -v" "0" "$(escape_expected "Processing directory: [./subdir/this_does_not_exist]")"
+rmdir "$SUBDIR/this_does_not_exist"
+
+# we don't care about empty directories (but, we DO care if files are added to empty directories)
+mkdir "$SUBDIR/this_does_not_exist"
+echo "this_does" > "$SUBDIR/this_does_not_exist/this_does.txt"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "Processing directory: [./subdir/this_does_not_exist].*ERROR: [./subdir/this_does_not_exist] \"this_does.txt\" --.* hash file [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256] -- NOT found.* for [./subdir/this_does_not_exist/this_does.txt][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477]")"
+$ROH_SCRIPT -w >/dev/null 2>&1
 
 # Subdirectory Removed
 echo
 echo "# Subdirectory Removed: An existing subdirectory is deleted"
 
-rm -rf "$SUBDIR"
-run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "")"
+# we don't care about empty directories (being removed)
+mkdir "$SUBDIR/this_does_not_exist_either"
+run_test "$ROH_SCRIPT -w" "0" "$(escape_expected "Processing directory: [./subdir/this_does_not_exist_either]")"
+rmdir "$SUBDIR/this_does_not_exist_either"
+run_test "$ROH_SCRIPT -v" "0" "$(escape_expected "Processing directory: [./subdir/this_does_not_exist_either]")" "true"
+
+# we don't care about empty directories (but, we DO care if files are removed along with directories)
+run_test "$ROH_SCRIPT -v" "0" "$(escape_expected "ERROR")" "true"
+rm -rf "$SUBDIR/this_does_not_exist"
+run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "ERROR: --.* file [./subdir/this_does_not_exist/this_does.txt] -- NOT found.* for corresponding hash [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477]")"
+rm "$ROH_DIR/$SUBDIR/this_does_not_exist/this_does.txt.sha256"
 
 # Subdirectory Renamed
 echo
@@ -494,6 +515,19 @@ echo "# Subdirectory Renamed: The name of a subdirectory is changed."
 # Subdirectory Moved
 echo "# Subdirectory Moved: A subdirectory is moved either within the directory or outside of it."
 
+run_test "$ROH_SCRIPT -v" "0" "$(escape_expected "ERROR")" "true"
+mkdir "$SUBDIR/this_does_not_exist"
+echo "this_does" > "$SUBDIR/this_does_not_exist/this_does.txt"
+echo "and_so_does_this" > "$SUBDIR/this_does_not_exist/and_so_does_this.txt"
+$ROH_SCRIPT -w >/dev/null 2>&1
+mv "$SUBDIR/this_does_not_exist" "$SUBDIR/ok_it_does_exist"
+
+#$ROH_SCRIPT -v
+run_test "$ROH_SCRIPT -r" "0" "$(escape_expected "Recovered: [./subdir/ok_it_does_exist] \"and_so_does_this.txt\" -- hash in [./.roh.git/subdir/this_does_not_exist/and_so_does_this.txt.sha256][e5f9ed562b3724db0a83e7797d00492c83594548c5fe8e0a5c885e2bd2ac081d].* restored for [./subdir/ok_it_does_exist/and_so_does_this.txt].* in [./.roh.git/subdir/ok_it_does_exist/and_so_does_this.txt.sha256].*Recovered: [./subdir/ok_it_does_exist] \"this_does.txt\" -- hash in [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477].* restored for [./subdir/ok_it_does_exist/this_does.txt].* in [./.roh.git/subdir/ok_it_does_exist/this_does.txt.sha256]")"
+run_test "$ROH_SCRIPT -v" "0" "$(escape_expected "ERROR")" "true"
+rm "$ROH_DIR/$SUBDIR/ok_it_does_exist/this_does.txt.$HASH"
+rm "$ROH_DIR/$SUBDIR/ok_it_does_exist/and_so_does_this.txt.$HASH"
+rm -rf "$SUBDIR/ok_it_does_exist"
 
 # Directory Permissions Changed: The permissions of the directory itself are modified.
 # Directory Ownership Changed: The owner or group of the directory is changed.
@@ -514,7 +548,21 @@ echo "# Subdirectory Moved: A subdirectory is moved either within the directory 
 echo
 echo "# Clean up test files"
 
+$ROH_SCRIPT -d >/dev/null 2>&1
+
+rm "$SUBDIR/ten.txt"
+rm "$SUBDIR/eleven.txt"
+rm "$SUBDIR/[23].txt"
+rmdir $SUBDIR
+rm "one.txt"
+rm "two.txt"
+rm "seven.txt"
+
 popd >/dev/null 2>&1
+
+rm -rf "$TEST/$ROH_DIR/.git"
+rmdir "$TEST/$ROH_DIR"
+rmdir "$TEST"
 
 run_test "ls -alR $TEST" "1" "$(escape_expected "ls: $TEST: No such file or directory")"
 
