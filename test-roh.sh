@@ -295,6 +295,7 @@ echo "# delete_hash()"
 mv "$TEST/$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
 run_test "$ROH_SCRIPT -d $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] exists/(NOT hidden); can only delete hidden hashes")"
 
+mkdir "$TEST/$ROH_DIR"
 mv "$TEST/file with spaces.txt.sha256" "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
 echo "ABC" > "$TEST/file with spaces.txt"
 run_test "$ROH_SCRIPT -d $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- hash mismatch, cannot delete [test/$ROH_DIR/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]")"

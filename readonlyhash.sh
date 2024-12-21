@@ -589,10 +589,12 @@ run_directory_process() {
 		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
 		# echo "FPATH: [$roh_hash_fpath] [$fpath]"
 
-		if [ -d "$roh_hash_fpath" ] && [ "$(basename "$roh_hash_fpath")" != "$ROH_DIR" ]; then
-			#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
-			if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
-				rmdir "$roh_hash_fpath" || echo "Failed to delete $roh_hash_fpath"
+		if [ -d "$roh_hash_fpath" ]; then
+			if [ "$delete_mode" = "true" ] || [ "$(basename "$roh_hash_fpath")" != "$ROH_DIR" ]; then
+				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
+				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
+					rmdir "$roh_hash_fpath" || echo "Failed to delete $roh_hash_fpath"
+				fi
 			fi
 			continue;
 		fi
