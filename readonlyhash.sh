@@ -609,6 +609,24 @@ run_directory_process() {
 	# sort, because we want lower directories removed first, so upper directories can be empty and removed
 	# done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.git" -prune -o -type f -name "*" -print)
 	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.git" -prune -o -print | sort -r)
+
+
+	if [ "$write_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
+		# Check if the directory name ends with '.ro'
+        if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
+			# Rename the directory by adding '.ro' if it doesn't already have it
+			mv "$dir" "$dir.ro"
+			echo "Renamed $dir to ${dir}.ro"
+		fi		
+	elif [ "$delete_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
+	    # Check if the directory name ends with '.ro'
+        if [[ "$dir" != "." && "$dir" != ".." && $dir == *.ro ]]; then
+	        new_name=${dir%.ro}
+	        # Rename the directory by removing '.ro'
+	        mv "$dir" "$new_name"
+	        echo "Renamed $dir to $new_name"
+	    fi	
+	fi
 }
 
 if [ ! -d "$ROOT" ]; then
