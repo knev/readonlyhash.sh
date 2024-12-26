@@ -191,7 +191,7 @@ verify_hash() {
 			return 1
 		else
 			#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file [$roh_hash_fpath] found for [$fpath][$computed_hash]"
-			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- ..."
+			echo "WARN: [$dir] \"$(basename "$fpath")\" -- ..."
 			echo "        ... hash file [$roh_hash_fpath] -- NOT found"
 			echo "              ... for [$fpath][$computed_hash]"
 			((ERROR_COUNT++))
@@ -406,7 +406,7 @@ process_directory() {
 	#		fi
 	#	fi
 
-	echo "Processing directory: [$dir]"
+	# echo "Processing directory: [$dir]"
 
     for entry in "$dir"/*; do
 		# If the entry is a directory, process it recursively
