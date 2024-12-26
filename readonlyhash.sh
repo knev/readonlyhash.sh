@@ -340,24 +340,32 @@ manage_hash_visibility() {
         exit 1
     fi
 
-	# src yes, dest yes -> check dest hash, if computed!=dest= err else mv
-	# src yes, dest no  -> mv
-	# src no,  dest yes -> check dest hash, if computed=dest; OK else err
-	# src no,  dest no  -> err
+	# # src yes, dest yes -> check dest hash, if computed!=dest= err else mv
+	# # src yes, dest no  -> mv
+	# # src no,  dest yes -> check dest hash, if computed=dest; OK else err
+	# # src no,  dest no  -> err
 	
+	# src yes, dest yes -> err
+	# src yes, dest no  -> mv
+	# src no,  dest yes -> err
+	# src no,  dest no  -> err
+
 	local past_tense=$([ "$action" = "show" ] && echo "shown" || echo "hidden")
-	local computed_hash=$(generate_hash "$fpath")
+	# local computed_hash=$(generate_hash "$fpath")
 
 	if [ -f "$src_fpath" ]; then
 		if [ -f "$dest_fpath" ]; then
-			local stored=$(stored_hash "$dest_fpath")
-			if [ "$computed_hash" = "$stored" ]; then
-				#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$dest_fpath] exists/($past_tense) with stored [$stored], not moving/(${action}ing)"
-				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
-				echo "       ... [$dest_fpath][$stored] exists/($past_tense), not moving/(not $past_tense)"
-				((ERROR_COUNT++))
-				return 1
-			fi
+			# local stored=$(stored_hash "$dest_fpath")
+			# if [ "$computed_hash" = "$stored" ]; then
+			# 	#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$dest_fpath] exists/($past_tense) with stored [$stored], not moving/(${action}ing)"
+			# 	echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
+			# 	echo "       ... [$dest_fpath][$stored] exists/($past_tense), not moving/(not $past_tense)"
+			# 	((ERROR_COUNT++))
+			# 	return 1
+			# fi
+			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- [$dest_fpath][$stored] exists, not moving/(not $past_tense)"
+			((ERROR_COUNT++))
+			return 1
 		fi
 
 		if [ "$action" = "hide" ]; then
@@ -368,13 +376,13 @@ manage_hash_visibility() {
         echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] moved($past_tense) -- OK"
         return 0  # No error
 	else
-		if [ -f "$dest_fpath" ]; then
-			local stored=$(stored_hash "$dest_fpath")
-			if [ "$computed_hash" = "$stored" ]; then
-				echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(NOT $past_tense) -- OK"
-				return 0  # No error
-			fi
-		fi
+		# if [ -f "$dest_fpath" ]; then
+		# 	local stored=$(stored_hash "$dest_fpath")
+		# 	if [ "$computed_hash" = "$stored" ]; then
+		# 		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(NOT $past_tense) -- OK"
+		# 		return 0  # No error
+		# 	fi
+		# fi
 
         echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found [$src_fpath] for [$fpath], not $past_tense"
         ((ERROR_COUNT++))
