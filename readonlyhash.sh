@@ -4,6 +4,7 @@ usage() {
 	echo
     echo "Usage: $(basename "$0") [OPTIONS|(-w|-d) --force] [PATH]"
     echo "Options:"
+	echo "      --hash     Generate a hash of a single file"
 	echo "  -v, --verify   Verify computed hashes against stored hashes"
     echo "  -w, --write    Write SHA256 hashes for files into .roh directory"
     echo "  -d, --delete   Delete hash files for specified files"
@@ -459,6 +460,7 @@ process_directory() {
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 # Parse command line options
+hash_mode="false"
 verify_mode="false"
 write_mode="false"
 delete_mode="false"
@@ -493,6 +495,9 @@ while getopts "vwdisrh-:" opt; do
       ;;	  
     -)
       case "${OPTARG}" in
+        hash)
+          hash_mode="true"
+          ;;		
         verify)
           verify_mode="true"
           ;;		
@@ -538,11 +543,32 @@ while getopts "vwdisrh-:" opt; do
   esac
 done
 
+# Main execution
+if [ $OPTIND -le $# ]; then
+    ROOT="${@:$OPTIND:1}"
+fi
+
 # Check if no mode is specified: if there is a [:space:] in getopts, this will fail e.g., hide_mode= "true"
-if [ "$write_mode" = "false" ] && [ "$delete_mode" = "false" ] && [ "$show_mode" = "false" ] && [ "$hide_mode" = "false" ] && [ "$verify_mode" = "false" ] && [ "$recover_mode" = "false" ]; then
+if [ "$hash_mode" = "false" ] && [ "$verify_mode" = "false" ] && [ "$write_mode" = "false" ] && [ "$delete_mode" = "false" ] && [ "$show_mode" = "false" ] && [ "$hide_mode" = "false" ] && [ "$recover_mode" = "false" ]; then
     usage
     exit 0
 fi
+
+if [ "$hash_mode" = "true" ]; then
+	if [ -f "$ROOT" ]; then
+		fpath="$ROOT"
+		computed_hash=$(generate_hash "$fpath")
+
+		echo "File: [$computed_hash]: \"$(basename "$fpath")\" -- OK"
+		exit 0
+	fi
+
+    echo "Error: [$ROOT] not a file"
+	echo
+    exit 1
+fi
+
+exit
 
 # Check for mutually exclusive flags
 mutual_exclusive_count=0
@@ -563,11 +589,6 @@ if [ "$force_mode" = "true" ] && [ "$delete_mode" != "true" ] && [ "$write_mode"
     echo "Error: --force can only be used with -d/--delete or -w/--write." >&2
     usage
     exit 1
-fi
-
-# Main execution
-if [ $OPTIND -le $# ]; then
-    ROOT="${@:$OPTIND:1}"
 fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
