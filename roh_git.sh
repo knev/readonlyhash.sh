@@ -3,7 +3,7 @@
 usage() {
     echo "Usage: $(basename "$0") [(-zC|(-z) -C) PATH] [ARGUMENTS]"
     echo "Options:"
-	echo "  -C             Verify computed hashes against stored hashes"
+	echo "  -C             Specify the working directory"
 	echo "  -z             Archive the roh_git storage"
     echo "      --force    Force operation"	
     echo "  -h, --help     Display this help and exit"
