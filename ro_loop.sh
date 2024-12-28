@@ -1,5 +1,72 @@
 #!/bin/bash
 
+
+#!/bin/bash
+
+# Check if at least one argument is provided (command)
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <command> [arguments...] <file_path>.loop.txt"
+    exit 1
+fi
+
+# Check if the first argument is an executable command
+if ! which "$1" &> /dev/null; then
+    echo "Error: '$1' is not an executable command."
+    exit 1
+fi
+
+# Find the file path argument with '.ro-list.txt' extension
+file_path=""
+for arg in "$@"; do
+    if [[ "$arg" == *".loop.txt" ]]; then
+        file_path="$arg"
+        break
+    fi
+done
+
+# Check if file path was found
+if [ -z "$file_path" ]; then
+    echo "Error: No file path argument ending with '.loop.txt' found."
+    exit 1
+fi
+
+# Replace file path with placeholder in arguments
+args=()
+while [ "$#" -gt 0 ]; do
+    if [ "$1" = "$file_path" ]; then
+        args+=("%%DIR%%")
+    else
+        args+=("$1")
+    fi
+    shift
+done
+
+# Construct the base command with placeholder
+cmd="${args[@]}"
+
+# Read directories from the file
+while IFS= read -r dir; do
+    # Check if the directory exists
+    if [ -d "$dir" ]; then
+        # Replace placeholder with actual directory path
+        real_cmd="${cmd//%%DIR%%/$dir}"
+        echo "Executing: $real_cmd"
+        eval "$real_cmd"
+        # Check if the command was successful
+        if [ $? -ne 0 ]; then
+            echo "Error: Command '$real_cmd' failed with exit status $?"
+            exit 1
+        fi		
+    else
+        echo "Warning: Directory $dir does not exist."
+    fi
+done < "$file_path"
+
+
+
+exit
+
+
 ROH_BIN="readonlyhash"
 ROH_SWITCHES="-w"  # Add more switches as needed, space separated
 
