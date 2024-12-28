@@ -2,8 +2,9 @@
 # JDK8 := $(shell /usr/libexec/java_home -v 1.8)
 ROH=readonlyhash.sh
 ROH_BIN=readonlyhash
-ROH_GIT=roh_git.sh
-ROH_GIT_BIN=roh_git
+
+ROH_GIT=roh.git.sh
+ROH_GIT_BIN=roh.git
 
 OUT= build
 
