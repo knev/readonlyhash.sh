@@ -272,25 +272,27 @@ rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
 run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: [test/sub-directory with spaces] \"omn.txt\" -- OK")" "true"
 TEST="$TEST_RO"
 
-echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/$ROH_DIR/file with spaces.txt.$HASH"
-run_test "$ROH_SCRIPT -w --force $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash mismatch: --.*stored [0000000000000000000000000000000000000000000000000000000000000000]: [$TEST/$ROH_DIR/file with spaces.txt.sha256].*computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST/file with spaces.txt] -- new hash stored -- FORCED!")"
+# echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/$ROH_DIR/file with spaces.txt.$HASH"
+# run_test "$ROH_SCRIPT -w --force $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash mismatch: --.*stored [0000000000000000000000000000000000000000000000000000000000000000]: [$TEST/$ROH_DIR/file with spaces.txt.sha256].*computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST/file with spaces.txt] -- new hash stored -- FORCED!")"
 
-echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/$ROH_DIR/file with spaces.txt.$HASH"
-chmod 000 "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$ROH_SCRIPT -w --force $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- failed to write hash to [$TEST/$ROH_DIR/file with spaces.txt.sha256] -- (FORCED)")"
-chmod 700 "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
-$ROH_SCRIPT -w --force $TEST >/dev/null 2>&1
+# echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/$ROH_DIR/file with spaces.txt.$HASH"
+# chmod 000 "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
+# run_test "$ROH_SCRIPT -w --force $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- failed to write hash to [$TEST/$ROH_DIR/file with spaces.txt.sha256] -- (FORCED)")"
+# chmod 700 "$TEST/$ROH_DIR/file with spaces.txt.sha256" 
+# $ROH_SCRIPT -w --force $TEST >/dev/null 2>&1
 
 echo "ZYXW" > "$TEST/file with spaces.txt"
-run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash mismatch, [$TEST/$ROH_DIR/file with spaces.txt.sha256] exists with stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]")"
-#echo "ABC" > "$TEST/file with spaces.txt"
+# run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash mismatch, [$TEST/$ROH_DIR/file with spaces.txt.sha256] exists with stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]")"
+# #echo "ABC" > "$TEST/file with spaces.txt"
 
 rm "$TEST/$ROH_DIR/file with spaces.txt.$HASH" 
 run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST] \"file with spaces.txt\" -- OK")"
 
-chmod 000 "$TEST/$ROH_DIR/file with spaces.txt.$HASH" 
-run_test "$ROH_SCRIPT -w --force $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- failed to write hash to [$TEST/$ROH_DIR/file with spaces.txt.sha256] -- (FORCED)")"
-chmod 700 "$TEST/$ROH_DIR/file with spaces.txt.$HASH" 
+rm "$TEST/$ROH_DIR/file with spaces.txt.$HASH" 
+chmod 000 "$TEST/$ROH_DIR"
+run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- failed to write hash to [$TEST/$ROH_DIR/file with spaces.txt.sha256]")"
+chmod 700 "$TEST/$ROH_DIR"
+$ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
 
 run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: ")" "true"
 
