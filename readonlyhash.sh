@@ -563,12 +563,10 @@ if [ "$hash_mode" = "true" ]; then
 		exit 0
 	fi
 
-    echo "Error: [$ROOT] not a file"
+    echo "ERROR: [$ROOT] not a file"
 	echo
     exit 1
 fi
-
-exit
 
 # Check for mutually exclusive flags
 mutual_exclusive_count=0
@@ -579,14 +577,14 @@ for mode in "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode
 done
 
 if [ $mutual_exclusive_count -gt 1 ]; then
-    echo "Error: options -v, -w, -d, -i, -s and -r are mutually exclusive. Please use only one." >&2
+    echo "ERROR: options -v, -w, -d, -i, -s and -r are mutually exclusive. Please use only one." >&2
     usage
     exit 1
 fi
 
 # Check for force_mode usage
 if [ "$force_mode" = "true" ] && [ "$delete_mode" != "true" ] && [ "$write_mode" != "true" ]; then
-    echo "Error: --force can only be used with -d/--delete or -w/--write." >&2
+    echo "ERROR: --force can only be used with -d/--delete or -w/--write." >&2
     usage
     exit 1
 fi
@@ -659,7 +657,7 @@ run_directory_process() {
 }
 
 if [ ! -d "$ROOT" ]; then
-    echo "Error: Directory [$ROOT] does not exist"
+    echo "ERROR: Directory [$ROOT] does not exist"
 	echo
     exit 1
 fi
