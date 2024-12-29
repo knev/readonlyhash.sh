@@ -5,6 +5,7 @@
 # Path to the hash script
 ROH_SCRIPT="./readonlyhash.sh"
 chmod +x $ROH_SCRIPT
+ROH_GIT="roh.git"
 
 usage() {
 	echo
@@ -349,6 +350,22 @@ mkdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
 run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: [$TEST] -- NO file [.*] found for corresponding hash [$TEST/$ROH_DIR/this_is_a_directory.sha256][.*]")" "true"
 # rmdir "$TEST/$ROH_DIR/this_is_a_directory.sha256" # gets removed automagically now
 
+
+#	dev@m2:readonly $ readonlyhash -s Zipped.ro  
+#	ERROR: --                ... file [Zipped.ro/.gitignore] -- NOT found
+#	       ... for corresponding hash [Zipped.ro/.roh.git/.gitignore][.DS_Store.sha256]
+#	Number of ERRORs encountered: [1]
+#	
+#	
+#	dev@m2:readonly $ readonlyhash -i Zipped.ro 
+#	ERROR: --                ... file [Zipped.ro/.gitignore] -- NOT found
+#	       ... for corresponding hash [Zipped.ro/.roh.git/.gitignore][.DS_Store.sha256]
+#	Number of ERRORs encountered: [1]
+
+echo "DS_Store" > "$TEST/$ROH_DIR/.DS_Store"
+$ROH_GIT -C "$TEST" init >/dev/null 2>&1
+run_test "$ROH_SCRIPT -v $TEST" "0" ".DS_Store.$HASH" "true"
+
 # verify_hash, process_directory()
 rm -v "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 run_test "$ROH_SCRIPT -v $TEST" "1" "$(escape_expected "ERROR: --.* file [$TEST/sub-directory with spaces/sub-sub-directory/jkl.txt] -- NOT found.* for corresponding hash [$TEST/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256][c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]")"
@@ -460,6 +477,8 @@ $ROH_SCRIPT -d "$TEST" >/dev/null 2>&1
 TEST="$TEST0"
 
 find "$TEST" -name '.DS_Store' -type f -delete
+rm -rf "$TEST/$ROH_DIR/.git"
+rmdir "$TEST/$ROH_DIR"
 
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR"
@@ -486,7 +505,7 @@ mkdir -p "$TEST/$ROH_DIR"
 pushd "$TEST" >/dev/null 2>&1
 ROH_SCRIPT="../readonlyhash.sh"
 
-roh_git init >/dev/null 2>&1
+$ROH_GIT init >/dev/null 2>&1
 
 #--
 # File Changes:
@@ -506,8 +525,8 @@ echo "eleven" > "$SUBDIR/eleven.txt"
 echo "23" > "$SUBDIR/[23].txt"
 
 $ROH_SCRIPT -w >/dev/null 2>&1
-roh_git add *.sha256 >/dev/null 2>&1
-roh_git commit -m "File Added" >/dev/null 2>&1
+$ROH_GIT add *.sha256 >/dev/null 2>&1
+$ROH_GIT commit -m "File Added" >/dev/null 2>&1
 echo "four" > "four.txt"
 # roh will report files that don't have a corresponding hash file
 run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "WARN: [.] \"four.txt\" --.* hash file [./.roh.git/four.txt.sha256] -- NOT found.* for [./four.txt][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"

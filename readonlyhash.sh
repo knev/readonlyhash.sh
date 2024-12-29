@@ -634,8 +634,8 @@ run_directory_process() {
 		fi
 	# exclude "$ROOT/$ROH_DIR/.git" using --prune, return only files
 	# sort, because we want lower directories removed first, so upper directories can be empty and removed
-	# done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.git" -prune -o -type f -name "*" -print)
-	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.git" -prune -o -print | sort -r)
+	# done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -type f -name "*" -print)
+	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -print | sort -r)
 
 
 	if [ "$write_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
