@@ -16,6 +16,7 @@ usage() {
 	echo "Note: options -v, -w, -d, -i, -s and -r are mutually exclusive."
 	echo 
 	echo "Flags:"
+	echo "  --loop         PATH specifies a \".loop.txt\"; a dir list to loop over"
     echo "  --force        Force operation even if hash files do not match"
     echo
     echo "If no directory is specified, the current directory is used."
@@ -470,6 +471,7 @@ write_mode="false"
 delete_mode="false"
 hide_mode="false"
 show_mode="false"
+loop_mode="false"
 force_mode="false"
 recover_mode="false"
 while getopts "vwdisrh-:" opt; do
@@ -520,6 +522,9 @@ while getopts "vwdisrh-:" opt; do
         recover)
           recover_mode="true"
           ;;		  
+		loop)
+		  loop_mode="true"
+		  ;;
         force)
           force_mode="true"
           ;;
@@ -647,33 +652,78 @@ run_directory_process() {
         if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
 			# Rename the directory by adding '.ro' if it doesn't already have it
 			mv "$dir" "$dir.ro"
-			echo "Renamed $dir to ${dir}.ro"
+			echo "Renamed [$dir] to [${dir}.ro]"
 		fi		
 	elif [ "$delete_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
 	    # Check if the directory name ends with '.ro'
         if [[ "$dir" != "." && "$dir" != ".." && $dir == *.ro ]]; then
-	        new_name=${dir%.ro}
+	        old_name=${dir%.ro}
 	        # Rename the directory by removing '.ro'
-	        mv "$dir" "$new_name"
-	        echo "Renamed $dir to $new_name"
+	        mv "$dir" "$old_name"
+	        echo "Renamed [$dir] to [$old_name]"
 	    fi	
 	fi
 }
 
-if [ ! -d "$ROOT" ]; then
-    echo "ERROR: Directory [$ROOT] does not exist"
-	echo
-    exit 1
-fi
-
-run_directory_process "$ROOT" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
-if [ $ERROR_COUNT -gt 0 ]; then
-	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
-	echo
-	exit 1
-fi
-
-echo "Done."
-echo
-
 #------------------------------------------------------------------------------------------------------------------------------------------
+
+if [ "$loop_mode" = "true" ]; then
+	fpath_loop="$ROOT"
+
+	# Check if the file ends with .ro.txt
+	if [[ ! "$fpath_loop" =~ \.loop\.txt$ ]]; then
+	    echo "ERROR: file path must end with .loop.txt"
+	    exit 1
+	fi
+	
+	# Read each line from the file, assuming each line contains a directory path
+	while IFS= read -r dir; do
+	    # Skip lines that start with '#'
+	    if [[ "$dir" =~ ^#.* ]]; then
+	        continue
+	    fi
+
+		ROOT="$dir"
+	
+	    # Check if directory exists
+	    if [ -d "$dir" ]; then
+	        # Execute readonlyhash with switches for each directory and check exit status
+	        echo "Looping on: [$dir]"
+			run_directory_process "$dir" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
+			if [ $ERROR_COUNT -gt 0 ]; then
+				echo "Number of ERRORs encountered: [$ERROR_COUNT]"
+				echo
+				exit 1
+			else
+				echo "Done."
+				echo
+			fi
+	    else
+	        echo "Warning: Directory [$dir] does not exist, skipping."
+	    fi
+	done < "$fpath_loop"
+	
+	echo "Loop: All executions completed successfully."
+	echo
+
+else
+	if [ ! -d "$ROOT" ]; then
+	    echo "ERROR: Directory [$ROOT] does not exist"
+		echo
+	    exit 1
+	fi
+
+	run_directory_process "$ROOT" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
+	if [ $ERROR_COUNT -gt 0 ]; then
+		echo "Number of ERRORs encountered: [$ERROR_COUNT]"
+		echo
+		exit 1
+	fi
+	
+	echo "Done."
+	echo
+
+fi
+
+
+
