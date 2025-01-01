@@ -647,22 +647,22 @@ run_directory_process() {
 	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -print | sort -r)
 
 
-	if [ "$write_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
-		# Check if the directory name ends with '.ro'
-        if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
-			# Rename the directory by adding '.ro' if it doesn't already have it
-			mv "$dir" "$dir.ro"
-			echo "Renamed [$dir] to [${dir}.ro]"
-		fi		
-	elif [ "$delete_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
-	    # Check if the directory name ends with '.ro'
-        if [[ "$dir" != "." && "$dir" != ".." && $dir == *.ro ]]; then
-	        old_name=${dir%.ro}
-	        # Rename the directory by removing '.ro'
-	        mv "$dir" "$old_name"
-	        echo "Renamed [$dir] to [$old_name]"
-	    fi	
-	fi
+	# if [ "$write_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
+	# 	# Check if the directory name ends with '.ro'
+    #     if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
+	# 		# Rename the directory by adding '.ro' if it doesn't already have it
+	# 		mv "$dir" "$dir.ro"
+	# 		echo "Renamed [$dir] to [${dir}.ro]"
+	# 	fi		
+	# elif [ "$delete_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
+	#     # Check if the directory name ends with '.ro'
+    #     if [[ "$dir" != "." && "$dir" != ".." && $dir == *.ro ]]; then
+	#         old_name=${dir%.ro}
+	#         # Rename the directory by removing '.ro'
+	#         mv "$dir" "$old_name"
+	#         echo "Renamed [$dir] to [$old_name]"
+	#     fi	
+	# fi
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------

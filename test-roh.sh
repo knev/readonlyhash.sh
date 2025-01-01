@@ -244,8 +244,6 @@ run_test() {
 HASH="sha256"
 ROH_DIR=".roh.git"
 TEST="test"
-TEST0="$TEST"
-TEST_RO="$TEST.ro"
 SUBDIR_WITH_SPACES="sub-directory with spaces"
 SUBSUBDIR="sub-sub-directory"
 rm -rf "$TEST"
@@ -270,7 +268,6 @@ run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST/sub-direct
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
 
 run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: [test/sub-directory with spaces] \"omn.txt\" -- OK")" "true"
-TEST="$TEST_RO"
 
 # echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/$ROH_DIR/file with spaces.txt.$HASH"
 # run_test "$ROH_SCRIPT -w --force $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash mismatch: --.*stored [0000000000000000000000000000000000000000000000000000000000000000]: [$TEST/$ROH_DIR/file with spaces.txt.sha256].*computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST/file with spaces.txt] -- new hash stored -- FORCED!")"
@@ -309,18 +306,14 @@ echo "ABC" > "$TEST/file with spaces.txt"
 run_test "$ROH_SCRIPT -d $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash mismatch, cannot delete [$TEST/$ROH_DIR/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]")"
 
 run_test "$ROH_SCRIPT -d --force $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash mismatch, [$TEST/$ROH_DIR/file with spaces.txt.sha256] deleted with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!")"
-TEST="$TEST0"
 
 echo "ZYXW" > "$TEST/file with spaces.txt"
 $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
-TEST="$TEST_RO"
 run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash file in [$TEST/$ROH_DIR] deleted -- OK")"
-TEST="$TEST0"
 echo "ABC" > "$TEST/file with spaces.txt"
 
 run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "File: ")" "true"
 $ROH_SCRIPT -w "$TEST" >/dev/null 2>&1
-TEST="$TEST_RO"
 
 # verify_hash
 echo
@@ -426,7 +419,6 @@ touch "$TEST/file with spaces.rslsz"
 run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.rslsz\" -- file with restricted extension")"
 
 run_test "$ROH_SCRIPT -d $TEST" "0" "$(escape_expected "ERROR: [$TEST] \"file with spaces.rslsz\" -- file with restricted extension")" "true"
-TEST="$TEST0"
 rm "$TEST/file with spaces.rslsz"
  
 #	mkdir -p "$TEST/$ROH_DIR"
@@ -476,7 +468,6 @@ echo
 echo "# Clean up test files"
 
 $ROH_SCRIPT -d "$TEST" >/dev/null 2>&1
-TEST="$TEST0"
 
 find "$TEST" -name '.DS_Store' -type f -delete
 rm -rf "$TEST/$ROH_DIR/.git"
@@ -498,8 +489,6 @@ echo
 echo "# Requirements"
 
 TEST="test.ro"
-TEST0="test"
-TEST_RO="$TEST.ro"
 SUBDIR="subdir"
 rm -rf "$TEST"
 mkdir -p "$TEST/$ROH_DIR"
