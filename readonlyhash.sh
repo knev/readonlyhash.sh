@@ -82,17 +82,41 @@ stored_hash() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-remove_top_dir() { [ "$1" = "$2" ] && echo || echo "${2#$1/}"; }
-# remove_top_dir() {
-#     local parent_dir="$1"
-#     local dir="$2"
-#     local result=${dir#${parent_dir}/}
-#     # If string1 is the same as string2, result should be an empty string
-#     if [ "$parent_dir" = "$dir" ]; then
-#         result=""
-#     fi
-#     echo "$result"
-# }
+remove_top_dir() {
+  local base_dir="$1"
+  local full_path="$2"
+
+  # If the base_dir and full_path are identical, return an empty string
+  if [[ "$base_dir" == "$full_path" ]]; then
+    echo ""
+    return
+  fi
+
+  # Normalize base_dir: remove trailing slashes and replace multiple slashes with a single slash
+  base_dir=$(echo "$base_dir" | sed 's:/*$::' | sed 's://*:/:g')
+  full_path=$(echo "$full_path" | sed 's://*:/:g')
+
+  # Append a trailing slash to base_dir for matching
+  base_dir="${base_dir}/"
+
+  # Check if full_path starts with base_dir
+  if [[ "$full_path" == "$base_dir"* ]]; then
+    echo "${full_path#"$base_dir"}"
+  else
+    echo "$full_path"
+  fi
+}
+
+# echo $(remove_top_dir "test" "test")"]" # output: ]
+# echo $(remove_top_dir "2002 X.ro" "2002 X.ro/2002_FIRE!") # output: 2002_FIRE!
+# echo $(remove_top_dir "2002.ro/." "2002.ro/./2002_FIRE!") # output: 2002_FIRE!
+# echo $(remove_top_dir "2002.ro/" "2002.ro//2002_FIRE!") # output: 2002_FIRE!
+# echo $(remove_top_dir "Fotos [space]/" "Fotos [space]//1999.ro/1999-07 Cool Runnings Memories") # output: 1999.ro/1999-07 Cool Runnings Memories
+# echo $(remove_top_dir "Fotos [space/" "Fotos [space//1999.ro/1999-07 Cool Runnings Memories") # output: 1999.ro/1999-07 Cool Runnings Memories
+# echo $(remove_top_dir "/Users/dev/Project-@knev/readonlyhash.sh.git" "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos") #output: Fotos
+# echo $(remove_top_dir "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro" "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro/1999-07 Cool Runnings Memories") # output: 1999-07 Cool Runnings Memories
+# exit
+
 
 # given the path of the file, return the path of the hash (hidden in $ROH_DIR)
 fpath_to_hash_fpath() {
