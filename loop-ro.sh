@@ -1,7 +1,92 @@
 #!/bin/bash
 
+ROH_BIN="./readonlyhash.sh"
+ROH_DIR=".roh.git"
+GIT_BIN="roh.git"
+HASH="sha256"
 
-#!/bin/bash
+usage() {
+	echo
+    echo "Usage: $(basename "$0") [OPTIONS|(-w|-d) --force] [PATH]"
+    echo "Options:"
+    echo "  -h, --help     Display this help and exit"
+#	echo 
+#	echo "Flags:"
+#	echo "  --loop         PATH specifies a \".loop.txt\"; a dir list to loop over"
+#   echo "  --force        Force operation even if hash files do not match"
+    echo
+}
+
+cmd="$1"
+file_path="$2"
+
+# Check if the file ends with .ro.txt
+if [[ ! "$file_path" =~ \.loop\.txt$ ]]; then
+    echo "ERROR: No file path argument ending with '.loop.txt' found."
+	usage
+    exit 1
+fi
+
+if [ "$cmd" = "init" ]; then
+
+	echo "# $(basename "$0") [" > "${file_path%.loop.txt}~.loop.txt"
+
+	# Read directories from the file
+	while IFS= read -r dir; do
+		# Skip lines that start with '#'
+		if [[ "$dir" =~ ^#.* ]]; then
+			continue
+		fi
+	
+	    # Check if the directory exists
+	    if [ -d "$dir" ]; then
+	        # Replace placeholder with actual directory path
+			echo "Looping on: [$dir]"
+	 		$ROH_BIN -w "$dir"
+	 		if [ $? -ne 0 ]; then
+	            echo "ERROR: [$ROH_BIN -w] failed for directory: [$dir]"
+	 			echo
+	 			exit 1
+	 		fi		
+	 		$GIT_BIN -C "$dir" init
+
+			echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
+			$GIT_BIN -C "$dir" add .gitignore
+			$GIT_BIN -C "$dir" commit -m "Initial ignores"
+			# $GIT_BIN -C "$dir" status
+
+			$GIT_BIN -C "$dir" add "*"
+			$GIT_BIN -C "$dir" commit -m "Initial hashes"
+			$GIT_BIN -C "$dir" status
+
+			$GIT_BIN -zC "$dir" 
+
+			dir_ro="${dir}.ro"
+
+			echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
+
+			# Check if the directory name ends with '.ro'
+			if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
+				# Rename the directory by adding '.ro' if it doesn't already have it
+				mv "$dir" "$dir_ro"
+				echo "Renamed [$dir] to [${dir_ro}]"
+			fi					
+
+	    else
+	        echo "ERROR: Directory [$dir] does not exist."
+			echo
+			exit 1
+	    fi
+		echo 
+
+	done < "$file_path"
+
+	echo "# ]" >> "${file_path%.loop.txt}~.loop.txt"
+
+fi
+
+
+exit
 
 # Check if at least one argument is provided (command)
 if [ $# -lt 1 ]; then
@@ -24,11 +109,7 @@ for arg in "$@"; do
     fi
 done
 
-# Check if file path was found
-if [ -z "$file_path" ]; then
-    echo "Error: No file path argument ending with '.loop.txt' found."
-    exit 1
-fi
+
 
 # Replace file path with placeholder in arguments
 args=()
@@ -44,23 +125,7 @@ done
 # Construct the base command with placeholder
 cmd="${args[@]}"
 
-# Read directories from the file
-while IFS= read -r dir; do
-    # Check if the directory exists
-    if [ -d "$dir" ]; then
-        # Replace placeholder with actual directory path
-        real_cmd="${cmd//%%DIR%%/$dir}"
-        echo "Executing: $real_cmd"
-        eval "$real_cmd"
-        # Check if the command was successful
-        if [ $? -ne 0 ]; then
-            echo "Error: Command '$real_cmd' failed with exit status $?"
-            exit 1
-        fi		
-    else
-        echo "Warning: Directory $dir does not exist."
-    fi
-done < "$file_path"
+
 
 
 
