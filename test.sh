@@ -5,7 +5,7 @@
 # Path to the hash script
 ROH_SCRIPT="./readonlyhash.sh"
 chmod +x $ROH_SCRIPT
-ROH_GIT="roh.git"
+GIT_BIN="roh.git"
 
 usage() {
 	echo
@@ -358,7 +358,7 @@ run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: [$TEST] -- NO fil
 #	Number of ERRORs encountered: [1]
 
 echo "DS_Store" > "$TEST/$ROH_DIR/.DS_Store"
-$ROH_GIT -C "$TEST" init >/dev/null 2>&1
+$GIT_BIN -C "$TEST" init >/dev/null 2>&1
 run_test "$ROH_SCRIPT -v $TEST" "0" ".DS_Store.$HASH" "true"
 
 # verify_hash, process_directory()
@@ -496,7 +496,7 @@ mkdir -p "$TEST/$ROH_DIR"
 pushd "$TEST" >/dev/null 2>&1
 ROH_SCRIPT="../readonlyhash.sh"
 
-$ROH_GIT init >/dev/null 2>&1
+$GIT_BIN init >/dev/null 2>&1
 
 #--
 # File Changes:
@@ -516,8 +516,8 @@ echo "eleven" > "$SUBDIR/eleven.txt"
 echo "23" > "$SUBDIR/[23].txt"
 
 $ROH_SCRIPT -w >/dev/null 2>&1
-$ROH_GIT add *.sha256 >/dev/null 2>&1
-$ROH_GIT commit -m "File Added" >/dev/null 2>&1
+$GIT_BIN add *.sha256 >/dev/null 2>&1
+$GIT_BIN commit -m "File Added" >/dev/null 2>&1
 echo "four" > "four.txt"
 # roh will report files that don't have a corresponding hash file
 run_test "$ROH_SCRIPT -v" "1" "$(escape_expected "WARN: [.] \"four.txt\" --.* hash file [./.roh.git/four.txt.sha256] -- NOT found.* for [./four.txt][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
