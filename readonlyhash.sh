@@ -452,7 +452,7 @@ process_directory() {
 			process_directory "$entry" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
 
 		# else ...
-        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]]; then
+        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
 			if [ "$delete_mode" != "true" ]; then
 				if check_extension "$entry"; then
 					echo "ERROR: [$dir] \"$(basename "$entry")\" -- file with restricted extension"
@@ -667,8 +667,20 @@ run_directory_process() {
 		fi
 	# exclude "$ROOT/$ROH_DIR/.git" using --prune, return only files
 	# sort, because we want lower directories removed first, so upper directories can be empty and removed
-	# done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -type f -name "*" -print)
-	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -print | sort -r)
+	# 	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -type f -name "*" -print)
+	# List all files that DO NOT start with a dot; that includes going into subdirectories and listing files 
+	# there that do not start with a dot. The only place in the directory structure where dot files can be
+	# expected is in the start directory where .gitignore .git (the entire directory) and .DS_store 
+	# should be skipped along with any other dot files or directories.
+	# 	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -print | sort -r)
+	done < <(find "$ROOT/$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
+	# 	-path "*/.git/*" -prune: This specifically prunes .git directories and their contents. 
+	# 	It ensures that .git and everything inside it at any level within .roh.git is skipped.
+	#	-o -not -name ".*": Then, it prints files that don't start with a dot.
+	# Or, if you want to list both files and directories but differentiate them:
+	# find "test/.roh.git" -path "*/.git/*" -prune -o \( -type f -not -name ".*" -print \) -o \( -type d -not -name ".*" -print \)
+	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
+	
 
 
 	# if [ "$write_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
