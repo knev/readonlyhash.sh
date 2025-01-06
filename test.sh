@@ -251,10 +251,6 @@ rm -rf "$TEST.ro"
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# write_hash()
-echo
-echo "# write_hash()"
-
 mkdir -p "$TEST"
 echo "DS_Store" > "$TEST/.DS_Store"
 echo "ABC" > "$TEST/file with spaces.txt"
@@ -262,6 +258,29 @@ mkdir -p "$TEST/$SUBDIR_WITH_SPACES"
 echo "OMN" > "$TEST/$SUBDIR_WITH_SPACES/omn.txt"
 mkdir -p "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR"
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
+
+#	run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: ")" 
+#	$GIT_BIN -C "$TEST" init >/dev/null 2>&1
+#	echo ".DS_Store" > "$TEST/.gitignore"
+#	
+#	TEST=/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos\ \[space\]/1999.ro
+#	
+#	ROOT="$TEST"
+#	while IFS= read -r roh_hash_fpath; do
+#		echo "[$roh_hash_fpath]"
+#	# exclude "$ROOT/$ROH_DIR/.git" using --prune, return only files
+#	# sort, because we want lower directories removed first, so upper directories can be empty and removed
+#	# done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -type f -name "*" -print)
+#	#done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -print | sort -r)
+#	#done < <(find "$ROOT/$ROH_DIR" \( -name ".*" -prune \) -o -print | sort -r)
+#	#done < <(find "$ROOT/$ROH_DIR" \( -path "*/.*" -prune \) -o -type f -print | sort -r)
+#	#done < <(find "$ROOT/$ROH_DIR" -path "*/.git/*" -prune -o -type f -not -name ".*" -print | sort -r)
+#	done < <(find "$ROOT/$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
+#	exit
+
+# write_hash()
+echo
+echo "# write_hash()"
 
 echo "c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
 run_test "$ROH_SCRIPT -w $TEST" "1" "$(escape_expected "ERROR: [$TEST/sub-directory with spaces/sub-sub-directory] \"jkl.txt\" -- hash file [$TEST/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256] exists/(NOT hidden)")"
@@ -344,7 +363,6 @@ echo "ABC" > "$TEST/file with spaces.txt"
 mkdir "$TEST/$ROH_DIR/this_is_a_directory.sha256"
 run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: [$TEST] -- NO file [.*] found for corresponding hash [$TEST/$ROH_DIR/this_is_a_directory.sha256][.*]")" "true"
 # rmdir "$TEST/$ROH_DIR/this_is_a_directory.sha256" # gets removed automagically now
-
 
 #	dev@m2:readonly $ readonlyhash -s Zipped.ro  
 #	ERROR: --                ... file [Zipped.ro/.gitignore] -- NOT found
