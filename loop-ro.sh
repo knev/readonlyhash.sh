@@ -1,6 +1,7 @@
 #!/bin/bash
 
-ROH_BIN="./readonlyhash.sh"
+#ROH_BIN="./readonlyhash.sh"
+ROH_BIN="readonlyhash"
 ROH_DIR=".roh.git"
 GIT_BIN="roh.git"
 HASH="sha256"
@@ -28,19 +29,20 @@ if [[ ! "$file_path" =~ \.loop\.txt$ ]]; then
 fi
 
 if [ "$cmd" = "init" ]; then
-
 	echo "# $(basename "$0") [" > "${file_path%.loop.txt}~.loop.txt"
+fi
 
-	# Read directories from the file
-	while IFS= read -r dir; do
-		# Skip lines that start with '#'
-		if [[ "$dir" =~ ^#.* ]]; then
-			continue
-		fi
-	
-	    # Check if the directory exists
-	    if [ -d "$dir" ]; then
-	        # Replace placeholder with actual directory path
+# Read directories from the file
+while IFS= read -r dir; do
+	# Skip lines that start with '#'
+	if [[ "$dir" =~ ^#.* ]]; then
+		continue
+	fi
+
+    # Check if the directory exists
+    if [ -d "$dir" ]; then
+
+		if [ "$cmd" = "init" ]; then
 			echo "Looping on: [$dir]"
 	 		$ROH_BIN -w "$dir"
 	 		if [ $? -ne 0 ]; then
@@ -48,12 +50,15 @@ if [ "$cmd" = "init" ]; then
 	 			echo
 	 			exit 1
 	 		fi		
-	 		$GIT_BIN -C "$dir" init
 
-			echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
-			$GIT_BIN -C "$dir" add .gitignore
-			$GIT_BIN -C "$dir" commit -m "Initial ignores"
-			# $GIT_BIN -C "$dir" status
+			if [ ! -d "$dir/$ROH_DIR/.git" ]; then
+	 			$GIT_BIN -C "$dir" init
+
+				echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
+				$GIT_BIN -C "$dir" add .gitignore
+				$GIT_BIN -C "$dir" commit -m "Initial ignores"
+				# $GIT_BIN -C "$dir" status
+			fi
 
 			$GIT_BIN -C "$dir" add "*"
 			$GIT_BIN -C "$dir" commit -m "Initial hashes"
@@ -72,18 +77,36 @@ if [ "$cmd" = "init" ]; then
 				echo "Renamed [$dir] to [${dir_ro}]"
 			fi					
 
-	    else
-	        echo "ERROR: Directory [$dir] does not exist."
-			echo
-			exit 1
-	    fi
-		echo 
+		elif [ "$cmd" = "verify" ]; then
+	 		$ROH_BIN -v "$dir"
+	 		if [ $? -ne 0 ]; then
+	            echo "ERROR: [$ROH_BIN -w] failed for directory: [$dir]"
+	 			echo
+	 			exit 1
+	 		fi		
+			$GIT_BIN -C "$dir" status
 
-	done < "$file_path"
+		fi
 
+    else
+        echo "ERROR: Directory [$dir] does not exist."
+		echo
+		exit 1
+    fi
+	echo 
+
+done < "$file_path"
+
+if [ "$cmd" = "init" ]; then
 	echo "# ]" >> "${file_path%.loop.txt}~.loop.txt"
-
 fi
+
+
+
+
+
+
+
 
 
 exit
