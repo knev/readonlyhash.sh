@@ -296,8 +296,7 @@ write_hash() {
 	local new_hash=$(generate_hash "$fpath")
 	local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 
-	mkdir -p "$roh_hash_just_path"
-	if { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
+	if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
 		echo "File: [$new_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
 		return 0  # No error
 	else
