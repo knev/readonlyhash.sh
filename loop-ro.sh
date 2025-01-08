@@ -2,7 +2,7 @@
 
 #ROH_BIN="./readonlyhash.sh"
 ROH_BIN="readonlyhash"
-ROH_DIR=".roh.git"
+ROH_GIT=".roh.git"
 GIT_BIN="roh.git"
 HASH="sha256"
 
@@ -51,10 +51,10 @@ while IFS= read -r dir; do
 	 			exit 1
 	 		fi		
 
-			if [ ! -d "$dir/$ROH_DIR/.git" ]; then
+			if [ ! -d "$dir/$ROH_GIT/.git" ]; then
 	 			$GIT_BIN -C "$dir" init
 
-				echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
+				echo ".DS_Store.$HASH" > "$dir/$ROH_GIT"/.gitignore
 				$GIT_BIN -C "$dir" add .gitignore
 				$GIT_BIN -C "$dir" commit -m "Initial ignores"
 				# $GIT_BIN -C "$dir" status

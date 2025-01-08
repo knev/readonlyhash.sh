@@ -2,7 +2,7 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [OPTIONS|(-w|-d) --force] [PATH]"
+    echo "Usage: $(basename "$0") [--roh-dir PATH][OPTIONS|(-w|-d) --force] [PATH]"
     echo "Options:"
 	echo "      --hash     Generate a hash of a single file"
 	echo "  -v, --verify   Verify computed hashes against stored hashes"
@@ -11,6 +11,7 @@ usage() {
     echo "  -i, --hide     Move hash files from file's directory to .roh"
     echo "  -s, --show     Move hash files from .roh to file's directory"
     echo "  -r, --recover  Attempt to recover orphaned hashes using verify"
+	echo "      --roh-dir  Specify the readonly hash path"
     echo "  -h, --help     Display this help and exit"
 	echo 
 	echo "Note: options -v, -w, -d, -i, -s and -r are mutually exclusive."
@@ -26,8 +27,8 @@ usage() {
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
-ROOT="."
-ROH_DIR=".roh.git"
+ROOT="_INVALID_"
+ROH_DIR="./.roh.git"
 
 # Variable for SHA-256 hash command
 #SHA256_BIN="sha256sum" # linux native, macOS via brew install coreutils
@@ -125,7 +126,7 @@ fpath_to_hash_fpath() {
     local fpath="$2"
 
     local hash_fname="$(basename "$fpath").$HASH"
-    local roh_hash_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir/$hash_fname"
+    local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir/$hash_fname"
     echo "$roh_hash_path"
 }
 
@@ -142,7 +143,7 @@ fpath_to_dir_hash_fpath() {
 hash_fpath_to_fpath() {
     local roh_hash_fpath="$1"
 
-	local sub_filepath="$(remove_top_dir "$ROOT/$ROH_DIR" "$roh_hash_fpath")"
+	local sub_filepath="$(remove_top_dir "$ROH_DIR" "$roh_hash_fpath")"
 	local fpath="$ROOT/${sub_filepath%.$HASH}"
 	echo "$fpath"
 }
@@ -172,7 +173,7 @@ recover_hash() {
 				echo "            ... stored [$found_roh_hash_fpath] -- identical file"
 				echo "      ... for computed [$fpath][$computed_hash]"
 			else
-				local roh_hash_just_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+				local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 				mkdir -p "$roh_hash_just_path"
 				mv "$found_roh_hash_fpath" "$roh_hash_fpath"
 				# echo "MV: mkdir $roh_hash_just_path; [$found_roh_hash_fpath] [$roh_hash_fpath]"
@@ -182,7 +183,7 @@ recover_hash() {
 				return 0 
 			fi
         fi
-	done < <(find "$ROOT/$ROH_DIR" -name "*.$HASH" -type f -print0)
+	done < <(find "$ROH_DIR" -name "*.$HASH" -type f -print0)
 
     echo "ERROR: [$dir] \"$(basename "$fpath")\" -- could not recover hash for file [$fpath][$computed_hash]"
     ((ERROR_COUNT++))
@@ -195,7 +196,7 @@ verify_hash() {
     local recover_mode="$3"	
 
 	# local hash_fname="$(basename "$fpath").$HASH"
-	# local roh_hash_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
+	# local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
 	# local roh_hash_fpath=$roh_hash_path/$hash_fname
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
@@ -252,7 +253,7 @@ write_hash() {
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 
-	#echo "* [$dir]-[$ROOT]= [$sub_dir]; $roh_hash_fpath"
+	# echo "* [$dir]-[$ROOT]= [$sub_dir]; $roh_hash_fpath"
 
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
     if [ -f "$dir_hash_fpath" ]; then
@@ -293,8 +294,8 @@ write_hash() {
 	fi
 
 	local new_hash=$(generate_hash "$fpath")
+	local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 
-	local roh_hash_just_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
 	mkdir -p "$roh_hash_just_path"
 	if { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
 		echo "File: [$new_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
@@ -334,7 +335,7 @@ delete_hash() {
 	
 	if [ "$computed_hash" = "$stored" ]; then
 		rm "$roh_hash_fpath"
-		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file in [$dir/$ROH_DIR] deleted -- OK"
+		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file in [$ROH_DIR] deleted -- OK"
 		return 0  # No error
 	else
 		if [ "$force_mode" = "true" ]; then
@@ -399,7 +400,7 @@ manage_hash_visibility() {
 		fi
 
 		if [ "$action" = "hide" ]; then
-			local roh_hash_just_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 			mkdir -p "$roh_hash_just_path"
 		fi
         mv "$src_fpath" "$dest_fpath"
@@ -437,8 +438,8 @@ process_directory() {
 	# ?! do we care about empty directories
 	#
 	#	if [ "$verify_mode" = "true" ]; then
-	#		if [ ! -d "$ROOT/$ROH_DIR/$sub_dir" ]; then
-	#			echo "ERROR: [$dir] -- not a READ-ONLY directory, missing [$ROOT/$ROH_DIR/$sub_dir]"
+	#		if [ ! -d "$ROH_DIR/$sub_dir" ]; then
+	#			echo "ERROR: [$dir] -- not a READ-ONLY directory, missing [$ROH_DIR/$sub_dir]"
 	#			((ERROR_COUNT++))
 	#			return 1 
 	#		fi
@@ -481,7 +482,7 @@ process_directory() {
 	# it is not guaranteed that sub_dir has been created in $ROH_DIR for the
 	# sub_dir we are processing e.g., it could be an empty sub dir.
 	#
-	# local roh_hash_just_path="$ROOT/$ROH_DIR${sub_dir:+/}$sub_dir"
+	# local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 	# [ ! -d "$roh_hash_just_path" ] && return 0
 	# ...
 }
@@ -495,6 +496,8 @@ write_mode="false"
 delete_mode="false"
 hide_mode="false"
 show_mode="false"
+roh_dir_mode="false"
+roh_dir=""
 loop_mode="false"
 force_mode="false"
 recover_mode="false"
@@ -546,6 +549,11 @@ while getopts "vwdisrh-:" opt; do
         recover)
           recover_mode="true"
           ;;		  
+        roh-dir)
+		  roh_dir_mode="true"
+          roh_dir="${!OPTIND}"
+          OPTIND=$((OPTIND + 1))
+          ;;		  
 		loop)
 		  loop_mode="true"
 		  ;;
@@ -576,10 +584,20 @@ while getopts "vwdisrh-:" opt; do
   esac
 done
 
-# Main execution
-if [ $OPTIND -le $# ]; then
-    ROOT="${@:$OPTIND:1}"
+# capture all remaining arguments after the options have been processed
+shift $((OPTIND-1))
+ROOT="$1"
+# Bash's parameter expansion feature, specifically the ${parameter:-default_value} syntax
+ROOT=${ROOT:-.}
+# echo "* ROOT [$ROOT]"
+
+if [ "$roh_dir_mode" = "true" ]; then
+	ROH_DIR="$roh_dir"
+	echo "Using ROH_DIR [$ROH_DIR]"
+else 
+	ROH_DIR="$ROOT/.roh.git"
 fi
+# echo "* ROH_DIR [$ROH_DIR]"
 
 # Check if no mode is specified: if there is a [:space:] in getopts, this will fail e.g., hide_mode= "true"
 if [ "$hash_mode" = "false" ] && [ "$verify_mode" = "false" ] && [ "$write_mode" = "false" ] && [ "$delete_mode" = "false" ] && [ "$show_mode" = "false" ] && [ "$hide_mode" = "false" ] && [ "$recover_mode" = "false" ]; then
@@ -634,26 +652,35 @@ run_directory_process() {
     local show_mode="$6"
     local recover_mode="$7"	
     local force_mode="$8"
-	
+
 	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
-		ensure_dir "$ROOT/$ROH_DIR"
+		ensure_dir "$ROH_DIR"
+
+	elif [ "$verify_mode" = "true" ] || [ "$show_mode" = "true" ]; then
+		if [ ! -d "$ROH_DIR" ]; then
+			echo "ERROR: [$ROOT] -- not a READ-ONLY directory, missing [$ROH_DIR]. Aborting." >&2
+			exit 1
+		fi 
 	fi
 
     process_directory "$@"	
 
-	# Needed for verifying a directory for which write never got called
-	[ ! -d "$ROOT/$ROH_DIR" ] && return 0
-    
+	# ROH_DIR must exist and be accessible for the while loop to execute
+	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
+
 	# Now check for hash files without corresponding files
 	while IFS= read -r roh_hash_fpath; do
 		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
-		# echo "FPATH: [$roh_hash_fpath] [$fpath]"
+		# echo "* FPATH: [$roh_hash_fpath] [$fpath]"
 
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$delete_mode" = "true" ] || [ "$(basename "$roh_hash_fpath")" != "$ROH_DIR" ]; then
+			if [ "$delete_mode" = "true" ]; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
-					rmdir "$roh_hash_fpath" || echo "Failed to delete $roh_hash_fpath"
+					if ! rmdir "$roh_hash_fpath"; then
+						echo "ERROR: Failed to delete [$roh_hash_fpath]"
+						((ERROR_COUNT++))
+					fi
 				fi
 			fi
 			continue;
@@ -665,15 +692,15 @@ run_directory_process() {
 			echo "       ... for corresponding hash [$roh_hash_fpath][$stored]"
 			((ERROR_COUNT++))
 		fi
-	# exclude "$ROOT/$ROH_DIR/.git" using --prune, return only files
+	# exclude "$ROH_DIR/.git" using --prune, return only files
 	# sort, because we want lower directories removed first, so upper directories can be empty and removed
-	# 	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -type f -name "*" -print)
+	# 	done < <(find "$ROH_DIR" -path "$ROH_DIR/.*" -prune -o -type f -name "*" -print)
 	# List all files that DO NOT start with a dot; that includes going into subdirectories and listing files 
 	# there that do not start with a dot. The only place in the directory structure where dot files can be
 	# expected is in the start directory where .gitignore .git (the entire directory) and .DS_store 
 	# should be skipped along with any other dot files or directories.
-	# 	done < <(find "$ROOT/$ROH_DIR" -path "$ROOT/$ROH_DIR/.*" -prune -o -print | sort -r)
-	done < <(find "$ROOT/$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
+	# 	done < <(find "$ROH_DIR" -path "$ROH_DIR/.*" -prune -o -print | sort -r)
+	done < <(find "$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
 	# 	-path "*/.git/*" -prune: This specifically prunes .git directories and their contents. 
 	# 	It ensures that .git and everything inside it at any level within .roh.git is skipped.
 	#	-o -not -name ".*": Then, it prints files that don't start with a dot.
