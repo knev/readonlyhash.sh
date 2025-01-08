@@ -59,8 +59,8 @@ shift $((OPTIND-1))
 
 ROH_DIR=".roh.git"
 
-echo "$current_working_dir"
-echo "$@"
+# echo "* current_working_dir $current_working_dir"
+# echo "* $@"
 
 archive_roh() {
     local dir="$1"
