@@ -657,7 +657,7 @@ run_directory_process() {
 
 	elif [ "$verify_mode" = "true" ] || [ "$show_mode" = "true" ]; then
 		if [ ! -d "$ROH_DIR" ]; then
-			echo "ERROR: [$ROOT] -- not a READ-ONLY directory, missing [$ROH_DIR]. Aborting." >&2
+			echo "ERROR: [$ROOT] -- missing [$ROH_DIR]. Aborting." >&2
 			exit 1
 		fi 
 	fi

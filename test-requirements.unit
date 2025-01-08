@@ -3,6 +3,7 @@
 echo
 echo "# Requirements"
 
+rm -rf "$TEST.ro"
 TEST="test.ro"
 SUBDIR="subdir"
 rm -rf "$TEST"

@@ -4,7 +4,6 @@ ROH_DIR="$TEST/.roh.git"
 SUBDIR_WITH_SPACES="sub-directory with spaces"
 SUBSUBDIR="sub-sub-directory"
 rm -rf "$TEST"
-rm -rf "$TEST.ro"
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -96,7 +95,7 @@ echo "# verify_hash()"
 
 mkdir "$TEST-empty"
 # we don't care about empty directories
-run_test "$ROH_SCRIPT -v $TEST-empty" "1" "$(escape_expected "ERROR: [$TEST-empty] -- not a READ-ONLY directory, missing [$TEST-empty/.roh.git]. Aborting.")"
+run_test "$ROH_SCRIPT -v $TEST-empty" "1" "$(escape_expected "ERROR: [$TEST-empty] -- missing [$TEST-empty/.roh.git]. Aborting.")"
 # run_test "$ROH_SCRIPT -v $TEST-empty" "0" "$(escape_expected "Processing directory: [test-empty]")"
 # run_test "$ROH_SCRIPT -v $TEST-empty" "0" "$(escape_expected "Done.")"
 rm -rf "$TEST-empty"
@@ -134,6 +133,17 @@ run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: [$TEST] -- NO fil
 echo "DS_Store" > "$ROH_DIR/.DS_Store"
 $GIT_BIN -C "$TEST" init >/dev/null 2>&1
 run_test "$ROH_SCRIPT -v $TEST" "0" ".DS_Store.$HASH" "true"
+
+# test --roh-dir 
+TMP="_tmp~"
+rm -rf "$TMP"
+# run_test "$ROH_SCRIPT -w $TEST" "0" "$(escape_expected "File: ")" 
+mkdir "$TMP"
+mv "$ROH_DIR" "$TMP"
+run_test "$ROH_SCRIPT --roh-dir $TMP/.roh.git -v $TEST" "0" "$(escape_expected "ERROR: ")" "true"
+mv "$TMP/.roh.git" "$TEST"
+rmdir "$TMP"
+run_test "$ROH_SCRIPT -v $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
 # verify_hash, process_directory()
 rm -v "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
