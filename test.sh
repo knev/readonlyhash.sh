@@ -61,19 +61,19 @@ while getopts "cvh-:" opt; do
   esac
 done
 
-# Check for mutually exclusive flags
-mutual_exclusive_count=0
-for mode in "$continue_mode" "$verbose_mode"; do
-    if [ "$mode" = "true" ]; then
-        ((mutual_exclusive_count++))
-    fi
-done
-
-if [ $mutual_exclusive_count -gt 1 ]; then
-    echo "Error: options -c and -v are mutually exclusive. Please use only one." >&2
-    usage
-    exit 1
-fi
+#	# Check for mutually exclusive flags
+#	mutual_exclusive_count=0
+#	for mode in "$continue_mode" "$verbose_mode"; do
+#	    if [ "$mode" = "true" ]; then
+#	        ((mutual_exclusive_count++))
+#	    fi
+#	done
+#	
+#	if [ $mutual_exclusive_count -gt 1 ]; then
+#	    echo "Error: options -c and -v are mutually exclusive. Please use only one." >&2
+#	    usage
+#	    exit 1
+#	fi
 
 # !!!NOTE:  this means we can not use [] and () in the regex's passed to run_test()
 #
@@ -172,10 +172,12 @@ run_test() {
 		echo "#----"
 		echo
 
-        if [ "$continue_mode" != "true" ] && [ "$verbose_mode" != "true" ]; then
+		if [ "$ok" = "no" ] || [ "$exit_status" != "$expected_status" ]; then
+		  if [ "$continue_mode" != "true" ]; then
 			echo "To be continued ..."
 			echo
 			exit 1
+		  fi
 		fi
 	else
 	    # Check if expected is in output
@@ -200,10 +202,12 @@ run_test() {
 		echo "#----"
 		echo
 
-        if [ "$continue_mode" != "true" ] && [ "$verbose_mode" != "true" ]; then
+		if [ "$ok" = "no" ] || [ "$exit_status" != "$expected_status" ]; then
+		  if [ "$continue_mode" != "true" ]; then
 			echo "To be continued ..."
 			echo
 			exit 1
+		  fi
 		fi
 	fi
 }
