@@ -6,6 +6,9 @@ ROH_BIN=readonlyhash
 ROH_GIT=roh.git.sh
 ROH_GIT_BIN=roh.git
 
+LOOP_RO=loop-ro.sh
+LOOP_RO_BIN=loop-ro
+
 OUT= build
 
 .PHONY: nothing install obf repo clean
@@ -28,6 +31,8 @@ install:
 	chmod +x ~/bin/${ROH_BIN}
 	@cp -v ./${ROH_GIT} ~/bin/${ROH_GIT_BIN}
 	chmod +x ~/bin/${ROH_GIT_BIN}
+	@cp -v ./${LOOP_RO} ~/bin/${LOOP_RO_BIN}
+	chmod +x ~/bin/${LOOP_RO_BIN}
 
 # clean:
 # 	rm -rf $(OUT) src/se/mitm/version 
