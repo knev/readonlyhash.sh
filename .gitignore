@@ -1,2 +1,7 @@
 *.swp
 test/*
+Fotos*
+#Fotos \[space\]/
+#Fotos \[space\].ro/
+2002/
+2002.ro/
