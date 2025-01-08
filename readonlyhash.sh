@@ -707,7 +707,15 @@ run_directory_process() {
 	# find "test/.roh.git" -path "*/.git/*" -prune -o \( -type f -not -name ".*" -print \) -o \( -type d -not -name ".*" -print \)
 	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
 	
-
+	if [ "$delete_mode" = "true" ]; then
+		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
+		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
+			if ! rmdir "$ROH_DIR"; then
+				echo "ERROR: Failed to delete [$ROH_DIR]"
+				((ERROR_COUNT++))
+			fi
+		fi
+	fi
 
 	# if [ "$write_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
 	# 	# Check if the directory name ends with '.ro'
