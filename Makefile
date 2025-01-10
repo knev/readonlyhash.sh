@@ -1,13 +1,8 @@
 
 # JDK8 := $(shell /usr/libexec/java_home -v 1.8)
-ROH=readonlyhash.sh
-ROH_BIN=readonlyhash
-
-ROH_GIT=roh.git.sh
-ROH_GIT_BIN=roh.git
-
-LOOP_RO=loop-ro.sh
-LOOP_RO_BIN=loop-ro
+ROH=readonlyhash
+ROH_FPATH=roh.fpath
+ROH_GIT=roh.git
 
 OUT= build
 
@@ -27,13 +22,15 @@ nothing:
 # 	@./version.sh --print
 
 install:
-	@cp -v ./${ROH} ~/bin/${ROH_BIN}
-	chmod +x ~/bin/${ROH_BIN}
-	@cp -v ./${ROH_GIT} ~/bin/${ROH_GIT_BIN}
-	chmod +x ~/bin/${ROH_GIT_BIN}
-	@cp -v ./${LOOP_RO} ~/bin/${LOOP_RO_BIN}
-	chmod +x ~/bin/${LOOP_RO_BIN}
+	@cp -v ./${ROH}.sh ~/bin/${ROH}
+	chmod +x ~/bin/${ROH}
+	@cp -v ./${ROH_FPATH}.sh ~/bin/${ROH_FPATH}
+	chmod +x ~/bin/${ROH_FPATH}
+	@cp -v ./${ROH_GIT}.sh ~/bin/${ROH_GIT}
+	chmod +x ~/bin/${ROH_GIT}
 
-# clean:
-# 	rm -rf $(OUT) src/se/mitm/version 
+clean:
+	rm ~/bin/${ROH}
+	rm ~/bin/${ROH_FPATH}
+	rm ~/bin/${ROH_GIT}
 
