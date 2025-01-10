@@ -2,23 +2,21 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [--roh-dir PATH][OPTIONS|(-w|-d) --force] [PATH]"
-    echo "Options:"
-	echo "      --hash     Generate a hash of a single file"
-	echo "  -v, --verify   Verify computed hashes against stored hashes"
-    echo "  -w, --write    Write SHA256 hashes for files into .roh directory"
-    echo "  -d, --delete   Delete hash files for specified files"
-    echo "  -i, --hide     Move hash files from file's directory to .roh"
-    echo "  -s, --show     Move hash files from .roh to file's directory"
-    echo "  -r, --recover  Attempt to recover orphaned hashes using verify"
-	echo "      --roh-dir  Specify the readonly hash path"
-    echo "  -h, --help     Display this help and exit"
-	echo 
-	echo "Note: options -v, -w, -d, -i, -s and -r are mutually exclusive."
-	echo 
+    echo "Usage: $(basename "$0") [COMMAND|(write|delete) --force] [FLAGS][--roh-dir PATH] [PATH]"
+    echo "Commands:"
+	echo "      hash       Generate a hash of a single file"
+	echo "      verify     Verify computed hashes against stored hashes"
+    echo "      write      Write SHA256 hashes for files into .roh directory"
+    echo "      delete     Delete hash files for specified files"
+    echo "      hide       Move hash files from file's directory to .roh"
+    echo "      show       Move hash files from .roh to file's directory"
+    echo "      recover    Attempt to recover orphaned hashes using verify"
+	echo
 	echo "Flags:"
-	echo "  --loop         PATH specifies a \".loop.txt\"; a dir list to loop over"
-    echo "  --force        Force operation even if hash files do not match"
+	echo "      --roh-dir  Specify the readonly hash path"
+	echo "      --loop     PATH specifies a \".loop.txt\"; a dir list to loop over"
+    echo "      --force    Force operation even if hash files do not match"
+    echo "  -h, --help     Display this help and exit"
     echo
     echo "If no directory is specified, the current directory is used."
 	echo
@@ -500,54 +498,62 @@ roh_dir=""
 loop_mode="false"
 force_mode="false"
 recover_mode="false"
-while getopts "vwdisrh-:" opt; do
+
+
+# Check if a command is provided
+if [ $# -eq 0 ]; then
+	usage
+    exit 1
+fi
+
+# Parse command
+case "$1" in
+    hash) 
+        hash_mode="true"
+        ;;
+    verify) 
+        verify_mode="true"
+        ;;
+    write) 
+        write_mode="true"
+        ;;
+    delete) 
+        delete_mode="true"
+        ;;
+    hide) 
+        hide_mode="true"
+        ;;
+    show) 
+        show_mode="true"
+        ;;
+    recover) 
+        recover_mode="true"
+        ;;
+    -h)
+		usage
+        exit 0
+        ;;
+    --help)
+		usage
+        exit 0
+        ;;
+    *)
+        echo "ERROR: unknown command: [$1]"
+		usage
+        exit 1
+        ;;
+esac
+shift
+
+while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
-    v)
-      verify_mode="true"
-      ;;	
-    w)
-      write_mode="true"
-      ;;
-    d)
-      delete_mode="true"
-      ;;
-    i)
-      hide_mode="true"
-      ;;
-    s)
-      show_mode="true"
-      ;;
-	r)
-	  recover_mode="true"
-	  ;;
     h)
       usage
       exit 0
       ;;	  
     -)
       case "${OPTARG}" in
-        hash)
-          hash_mode="true"
-          ;;		
-        verify)
-          verify_mode="true"
-          ;;		
-        write)
-          write_mode="true"
-          ;;
-        delete)
-          delete_mode="true"
-          ;;
-        hide)
-          hide_mode="true"
-          ;;
-        show)
-          show_mode="true"
-          ;;
-        recover)
-          recover_mode="true"
-          ;;		  
         roh-dir)
 		  roh_dir_mode="true"
           roh_dir="${!OPTIND}"
@@ -564,19 +570,19 @@ while getopts "vwdisrh-:" opt; do
           exit 0
           ;;
         *)
-          echo "Invalid option: --${OPTARG}" >&2
+          echo "ERROR: invalid option: [--${OPTARG}]" >&2
           usage
           exit 1
           ;;
       esac
       ;;
     \?)
-      echo "Invalid option: -$OPTARG" >&2
+      echo "ERROR: invalid option: [-${OPTARG}]" >&2
       usage
       exit 1
       ;;
     :)
-      echo "Option -$OPTARG requires an argument." >&2
+      echo "ERROR: option [-$OPTARG] requires an argument." >&2
       usage
       exit 1
       ;;
@@ -598,12 +604,6 @@ else
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
-# Check if no mode is specified: if there is a [:space:] in getopts, this will fail e.g., hide_mode= "true"
-if [ "$hash_mode" = "false" ] && [ "$verify_mode" = "false" ] && [ "$write_mode" = "false" ] && [ "$delete_mode" = "false" ] && [ "$show_mode" = "false" ] && [ "$hide_mode" = "false" ] && [ "$recover_mode" = "false" ]; then
-    usage
-    exit 0
-fi
-
 if [ "$hash_mode" = "true" ]; then
 	if [ -f "$ROOT" ]; then
 		fpath="$ROOT"
@@ -618,23 +618,9 @@ if [ "$hash_mode" = "true" ]; then
     exit 1
 fi
 
-# Check for mutually exclusive flags
-mutual_exclusive_count=0
-for mode in "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode"; do
-    if [ "$mode" = "true" ]; then
-        ((mutual_exclusive_count++))
-    fi
-done
-
-if [ $mutual_exclusive_count -gt 1 ]; then
-    echo "ERROR: options -v, -w, -d, -i, -s and -r are mutually exclusive. Please use only one." >&2
-    usage
-    exit 1
-fi
-
 # Check for force_mode usage
 if [ "$force_mode" = "true" ] && [ "$delete_mode" != "true" ] && [ "$write_mode" != "true" ]; then
-    echo "ERROR: --force can only be used with -d/--delete or -w/--write." >&2
+    echo "ERROR: --force can only be used with delete or write." >&2
     usage
     exit 1
 fi
