@@ -422,15 +422,10 @@ manage_hash_visibility() {
 
 # Function to process directory contents recursively
 process_directory() {
-    local dir="$1"
+    local cmd="$1"
+    local dir="$2"
 	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-    local verify_mode="$2"
-    local write_mode="$3"
-    local delete_mode="$4"
-    local hide_mode="$5"
-    local show_mode="$6"
-    local recover_mode="$7"	
-    local force_mode="$8"
+    local force_mode="$3"
 
 	# ?! do we care about empty directories
 	#
@@ -447,29 +442,36 @@ process_directory() {
     for entry in "$dir"/*; do
 		# If the entry is a directory, process it recursively
         if [ -d "$entry" ]; then
-			process_directory "$entry" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
+			process_directory "$cmd" "$entry" "$force_mode"
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
-			if [ "$delete_mode" != "true" ]; then
+			if [ "$cmd" != "delete" ]; then
 				if check_extension "$entry"; then
 					echo "ERROR: [$dir] \"$(basename "$entry")\" -- file with restricted extension"
 					((ERROR_COUNT++))
 					continue;
 				fi
-
-                if [ "$verify_mode" = "true" ]; then
-                    verify_hash "$dir" "$entry" 
-                elif [ "$recover_mode" = "true" ]; then
-                    verify_hash "$dir" "$entry" "$recover_mode"
-                elif [ "$write_mode" = "true" ]; then
-					write_hash "$dir" "$entry" "$force_mode"
-                elif [ "$hide_mode" = "true" ]; then
-                    manage_hash_visibility "$dir" "$entry" "hide"
-                elif [ "$show_mode" = "true" ]; then
-                    manage_hash_visibility "$dir" "$entry" "show"
-				#else	
-                fi
+				case "$cmd" in
+				    "verify")
+				        verify_hash "$dir" "$entry" "false"
+				        ;;
+				    "recover")
+				        verify_hash "$dir" "$entry" "true"
+				        ;;
+				    "write")
+				        write_hash "$dir" "$entry" "$force_mode"
+				        ;;
+				    "hide")
+				        manage_hash_visibility "$dir" "$entry" "hide"
+				        ;;
+				    "show")
+				        manage_hash_visibility "$dir" "$entry" "show"
+				        ;;
+				    *)
+				        # No action for other cases, if needed
+				        ;;
+				esac
 			else
 				delete_hash "$dir" "$entry" "$force_mode"
             fi
@@ -486,48 +488,28 @@ process_directory() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-# Parse command line options
-hash_mode="false"
-verify_mode="false"
-write_mode="false"
-delete_mode="false"
-hide_mode="false"
-show_mode="false"
-roh_dir_mode="false"
-roh_dir=""
-loop_mode="false"
-force_mode="false"
-recover_mode="false"
-
-
 # Check if a command is provided
 if [ $# -eq 0 ]; then
 	usage
     exit 1
 fi
 
+cmd="_INVALID_"
 # Parse command
 case "$1" in
     hash) 
-        hash_mode="true"
         ;;
     verify) 
-        verify_mode="true"
         ;;
     write) 
-        write_mode="true"
         ;;
     delete) 
-        delete_mode="true"
         ;;
     hide) 
-        hide_mode="true"
         ;;
     show) 
-        show_mode="true"
         ;;
     recover) 
-        recover_mode="true"
         ;;
     -h)
 		usage
@@ -543,7 +525,14 @@ case "$1" in
         exit 1
         ;;
 esac
+cmd="$1"
 shift
+
+# Parse command line options
+roh_dir_mode="false"
+roh_dir=""
+loop_mode="false"
+force_mode="false"
 
 while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
@@ -604,7 +593,7 @@ else
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
-if [ "$hash_mode" = "true" ]; then
+if [ "$cmd" = "hash" ]; then
 	if [ -f "$ROOT" ]; then
 		fpath="$ROOT"
 		computed_hash=$(generate_hash "$fpath")
@@ -619,7 +608,7 @@ if [ "$hash_mode" = "true" ]; then
 fi
 
 # Check for force_mode usage
-if [ "$force_mode" = "true" ] && [ "$delete_mode" != "true" ] && [ "$write_mode" != "true" ]; then
+if [ "$force_mode" = "true" ] && [ "$cmd" != "delete" ] && [ "$cmd" != "write" ]; then
     echo "ERROR: --force can only be used with delete or write." >&2
     usage
     exit 1
@@ -628,20 +617,15 @@ fi
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 run_directory_process() {
-    local dir="$1"
+	local cmd="$1"
+    local dir="$2"
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-    local verify_mode="$2"
-    local write_mode="$3"
-    local delete_mode="$4"
-    local hide_mode="$5"
-    local show_mode="$6"
-    local recover_mode="$7"	
-    local force_mode="$8"
+    local force_mode="$3"
 
-	if [ "$write_mode" = "true" ] || [ "$hide_mode" = "true" ]; then
+	if [ "$cmd" = "write" ] || [ "$cmd" = "hide" ]; then
 		ensure_dir "$ROH_DIR"
 
-	elif [ "$verify_mode" = "true" ] || [ "$show_mode" = "true" ]; then
+	elif [ "$cmd" = "verify" ] || [ "$cmd" = "show" ]; then
 		if [ ! -d "$ROH_DIR" ]; then
 			echo "ERROR: [$ROOT] -- missing [$ROH_DIR]. Aborting." >&2
 			exit 1
@@ -659,7 +643,7 @@ run_directory_process() {
 		# echo "* FPATH: [$roh_hash_fpath] [$fpath]"
 
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$delete_mode" = "true" ]; then
+			if [ "$cmd" = "delete" ]; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
@@ -693,7 +677,7 @@ run_directory_process() {
 	# find "test/.roh.git" -path "*/.git/*" -prune -o \( -type f -not -name ".*" -print \) -o \( -type d -not -name ".*" -print \)
 	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
 	
-	if [ "$delete_mode" = "true" ]; then
+	if [ "$cmd" = "delete" ]; then
 		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
 			if ! rmdir "$ROH_DIR"; then
@@ -769,7 +753,7 @@ else
 	    exit 1
 	fi
 
-	run_directory_process "$ROOT" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
+	run_directory_process "$cmd" "$ROOT" "$force_mode"
 	if [ $ERROR_COUNT -gt 0 ]; then
 		echo "Number of ERRORs encountered: [$ERROR_COUNT]"
 		echo
