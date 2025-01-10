@@ -14,7 +14,6 @@ usage() {
 	echo
 	echo "Flags:"
 	echo "      --roh-dir  Specify the readonly hash path"
-	echo "      --loop     PATH specifies a \".loop.txt\"; a dir list to loop over"
     echo "      --force    Force operation even if hash files do not match"
     echo "  -h, --help     Display this help and exit"
     echo
@@ -531,7 +530,6 @@ shift
 # Parse command line options
 roh_dir_mode="false"
 roh_dir=""
-loop_mode="false"
 force_mode="false"
 
 while getopts "h-:" opt; do
@@ -548,9 +546,6 @@ while getopts "h-:" opt; do
           roh_dir="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
-		loop)
-		  loop_mode="true"
-		  ;;
         force)
           force_mode="true"
           ;;
@@ -707,63 +702,59 @@ run_directory_process() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-if [ "$loop_mode" = "true" ]; then
-	fpath_loop="$ROOT"
+# if [ "$loop_mode" = "true" ]; then
+# 	fpath_loop="$ROOT"
+# 
+# 	# Check if the file ends with .ro.txt
+# 	if [[ ! "$fpath_loop" =~ \.loop\.txt$ ]]; then
+# 	    echo "ERROR: file path must end with .loop.txt"
+# 	    exit 1
+# 	fi
+# 	
+# 	# Read each line from the file, assuming each line contains a directory path
+# 	while IFS= read -r dir; do
+# 	    # Skip lines that start with '#'
+# 	    if [[ "$dir" =~ ^#.* ]]; then
+# 	        continue
+# 	    fi
+# 
+# 		ROOT="$dir"
+# 	
+# 	    # Check if directory exists
+# 	    if [ -d "$dir" ]; then
+# 	        # Execute readonlyhash with switches for each directory and check exit status
+# 	        echo "Looping on: [$dir]"
+# 			run_directory_process "$dir" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
+# 			if [ $ERROR_COUNT -gt 0 ]; then
+# 				echo "Number of ERRORs encountered: [$ERROR_COUNT]"
+# 				echo
+# 				exit 1
+# 			else
+# 				echo "Done."
+# 				echo
+# 			fi
+# 	    else
+# 	        echo "Warning: Directory [$dir] does not exist, skipping."
+# 	    fi
+# 	done < "$fpath_loop"
+# 	
+# 	echo "Loop: All executions completed successfully."
+# 	echo
+# else
 
-	# Check if the file ends with .ro.txt
-	if [[ ! "$fpath_loop" =~ \.loop\.txt$ ]]; then
-	    echo "ERROR: file path must end with .loop.txt"
-	    exit 1
-	fi
-	
-	# Read each line from the file, assuming each line contains a directory path
-	while IFS= read -r dir; do
-	    # Skip lines that start with '#'
-	    if [[ "$dir" =~ ^#.* ]]; then
-	        continue
-	    fi
-
-		ROOT="$dir"
-	
-	    # Check if directory exists
-	    if [ -d "$dir" ]; then
-	        # Execute readonlyhash with switches for each directory and check exit status
-	        echo "Looping on: [$dir]"
-			run_directory_process "$dir" "$verify_mode" "$write_mode" "$delete_mode" "$hide_mode" "$show_mode" "$recover_mode" "$force_mode"
-			if [ $ERROR_COUNT -gt 0 ]; then
-				echo "Number of ERRORs encountered: [$ERROR_COUNT]"
-				echo
-				exit 1
-			else
-				echo "Done."
-				echo
-			fi
-	    else
-	        echo "Warning: Directory [$dir] does not exist, skipping."
-	    fi
-	done < "$fpath_loop"
-	
-	echo "Loop: All executions completed successfully."
+if [ ! -d "$ROOT" ]; then
+    echo "ERROR: Directory [$ROOT] does not exist"
 	echo
-
-else
-	if [ ! -d "$ROOT" ]; then
-	    echo "ERROR: Directory [$ROOT] does not exist"
-		echo
-	    exit 1
-	fi
-
-	run_directory_process "$cmd" "$ROOT" "$force_mode"
-	if [ $ERROR_COUNT -gt 0 ]; then
-		echo "Number of ERRORs encountered: [$ERROR_COUNT]"
-		echo
-		exit 1
-	fi
-	
-	echo "Done."
-	echo
-
+    exit 1
 fi
 
+run_directory_process "$cmd" "$ROOT" "$force_mode"
+if [ $ERROR_COUNT -gt 0 ]; then
+	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
+	echo
+	exit 1
+fi
 
+echo "Done."
+echo
 
