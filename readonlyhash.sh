@@ -1,14 +1,16 @@
 #!/bin/bash
 
-#ROH_BIN="./readonlyhash.sh"
-ROH_BIN="readonlyhash"
-ROH_GIT=".roh.git"
+#ROH_BIN="./roh.fpath.sh"
+ROH_BIN="roh.fpath"
+#GIT_BIN="./roh.git.sh"
 GIT_BIN="roh.git"
 HASH="sha256"
 
+ROH_DIR=".roh.git"
+
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [OPTIONS|(-w|-d) --force] [PATH]"
+    echo "Usage: $(basename "$0") [COMMAND] [PATH]"
     echo "Options:"
     echo "  -h, --help     Display this help and exit"
 #	echo 
@@ -18,8 +20,91 @@ usage() {
     echo
 }
 
+# Check if a command is provided
+if [ $# -eq 0 ]; then
+	usage
+    exit 1
+fi
+
+cmd="_INVALID_"
+# Parse command
+case "$1" in
+    init) 
+        ;;
+    verify) 
+        ;;
+#     write) 
+#         write_mode="true"
+#         ;;
+#     delete) 
+#         delete_mode="true"
+#         ;;
+#     hide) 
+#         hide_mode="true"
+#         ;;
+#     show) 
+#         show_mode="true"
+#         ;;
+#     recover) 
+#         recover_mode="true"
+#         ;;
+    -h)
+		usage
+        exit 0
+        ;;
+    --help)
+		usage
+        exit 0
+        ;;
+    *)
+        echo "ERROR: unknown command: [$1]"
+		usage
+        exit 1
+        ;;
+esac
 cmd="$1"
-file_path="$2"
+
+shift
+
+while getopts "h-:" opt; do
+  # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
+  case $opt in
+    h)
+      usage
+      exit 0
+      ;;	  
+    -)
+      case "${OPTARG}" in
+		loop)
+		  loop_mode="true"
+		  ;;
+        help)
+          usage
+          exit 0
+          ;;
+        *)
+          echo "ERROR: invalid option: [--${OPTARG}]" >&2
+          usage
+          exit 1
+          ;;
+      esac
+      ;;
+    \?)
+      echo "ERROR: invalid option: [-${OPTARG}]" >&2
+      usage
+      exit 1
+      ;;
+    :)
+      echo "ERROR: option [-$OPTARG] requires an argument." >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+# capture all remaining arguments after the options have been processed
+shift $((OPTIND-1))
+file_path="$1"
 
 # Check if the file ends with .ro.txt
 if [[ ! "$file_path" =~ \.loop\.txt$ ]]; then
@@ -44,17 +129,17 @@ while IFS= read -r dir; do
 
 		if [ "$cmd" = "init" ]; then
 			echo "Looping on: [$dir]"
-	 		$ROH_BIN -w "$dir"
+	 		$ROH_BIN write "$dir"
 	 		if [ $? -ne 0 ]; then
-	            echo "ERROR: [$ROH_BIN -w] failed for directory: [$dir]"
+	            echo "ERROR: [$ROH_BIN write] failed for directory: [$dir]"
 	 			echo
 	 			exit 1
 	 		fi		
 
-			if [ ! -d "$dir/$ROH_GIT/.git" ]; then
+			if [ ! -d "$dir/$ROH_DIR/.git" ]; then
 	 			$GIT_BIN -C "$dir" init
 
-				echo ".DS_Store.$HASH" > "$dir/$ROH_GIT"/.gitignore
+				echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
 				$GIT_BIN -C "$dir" add .gitignore
 				$GIT_BIN -C "$dir" commit -m "Initial ignores"
 				# $GIT_BIN -C "$dir" status
@@ -78,9 +163,9 @@ while IFS= read -r dir; do
 			fi					
 
 		elif [ "$cmd" = "verify" ]; then
-	 		$ROH_BIN -v "$dir"
+	 		$ROH_BIN verify "$dir"
 	 		if [ $? -ne 0 ]; then
-	            echo "ERROR: [$ROH_BIN -w] failed for directory: [$dir]"
+	            echo "ERROR: [$ROH_BIN verify] failed for directory: [$dir]"
 	 			echo
 	 			exit 1
 	 		fi		

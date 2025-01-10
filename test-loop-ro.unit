@@ -1,42 +1,41 @@
 
 # Path to the hash script
-LOOP_SCRIPT="./loop-ro.sh"
+LOOP_SCRIPT="./readonlyhash.sh"
 chmod +x $LOOP_SCRIPT
 fpath="Fotos.loop.txt"
 fpath_ro="Fotos~.loop.txt"
 
-ROH_GIT=".roh.git"
+HASH="sha256"
+ROH_DIR=".roh.git"
 
 # Loop script 
 echo
 echo "# Loop script"
 
-mv "/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro" "/Users/dev/Project-@knev/readonlyhash.sh.git/2002" >/dev/null 2>&1
-mv "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro" "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999" >/dev/null 2>&1
+rm -rf "__MACOSX"
+rm -rf "2002" >/dev/null 2>&1
+rm -rf "2002.ro" >/dev/null 2>&1
+rm -rf "Fotos [space]" >/dev/null 2>&1
+unzip Fotos.zip >/dev/null 2>&1
+rm -rf "__MACOSX"
 
-rm "/Users/dev/Project-@knev/readonlyhash.sh.git/2002"/_${ROH_GIT}.zip >/dev/null 2>&1
-rm "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999"/_${ROH_GIT}.zip >/dev/null 2>&1
-
-rm -rf "/Users/dev/Project-@knev/readonlyhash.sh.git/2002"/$ROH_GIT >/dev/null 2>&1
-rm -rf "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999"/$ROH_GIT >/dev/null 2>&1
-# rm -rf "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003"/$ROH_GIT
+rm "$fpath" >/dev/null 2>&1
+rm "$fpath_ro" >/dev/null 2>&1
 
 echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos/2003" > "$fpath"
-
 run_test "$LOOP_SCRIPT init $fpath" "1" "$(escape_expected "ERROR: Directory [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos/2003] does not exist.")"
+
 echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999" > "$fpath"
 echo "/Users/dev/Project-@knev/readonlyhash.sh.git/2002" >> "$fpath"
 #echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003" >> "$fpath"
-
 #run_test "$LOOP_SCRIPT init $fpath" "1" "$(escape_expected "")"
 $LOOP_SCRIPT init $fpath
 #TODO test that the zip is there
 #TODO test that git completed complete and the directory is clean
 
-echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_GIT/2002_FIRE!/Untitled-001.jpg.$HASH"
+echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_DIR/2002_FIRE!/Untitled-001.jpg.$HASH"
 run_test "$LOOP_SCRIPT verify $fpath_ro" "1" "$(escape_expected "\"Untitled-001.jpg\" -- hash mismatch:.* stored [0000000000000000000000000000000000000000000000000000000000000000]")"
-echo "816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4" > "2002.ro/$ROH_GIT/2002_FIRE!/Untitled-001.jpg.$HASH"
-
+echo "816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4" > "2002.ro/$ROH_DIR/2002_FIRE!/Untitled-001.jpg.$HASH"
 
 $LOOP_SCRIPT verify $fpath_ro
 
