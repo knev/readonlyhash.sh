@@ -102,6 +102,72 @@ while getopts "h-:" opt; do
   esac
 done
 
+#------------------------------------------------------------------------------------------------------------------------------------------
+
+init_directory() {
+	local dir="$1"
+
+	echo "Looping on: [$dir]"
+ 	$ROH_BIN write "$dir"
+ 	if [ $? -ne 0 ]; then
+        echo "ERROR: [$ROH_BIN write] failed for directory: [$dir]"
+ 		echo
+ 		exit 1
+ 	fi		
+
+	if [ ! -d "$dir/$ROH_DIR/.git" ]; then
+ 		$GIT_BIN -C "$dir" init
+
+		echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
+		$GIT_BIN -C "$dir" add .gitignore
+		$GIT_BIN -C "$dir" commit -m "Initial ignores"
+		# $GIT_BIN -C "$dir" status
+	fi
+
+	git_status=$($GIT_BIN -C "$dir" status)
+	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+		$GIT_BIN -C "$dir" add "*"
+		$GIT_BIN -C "$dir" commit -m "Initial hashes"
+		$GIT_BIN -C "$dir" status
+	fi
+
+	if [ ! -f "$dir/_.roh.git.zip" ]; then
+		$GIT_BIN -zC "$dir" 
+	fi
+
+	dir_ro="${dir}"
+	# Check if the directory name ends with '.ro'
+	if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
+		dir_ro="${dir}.ro"
+
+		# Rename the directory by adding '.ro' if it doesn't already have it
+		mv "$dir" "$dir_ro"
+		echo "Renamed [$dir] to [${dir_ro}]"
+	fi					
+	echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
+}
+
+verify_directory() {
+	local dir="$1"
+
+	$ROH_BIN verify "$dir"
+	if [ $? -ne 0 ]; then
+        echo "ERROR: [$ROH_BIN verify] failed for directory: [$dir]"
+		echo
+		exit 1
+	fi		
+	$GIT_BIN -C "$dir" status
+	git_status=$($GIT_BIN -C "$dir" status)
+	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+		echo
+        echo "ERROR: local repo [$dir/$ROH_DIR] not clean"
+		echo
+		exit 1
+	fi
+}
+
+#------------------------------------------------------------------------------------------------------------------------------------------
+
 # capture all remaining arguments after the options have been processed
 shift $((OPTIND-1))
 file_path="$1"
@@ -112,6 +178,8 @@ if [[ ! "$file_path" =~ \.loop\.txt$ ]]; then
 	usage
     exit 1
 fi
+
+#------------------------------------------------------------------------------------------------------------------------------------------
 
 if [ "$cmd" = "init" ]; then
 	echo "# $(basename "$0") [" > "${file_path%.loop.txt}~.loop.txt"
@@ -128,60 +196,10 @@ while IFS= read -r dir; do
     if [ -d "$dir" ]; then
 
 		if [ "$cmd" = "init" ]; then
-			echo "Looping on: [$dir]"
-	 		$ROH_BIN write "$dir"
-	 		if [ $? -ne 0 ]; then
-	            echo "ERROR: [$ROH_BIN write] failed for directory: [$dir]"
-	 			echo
-	 			exit 1
-	 		fi		
-
-			if [ ! -d "$dir/$ROH_DIR/.git" ]; then
-	 			$GIT_BIN -C "$dir" init
-
-				echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
-				$GIT_BIN -C "$dir" add .gitignore
-				$GIT_BIN -C "$dir" commit -m "Initial ignores"
-				# $GIT_BIN -C "$dir" status
-			fi
-
-			git_status=$($GIT_BIN -C "$dir" status)
-			if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-				$GIT_BIN -C "$dir" add "*"
-				$GIT_BIN -C "$dir" commit -m "Initial hashes"
-				$GIT_BIN -C "$dir" status
-			fi
-
-			if [ ! -f "$dir/_.roh.git.zip" ]; then
-				$GIT_BIN -zC "$dir" 
-			fi
-
-			dir_ro="${dir}"
-			# Check if the directory name ends with '.ro'
-			if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
-				dir_ro="${dir}.ro"
-
-				# Rename the directory by adding '.ro' if it doesn't already have it
-				mv "$dir" "$dir_ro"
-				echo "Renamed [$dir] to [${dir_ro}]"
-			fi					
-			echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
+			init_directory "$dir"
 
 		elif [ "$cmd" = "verify" ]; then
-	 		$ROH_BIN verify "$dir"
-	 		if [ $? -ne 0 ]; then
-	            echo "ERROR: [$ROH_BIN verify] failed for directory: [$dir]"
-	 			echo
-	 			exit 1
-	 		fi		
-			$GIT_BIN -C "$dir" status
-			git_status=$($GIT_BIN -C "$dir" status)
-			if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-				echo
-	            echo "ERROR: local repo [$dir/$ROH_DIR] not clean"
-	 			echo
-	 			exit 1
-			fi
+			verify_directory "$dir"
 		fi
 
     else
