@@ -2,7 +2,7 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [COMMAND|(write|delete) --force] [FLAGS][--roh-dir PATH] [PATH]"
+    echo "Usage: $(basename "$0") <COMMAND|(write|delete) --force> [OPTIONS][--roh-dir PATH] <FPATH>"
     echo "Commands:"
 	echo "      hash       Generate a hash of a single file"
 	echo "      verify     Verify computed hashes against stored hashes"
@@ -12,7 +12,7 @@ usage() {
     echo "      show       Move hash files from .roh to file's directory"
     echo "      recover    Attempt to recover orphaned hashes using verify"
 	echo
-	echo "Flags:"
+	echo "Options:"
 	echo "      --roh-dir  Specify the readonly hash path"
     echo "      --force    Force operation even if hash files do not match"
     echo "  -h, --help     Display this help and exit"

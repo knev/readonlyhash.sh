@@ -10,14 +10,10 @@ ROH_DIR=".roh.git"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [COMMAND] -d [PATH]"
+    echo "Usage: $(basename "$0") <COMMAND> [-d] <FPATH>"
     echo "Options:"
 	echo "  -d, --directory    Operate on a single directory"
     echo "  -h, --help         Display this help and exit"
-#	echo 
-#	echo "Flags:"
-#	echo "  --loop         PATH specifies a \".loop.txt\"; a dir list to loop over"
-#   echo "  --force        Force operation even if hash files do not match"
     echo
 }
 
