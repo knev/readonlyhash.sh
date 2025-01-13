@@ -22,12 +22,15 @@ nothing:
 # 	@./version.sh --print
 
 install:
+	@mkdir -p ~/bin
 	@cp -v ./${ROH}.sh ~/bin/${ROH}
-	chmod +x ~/bin/${ROH}
+	@chmod +x ~/bin/${ROH}
 	@cp -v ./${ROH_FPATH}.sh ~/bin/${ROH_FPATH}
-	chmod +x ~/bin/${ROH_FPATH}
+	@chmod +x ~/bin/${ROH_FPATH}
 	@cp -v ./${ROH_GIT}.sh ~/bin/${ROH_GIT}
-	chmod +x ~/bin/${ROH_GIT}
+	@chmod +x ~/bin/${ROH_GIT}
+	@echo "Done."
+	@echo
 
 clean:
 	rm ~/bin/${ROH}
