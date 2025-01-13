@@ -12,7 +12,7 @@ usage() {
 	echo
     echo "Usage: $(basename "$0") <COMMAND> [OPTIONS][--new-target] <FPATH>"
     echo "Options:"
-	echo "  -d, --directory     Operate on a single directory"
+	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .loop.txt"
 	echo "      --new-target    adsf"
     echo "  -h, --help          Display this help and exit"
     echo
@@ -71,15 +71,15 @@ new_target="_INVALID_"
 while getopts "dh-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
-	d)
-	  directory_mode="true"
-	  ;;
     h)
       usage
       exit 0
       ;;	  
     -)
       case "${OPTARG}" in
+		directory)
+		  directory_mode="true"
+		  ;;
         new-target)
 		  target_mode="true"
           new_target="${!OPTIND}"

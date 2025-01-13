@@ -27,7 +27,7 @@ rm -rf "__MACOSX"
 rm "$fpath" >/dev/null 2>&1
 rm "$fpath_ro" >/dev/null 2>&1
 
-run_test "$LOOP_SCRIPT init -d /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos\ \[space\]/2003" "0" "ERROR" "true"
+run_test "$LOOP_SCRIPT init --directory /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos\ \[space\]/2003" "0" "ERROR" "true"
 
 echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos/2003" > "$fpath"
 run_test "$LOOP_SCRIPT init $fpath" "1" "$(escape_expected "ERROR: Directory [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos/2003] does not exist.")"
