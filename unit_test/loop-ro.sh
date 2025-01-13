@@ -7,6 +7,7 @@ chmod +x $LOOP_SCRIPT
 fpath="Fotos.loop.txt"
 fpath_ro="Fotos~.loop.txt"
 fpath_ro_ro="Fotos~~.loop.txt"
+TARGET="_target~"
 
 HASH="sha256"
 ROH_DIR=".roh.git"
@@ -19,6 +20,7 @@ rm -rf "__MACOSX"
 rm -rf "2002" >/dev/null 2>&1
 rm -rf "2002.ro" >/dev/null 2>&1
 rm -rf "Fotos [space]" >/dev/null 2>&1
+rm -rf "$TARGET"
 unzip Fotos.zip >/dev/null 2>&1
 rm -rf "__MACOSX"
 
@@ -57,8 +59,24 @@ rm "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
 
 run_test "$LOOP_SCRIPT verify $fpath_ro" "0" "ERROR" "true"
 
+# fpath_ro
+# /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro
+# /Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro
+# 1]	/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999
+# 1]	/Users/dev/Project-@knev/readonlyhash.sh.git/2002
+# 2]		/Users/dev/Project-@knev/readonlyhash.sh.git
+# 2]		; Fotos [space]/1999
+# 2]		; 2002
+# 3]			/Users/dev/Project-@knev/readonlyhash.sh.git/_target~/Fotos [space]/1999
+# 3]			/Users/dev/Project-@knev/readonlyhash.sh.git/_target~/2002
+# 
+# _target~
+# /Users/dev/Project-@knev/readonlyhash.sh.git/_target~/
 
-exit
+unzip Fotos.zip -d $TARGET >/dev/null 2>&1
+rm -rf "$TARGET/__MACOSX"
+run_test "$LOOP_SCRIPT verify --new-target $TARGET $fpath_ro" "0" "ERROR" "true"
+rm -rf "$TARGET"
 
 # Clean up test files
 echo
@@ -73,4 +91,5 @@ rm "$fpath_ro"
 
 run_test "ls -alR 2002.ro" "1" "$(escape_expected "ls: 2002.ro: No such file or directory")"
 run_test "ls -alR Fotos\ \[space\]" "1" "$(escape_expected "ls: Fotos [space]: No such file or directory")"
+run_test "ls -alR $TARGET" "1" "$(escape_expected "ls: $TARGET: No such file or directory")"
 

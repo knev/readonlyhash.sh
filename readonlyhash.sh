@@ -10,10 +10,11 @@ ROH_DIR=".roh.git"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND> [-d] <FPATH>"
+    echo "Usage: $(basename "$0") <COMMAND> [OPTIONS][--new-target] <FPATH>"
     echo "Options:"
-	echo "  -d, --directory    Operate on a single directory"
-    echo "  -h, --help         Display this help and exit"
+	echo "  -d, --directory     Operate on a single directory"
+	echo "      --new-target    adsf"
+    echo "  -h, --help          Display this help and exit"
     echo
 }
 
@@ -64,6 +65,9 @@ cmd="$1"
 shift
 
 directory_mode="false"
+target_mode="false"
+new_target="_INVALID_"
+
 while getopts "dh-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
@@ -76,9 +80,11 @@ while getopts "dh-:" opt; do
       ;;	  
     -)
       case "${OPTARG}" in
-		loop)
-		  loop_mode="true"
-		  ;;
+        new-target)
+		  target_mode="true"
+          new_target="${!OPTIND}"
+          OPTIND=$((OPTIND + 1))
+          ;;	
         help)
           usage
           exit 0
@@ -170,6 +176,68 @@ verify_directory() {
 	fi
 }
 
+
+# Function to find common parent directory
+find_common_parent() {
+    # Convert paths to absolute paths
+    local path1=$(realpath "$1")
+    local path2=$(realpath "$2")
+
+    # Split paths into arrays of components
+    IFS='/' read -ra arr1 <<< "${path1:1}"  # remove leading slash
+    IFS='/' read -ra arr2 <<< "${path2:1}"
+
+    local common_path="/"
+    local i
+    for ((i = 0; i < ${#arr1[@]} && i < ${#arr2[@]}; i++)); do
+        if [ "${arr1[i]}" != "${arr2[i]}" ]; then
+            break
+        fi
+        common_path+="${arr1[i]}/"
+    done
+
+    # Remove trailing slash if it's not the root directory
+    [ "$common_path" != "/" ] && common_path=${common_path%/}
+
+    echo "$common_path"
+}
+
+# - get the absolute path of $TARGET
+# - for each (non-comment) dir in fpath_ro 
+# 	- 2] get the common parent with $TARGET; get remainder of dir
+# 	- 1] cut off the .ro extension
+# 	- 3] paste remainder onto the absolute of $TARGET gives result
+# 	- 4] do a roh.fpath verify of result, with --roh-dir $dir/$ROH_DIR
+#
+verify_target() {
+	local dir="$1"
+	local abs_target="$2" # the absolute path of $new_target
+
+	common_parent=$(find_common_parent "$dir" "$abs_target")
+	# echo "* Common parent directory: $common_parent"
+
+    # Remove the common parent from the path
+    local remainder="${dir#$common_parent/}"	
+    # If the common parent is just "/", return the path minus the leading slash
+    if [ "$common_parent" = "/" ]; then
+        remainder="${dir#*/}"
+    fi
+
+	if [[ "$remainder" = *.ro ]]; then
+		remainder="${remainder%.ro}"
+	fi
+
+	echo "* $dir : $abs_target : $remainder"
+	echo "$abs_target/$remainder"
+
+	$ROH_BIN verify --roh-dir "$dir/$ROH_DIR" "$abs_target/$remainder"
+	if [ $? -ne 0 ]; then
+        echo "ERROR: [$ROH_BIN verify --roh-dir] failed for directory: [$abs_target/$remainder]"
+		echo
+		exit 1
+	fi		
+}
+
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 # capture all remaining arguments after the options have been processed
@@ -207,7 +275,11 @@ while IFS= read -r dir; do
 			init_directory "$dir" "true"
 
 		elif [ "$cmd" = "verify" ]; then
-			verify_directory "$dir"
+			if [ "$target_mode" = "true" ]; then
+				verify_target "$dir" "$(readlink -f "$new_target")"
+			else
+				verify_directory "$dir"
+			fi
 		fi
 
     else
