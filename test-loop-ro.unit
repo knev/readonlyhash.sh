@@ -24,6 +24,8 @@ rm -rf "__MACOSX"
 rm "$fpath" >/dev/null 2>&1
 rm "$fpath_ro" >/dev/null 2>&1
 
+run_test "$LOOP_SCRIPT init -d /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos\ \[space\]/2003" "0" "ERROR" "true"
+
 echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos/2003" > "$fpath"
 run_test "$LOOP_SCRIPT init $fpath" "1" "$(escape_expected "ERROR: Directory [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos/2003] does not exist.")"
 run_test "ls -al $fpath_ro" "0" "$fpath_ro"
@@ -31,7 +33,6 @@ rm "$fpath_ro"
 
 echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999" > "$fpath"
 echo "/Users/dev/Project-@knev/readonlyhash.sh.git/2002" >> "$fpath"
-#echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003" >> "$fpath"
 run_test "$LOOP_SCRIPT init $fpath" "0" "Initialized empty Git repository"
 run_test "ls -al $fpath_ro" "0" "$fpath_ro"
 rm "$fpath"
@@ -61,8 +62,11 @@ echo "# Clean up test files"
 
 rm -rf "2002.ro" >/dev/null 2>&1
 rm -rf "Fotos [space]/1999.ro" >/dev/null 2>&1
-rm -rf "Fotos [space]/2003" >/dev/null 2>&1
+rm -rf "Fotos [space]/2003.ro" >/dev/null 2>&1
 rm "Fotos [space]/.DS_Store"
 rmdir "Fotos [space]"
 rm "$fpath_ro"
+
+run_test "ls -alR 2002.ro" "1" "$(escape_expected "ls: 2002.ro: No such file or directory")"
+run_test "ls -alR Fotos\ \[space\]" "1" "$(escape_expected "ls: Fotos [space]: No such file or directory")"
 

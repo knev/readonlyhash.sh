@@ -10,9 +10,10 @@ ROH_DIR=".roh.git"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [COMMAND] [PATH]"
+    echo "Usage: $(basename "$0") [COMMAND] -d [PATH]"
     echo "Options:"
-    echo "  -h, --help     Display this help and exit"
+	echo "  -d, --directory    Operate on a single directory"
+    echo "  -h, --help         Display this help and exit"
 #	echo 
 #	echo "Flags:"
 #	echo "  --loop         PATH specifies a \".loop.txt\"; a dir list to loop over"
@@ -66,9 +67,13 @@ cmd="$1"
 
 shift
 
-while getopts "h-:" opt; do
+directory_mode="false"
+while getopts "dh-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
+	d)
+	  directory_mode="true"
+	  ;;
     h)
       usage
       exit 0
@@ -106,6 +111,7 @@ done
 
 init_directory() {
 	local dir="$1"
+	local echo_rename="$2"
 
 	echo "Looping on: [$dir]"
  	$ROH_BIN write "$dir"
@@ -144,7 +150,9 @@ init_directory() {
 		mv "$dir" "$dir_ro"
 		echo "Renamed [$dir] to [${dir_ro}]"
 	fi					
-	echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
+	if [ "$echo_rename" = "true" ]; then
+		echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
+	fi
 }
 
 verify_directory() {
@@ -172,8 +180,12 @@ verify_directory() {
 shift $((OPTIND-1))
 file_path="$1"
 
+if [ "$directory_mode" = "true" ]; then
+	init_directory "$file_path" "false"
+	echo
+	exit 0
 # Check if the file ends with .ro.txt
-if [[ ! "$file_path" =~ \.loop\.txt$ ]]; then
+elif [[ ! "$file_path" =~ \.loop\.txt$ ]]; then
     echo "ERROR: No file path argument ending with '.loop.txt' found."
 	usage
     exit 1
@@ -196,7 +208,7 @@ while IFS= read -r dir; do
     if [ -d "$dir" ]; then
 
 		if [ "$cmd" = "init" ]; then
-			init_directory "$dir"
+			init_directory "$dir" "true"
 
 		elif [ "$cmd" = "verify" ]; then
 			verify_directory "$dir"
