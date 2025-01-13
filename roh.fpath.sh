@@ -529,7 +529,7 @@ shift
 
 # Parse command line options
 roh_dir_mode="false"
-roh_dir=""
+roh_dir="_INVALID_"
 force_mode="false"
 
 while getopts "h-:" opt; do
