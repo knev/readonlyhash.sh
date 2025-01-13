@@ -439,8 +439,11 @@ process_directory() {
 	# echo "Processing directory: [$dir]"
 
     for entry in "$dir"/*; do
+		if [ -L "$entry" ]; then
+			echo "WARN: Avoiding symlink [$entry] like the Plague"
+
 		# If the entry is a directory, process it recursively
-        if [ -d "$entry" ]; then
+        elif [ -d "$entry" ]; then
 			process_directory "$cmd" "$entry" "$force_mode"
 
 		# else ...

@@ -66,6 +66,13 @@ echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 echo
 echo "# write_hash()"
 
+# Weird b3-Excito cyclic symlink
+pushd "$TEST" >/dev/null 2>&1
+ln -s . X11
+popd >/dev/null 2>&1
+run_test "$ROH_SCRIPT write $TEST" "0" "$(escape_expected "WARN: Avoiding symlink [test/X11] like the Plague")"
+rm "$TEST/X11"
+
 echo "c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
 run_test "$ROH_SCRIPT write $TEST" "1" "$(escape_expected "ERROR: [$TEST/sub-directory with spaces/sub-sub-directory] \"jkl.txt\" -- hash file [$TEST/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256] exists/(NOT hidden)")"
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
