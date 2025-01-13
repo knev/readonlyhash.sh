@@ -1,3 +1,4 @@
+#! /bin/echo Please-source
 
 # Requirements
 echo

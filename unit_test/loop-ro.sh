@@ -1,3 +1,4 @@
+#! /bin/echo Please-source
 
 # Path to the hash script
 LOOP_SCRIPT="./readonlyhash.sh"
@@ -55,6 +56,9 @@ run_test "$LOOP_SCRIPT verify $fpath_ro" "1" "$(escape_expected "ERROR: local re
 rm "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
 
 run_test "$LOOP_SCRIPT verify $fpath_ro" "0" "ERROR" "true"
+
+
+exit
 
 # Clean up test files
 echo

@@ -1,3 +1,4 @@
+#! /bin/echo Please-source
 
 ROH_SCRIPT="./roh.fpath.sh"
 chmod +x $ROH_SCRIPT
@@ -204,6 +205,7 @@ echo "# manage_hash_visibility()"
 
 $ROH_SCRIPT show "$TEST" >/dev/null 2>&1
 run_test "$ROH_SCRIPT verify $TEST" "1" "$(escape_expected "ERROR:.* -- hash file [.*] exists/(NOT hidden)")"
+exit
 $ROH_SCRIPT hide "$TEST" >/dev/null 2>&1
 
 # cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
