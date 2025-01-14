@@ -16,6 +16,7 @@ usage() {
     echo "Options:"
 	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .loop.txt"
 	echo "      --new-target    adsf"
+    echo "  -v, --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
     echo
 }
@@ -39,10 +40,18 @@ case "$1" in
         ;;
 #    delete) 
 #        ;;
+    -v)
+		echo "$(basename "$0") version: $VERSION"
+        exit 0
+        ;;
     -h)
 		usage
         exit 0
         ;;
+	--version)
+	    echo "$(basename "$0") version: $VERSION"
+	    exit 0
+	    ;;
     --help)
 		usage
         exit 0
