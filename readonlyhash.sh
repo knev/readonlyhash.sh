@@ -6,11 +6,13 @@ ROH_BIN="roh.fpath"
 GIT_BIN="roh.git"
 HASH="sha256"
 
-ROH_DIR=".roh.git"
-
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND> [OPTIONS][--new-target] <FPATH>"
+    echo "Usage: $(basename "$0") <COMMAND|verify --new-target TARGET_FPATH> [OPTIONS] <FPATH>"
+	echo "      init            ..."
+	echo "      verify          ..."
+	echo "      archive         ..."
+	echo "      extract         ..."
     echo "Options:"
 	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .loop.txt"
 	echo "      --new-target    adsf"
@@ -31,21 +33,12 @@ case "$1" in
         ;;
     verify) 
         ;;
-#     write) 
-#         write_mode="true"
-#         ;;
-#     delete) 
-#         delete_mode="true"
-#         ;;
-#     hide) 
-#         hide_mode="true"
-#         ;;
-#     show) 
-#         show_mode="true"
-#         ;;
-#     recover) 
-#         recover_mode="true"
-#         ;;
+    archive) 
+        ;;
+    extract) 
+        ;;
+#    delete) 
+#        ;;
     -h)
 		usage
         exit 0
@@ -115,6 +108,8 @@ init_directory() {
 	local dir="$1"
 	local echo_rename="$2"
 
+	ROH_DIR="$dir/.roh.git"
+
 	echo "Looping on: [$dir]"
  	$ROH_BIN write "$dir"
  	if [ $? -ne 0 ]; then
@@ -123,10 +118,10 @@ init_directory() {
  		exit 1
  	fi		
 
-	if [ ! -d "$dir/$ROH_DIR/.git" ]; then
+	if [ ! -d "$ROH_DIR/.git" ]; then
  		$GIT_BIN -C "$dir" init
 
-		echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
+		echo ".DS_Store.$HASH" > "$ROH_DIR"/.gitignore
 		$GIT_BIN -C "$dir" add .gitignore
 		$GIT_BIN -C "$dir" commit -m "Initial ignores."
 		# $GIT_BIN -C "$dir" status
@@ -137,10 +132,6 @@ init_directory() {
 		$GIT_BIN -C "$dir" add "*"
 		$GIT_BIN -C "$dir" commit -m "Initial hashes."
 		$GIT_BIN -C "$dir" status
-	fi
-
-	if [ ! -f "$dir/_.roh.git.zip" ]; then
-		$GIT_BIN -zC "$dir" 
 	fi
 
 	dir_ro="${dir}"
@@ -160,22 +151,75 @@ init_directory() {
 verify_directory() {
 	local dir="$1"
 
-	$ROH_BIN verify "$dir"
-	if [ $? -ne 0 ]; then
-        echo "ERROR: [$ROH_BIN verify] failed for directory: [$dir]"
-		echo
-		exit 1
-	fi		
-	$GIT_BIN -C "$dir" status
-	git_status=$($GIT_BIN -C "$dir" status)
-	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-		echo
-        echo "ERROR: local repo [$dir/$ROH_DIR] not clean"
-		echo
-		exit 1
+	local archive_name="_.roh.git.zip"
+	if [ -f "$dir/$archive_name" ]; then
+		tmp_dir=$(mktemp -d)
+
+		unzip -q "$dir/$archive_name" -d "$tmp_dir"
+		if [ $? -eq 0 ]; then
+		    echo "Extracted [$tmp_dir] from [$dir/$archive_name]"
+		else
+		    echo "ERROR: failed to extract [$tmp_dir] from [$dir/$archive_name]"
+		    echo
+		    exit 1
+		fi
+
+		ROH_DIR="$tmp_dir/.roh.git"
+
+		$ROH_BIN verify --roh-dir "$ROH_DIR" "$dir"
+		if [ $? -ne 0 ]; then
+	        echo "ERROR: [$ROH_BIN verify --roh-dir] failed for directory: [$dir]"
+			echo
+			exit 1
+		fi		
+		git_status=$($GIT_BIN -C "$tmp_dir" status)
+		echo "$git_status"
+		if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+			echo
+	        echo "ERROR: local repo [$ROH_DIR] not clean"
+			echo
+			exit 1
+		fi
+
+		rm -r "$tmp_dir"
+		echo "Removed [$tmp_dir]"
+
+	else
+		ROH_DIR="$dir/.roh.git"
+
+		$ROH_BIN verify "$dir"
+		if [ $? -ne 0 ]; then
+	        echo "ERROR: [$ROH_BIN verify] failed for directory: [$dir]"
+			echo
+			exit 1
+		fi		
+		git_status=$($GIT_BIN -C "$dir" status)
+		echo "$git_status"
+		if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+			echo
+	        echo "ERROR: local repo [$ROH_DIR] not clean"
+			echo
+			exit 1
+		fi
+
 	fi
 }
 
+archive_directory() {
+	local dir="$1"
+
+	verify_directory "$dir"
+
+	if [ ! -f "$dir/_.roh.git.zip" ]; then
+		$GIT_BIN -zC "$dir" 
+	fi
+}
+
+extract_directory() {
+	local dir="$1"
+
+	$GIT_BIN -xC "$dir" 
+}
 
 # Function to find common parent directory
 find_common_parent() {
@@ -207,11 +251,13 @@ find_common_parent() {
 # 	- 2] get the common parent with $TARGET; get remainder of dir
 # 	- 1] cut off the .ro extension
 # 	- 3] paste remainder onto the absolute of $TARGET gives result
-# 	- 4] do a roh.fpath verify of result, with --roh-dir $dir/$ROH_DIR
+# 	- 4] do a roh.fpath verify of result, with --roh-dir $ROH_DIR
 #
 verify_target() {
 	local dir="$1"
 	local abs_target="$2" # the absolute path of $new_target
+
+	ROH_DIR="$dir/.roh.git"
 
 	common_parent=$(find_common_parent "$dir" "$abs_target")
 	# echo "* Common parent directory: $common_parent"
@@ -230,7 +276,7 @@ verify_target() {
 	echo "* $dir : $abs_target : $remainder"
 	echo "$abs_target/$remainder"
 
-	$ROH_BIN verify --roh-dir "$dir/$ROH_DIR" "$abs_target/$remainder"
+	$ROH_BIN verify --roh-dir "$ROH_DIR" "$abs_target/$remainder"
 	if [ $? -ne 0 ]; then
         echo "ERROR: [$ROH_BIN verify --roh-dir] failed for directory: [$abs_target/$remainder]"
 		echo
@@ -280,6 +326,15 @@ while IFS= read -r dir; do
 			else
 				verify_directory "$dir"
 			fi
+
+		elif [ "$cmd" = "archive" ]; then
+			archive_directory "$dir"
+
+		elif [ "$cmd" = "extract" ]; then
+			extract_directory "$dir"
+
+		elif [ "$cmd" = "delete" ]; then
+			echo delete
 		fi
 
     else
