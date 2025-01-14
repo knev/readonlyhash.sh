@@ -2,11 +2,14 @@
 
 ROH_SCRIPT="./roh.fpath.sh"
 chmod +x $ROH_SCRIPT
-GIT_BIN="roh.git"
+GIT_BIN="./roh.git.sh"
+chmod +x $GIT_BIN
 
 HASH="sha256"
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+echo "#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+echo "# unit_test: error.sh"
 
 # Parse command line options
 echo
@@ -110,7 +113,8 @@ echo "# delete_hash()"
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
 run_test "$ROH_SCRIPT delete $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists/(NOT hidden); can only delete hidden hashes")"
 
-mkdir "$ROH_DIR"
+# delete does NOT kill $ROH_DIR, because the git repo is still there
+run_test "mkdir $ROH_DIR" "1" "mkdir: test/.roh.git: File exists"
 mv "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256" 
 echo "ABC" > "$TEST/file with spaces.txt"
 run_test "$ROH_SCRIPT delete $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash mismatch, cannot delete [$ROH_DIR/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]")"

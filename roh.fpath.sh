@@ -390,7 +390,8 @@ manage_hash_visibility() {
 			# 	((ERROR_COUNT++))
 			# 	return 1
 			# fi
-			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- [$dest_fpath][$stored] exists, not moving/(not $past_tense)"
+			#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- [$dest_fpath][$stored] exists, not moving/(not $past_tense)"
+			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- [$dest_fpath] exists, not moving/(not $past_tense)"
 			((ERROR_COUNT++))
 			return 1
 		fi
@@ -440,7 +441,7 @@ process_directory() {
 
     for entry in "$dir"/*; do
 		if [ -L "$entry" ]; then
-			echo "WARN: Avoiding symlink [$entry] like the Plague"
+			echo "WARN: Avoiding symlink [$entry] like the Plague =)"
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
@@ -675,31 +676,16 @@ run_directory_process() {
 	# find "test/.roh.git" -path "*/.git/*" -prune -o \( -type f -not -name ".*" -print \) -o \( -type d -not -name ".*" -print \)
 	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
 	
-	if [ "$cmd" = "delete" ]; then
-		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
-		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
-			if ! rmdir "$ROH_DIR"; then
-				echo "ERROR: Failed to delete [$ROH_DIR]"
-				((ERROR_COUNT++))
-			fi
-		fi
-	fi
-
-	# if [ "$write_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
-	# 	# Check if the directory name ends with '.ro'
-    #     if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
-	# 		# Rename the directory by adding '.ro' if it doesn't already have it
-	# 		mv "$dir" "$dir.ro"
-	# 		echo "Renamed [$dir] to [${dir}.ro]"
-	# 	fi		
-	# elif [ "$delete_mode" = "true" ] && [ $ERROR_COUNT -eq 0 ]; then
-	#     # Check if the directory name ends with '.ro'
-    #     if [[ "$dir" != "." && "$dir" != ".." && $dir == *.ro ]]; then
-	#         old_name=${dir%.ro}
-	#         # Rename the directory by removing '.ro'
-	#         mv "$dir" "$old_name"
-	#         echo "Renamed [$dir] to [$old_name]"
-	#     fi	
+	# We can't do this, because if git is being used, the path will never be empty
+	#
+	# if [ "$cmd" = "delete" ]; then
+	# 	#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
+	# 	if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
+	# 		if ! rmdir "$ROH_DIR"; then
+	# 			echo "ERROR: Failed to delete [$ROH_DIR]"
+	# 			((ERROR_COUNT++))
+	# 		fi
+	# 	fi
 	# fi
 }
 

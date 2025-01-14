@@ -128,14 +128,14 @@ init_directory() {
 
 		echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
 		$GIT_BIN -C "$dir" add .gitignore
-		$GIT_BIN -C "$dir" commit -m "Initial ignores"
+		$GIT_BIN -C "$dir" commit -m "Initial ignores."
 		# $GIT_BIN -C "$dir" status
 	fi
 
 	git_status=$($GIT_BIN -C "$dir" status)
 	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
 		$GIT_BIN -C "$dir" add "*"
-		$GIT_BIN -C "$dir" commit -m "Initial hashes"
+		$GIT_BIN -C "$dir" commit -m "Initial hashes."
 		$GIT_BIN -C "$dir" status
 	fi
 
