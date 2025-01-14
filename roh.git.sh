@@ -161,7 +161,30 @@ elif [ "$extract_mode" = "true" ]; then
 	extract_roh "$current_working_dir" "$force_mode"
 
 else
+	# External drive fatal error, because ownership ids are from another system
+	# fatal: detected dubious ownership in repository at '/Volumes/Fractal/o1oc/INST.ro/.roh.git'
+	# To add an exception for this directory, call:
+	# git config --global --add safe.directory <PATH>
+	
+	# GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$current_working_dir/$ROH_DIR" git status
+	export GIT_CONFIG_COUNT=1
+	export GIT_CONFIG_KEY_0=safe.directory
+	export GIT_CONFIG_VALUE_0="$current_working_dir/$ROH_DIR"
+
+	# Your name and email address were configured automatically based
+	# on your username and hostname. Please check that they are accurate.
+	# You can suppress this message by setting them explicitly. Run the
+	# following command and follow the instructions in your editor to edit
+	# your configuration file:
+	#     git config --global --edit
+	# After doing this, you may fix the identity used for this commit with:
+	#     git commit --amend --reset-author
+	export GIT_ADVICE_IMPLICIT_IDENTITY=false
+
 	# Now, $@ contains all arguments after -C PATH
 	git -C "$current_working_dir/$ROH_DIR" "$@"
+
+	unset GIT_ADVICE_IMPLICIT_IDENTITY
+	unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
 fi
 
