@@ -287,6 +287,7 @@ write_hash() {
 		# 	fi
 		# fi
 
+ 		echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
 		return 0  
 	fi
 
