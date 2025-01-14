@@ -15,7 +15,7 @@ usage() {
 	echo
 }
 
-current_working_dir=""
+current_working_dir="."
 archive_mode="false"
 extract_mode="false"
 force_mode="false"

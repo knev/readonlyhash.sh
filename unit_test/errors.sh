@@ -248,9 +248,9 @@ echo
 echo "# roh.git"
 
 run_test "$GIT_BIN" "1" "$(escape_expected "ERROR: not enough arguments.")" 
-run_test "$GIT_BIN status" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
+#run_test "$GIT_BIN status" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
 run_test "$GIT_BIN --force" "1" "$(escape_expected "ERROR: not enough arguments.")" 
-run_test "$GIT_BIN --force -x" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
+#run_test "$GIT_BIN --force -x" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
 run_test "$GIT_BIN -xC" "1" "$(escape_expected "ERROR: option [-C] requires an argument.")" 
 run_test "$GIT_BIN -xC FAKE_FPATH" "1" "$(escape_expected "ERROR: invalid working directory [FAKE_FPATH].")" 
 run_test "$GIT_BIN -zxC ." "1" "$(escape_expected "ERROR: archive and extract operations are mutually exclusive.")" 
