@@ -33,7 +33,8 @@ install:
 	@echo
 
 clean:
-	rm ~/bin/${ROH}
-	rm ~/bin/${ROH_FPATH}
-	rm ~/bin/${ROH_GIT}
+	-rm ~/bin/${ROH}
+	-rm ~/bin/${ROH_FPATH}
+	-rm ~/bin/${ROH_GIT}
+	@echo
 

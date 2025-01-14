@@ -196,3 +196,4 @@ rmdir "$TEST"
 
 run_test "ls -alR $TEST" "1" "$(escape_expected "ls: $TEST: No such file or directory")"
 
+echo

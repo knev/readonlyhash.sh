@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#ROH_BIN="./roh.fpath.sh"
-ROH_BIN="roh.fpath"
+#FPATH_BIN="./roh.fpath.sh"
+FPATH_BIN="roh.fpath"
 #GIT_BIN="./roh.git.sh"
 GIT_BIN="roh.git"
 HASH="sha256"
@@ -111,9 +111,9 @@ init_directory() {
 	ROH_DIR="$dir/.roh.git"
 
 	echo "Looping on: [$dir]"
- 	$ROH_BIN write "$dir"
+ 	$FPATH_BIN write "$dir"
  	if [ $? -ne 0 ]; then
-        echo "ERROR: [$ROH_BIN write] failed for directory: [$dir]"
+        echo "ERROR: [$FPATH_BIN write] failed for directory: [$dir]"
  		echo
  		exit 1
  	fi		
@@ -166,9 +166,9 @@ verify_directory() {
 
 		ROH_DIR="$tmp_dir/.roh.git"
 
-		$ROH_BIN verify --roh-dir "$ROH_DIR" "$dir"
+		$FPATH_BIN verify --roh-dir "$ROH_DIR" "$dir"
 		if [ $? -ne 0 ]; then
-	        echo "ERROR: [$ROH_BIN verify --roh-dir] failed for directory: [$dir]"
+	        echo "ERROR: [$FPATH_BIN verify --roh-dir] failed for directory: [$dir]"
 			echo
 			exit 1
 		fi		
@@ -187,9 +187,9 @@ verify_directory() {
 	else
 		ROH_DIR="$dir/.roh.git"
 
-		$ROH_BIN verify "$dir"
+		$FPATH_BIN verify "$dir"
 		if [ $? -ne 0 ]; then
-	        echo "ERROR: [$ROH_BIN verify] failed for directory: [$dir]"
+	        echo "ERROR: [$FPATH_BIN verify] failed for directory: [$dir]"
 			echo
 			exit 1
 		fi		
@@ -276,9 +276,9 @@ verify_target() {
 	echo "* $dir : $abs_target : $remainder"
 	echo "$abs_target/$remainder"
 
-	$ROH_BIN verify --roh-dir "$ROH_DIR" "$abs_target/$remainder"
+	$FPATH_BIN verify --roh-dir "$ROH_DIR" "$abs_target/$remainder"
 	if [ $? -ne 0 ]; then
-        echo "ERROR: [$ROH_BIN verify --roh-dir] failed for directory: [$abs_target/$remainder]"
+        echo "ERROR: [$FPATH_BIN verify --roh-dir] failed for directory: [$abs_target/$remainder]"
 		echo
 		exit 1
 	fi		
