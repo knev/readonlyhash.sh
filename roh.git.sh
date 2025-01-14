@@ -79,20 +79,20 @@ archive_roh() {
     local archive_name="_$ROH_DIR.zip"
     local roh_path="$dir/$ROH_DIR"
     
-    if [ -d "$roh_path" ]; then
-        # If force_mode is true, remove existing archive before creating a new one
-        if [ -f "$dir/$archive_name" ]; then
-			if [ "$force_mode" = "true" ]; then
-				rm "$dir/$archive_name"
-				echo "Removed [$dir/$archive_name]"
-			else
-				echo "ERROR: archive [$archive_name] exists in [$dir]; aborting"
-				echo
-				exit 1
-			fi
-        fi
+	# If force_mode is true, remove existing archive before creating a new one
+	if [ -f "$dir/$archive_name" ]; then
+		if [ "$force_mode" = "true" ]; then
+			rm "$dir/$archive_name"
+			echo "Removed [$dir/$archive_name]"
+		else
+			echo "ERROR: archive [$archive_name] exists in [$dir]; aborting"
+			echo
+			exit 1
+		fi
+	fi
         
-        # zip -r "$archive_name" "$roh_path"
+     if [ -d "$roh_path" ]; then
+       # zip -r "$archive_name" "$roh_path"
 		#archive_name shouldn't end in .zip: tar -cvzf "$dir/$archive_name" -C "$dir" "$ROH_DIR"
 		tar -cvf "$dir/$archive_name" --format=zip -C "$dir" "$ROH_DIR" >/dev/null 2>&1
         if [ $? -eq 0 ]; then
@@ -121,18 +121,18 @@ extract_roh() {
     local archive_name="_$ROH_DIR.zip"
     local roh_path="$dir/$ROH_DIR"
     
-	if [ -f "$dir/$archive_name" ]; then
-		if [ -d "$roh_path" ]; then
-			if [ "$force_mode" = "true" ]; then
-				rm -rf "$dir/$ROH_DIR"
-				echo "Removed [$dir/$ROH_DIR]"
-			else
-				echo "ERROR: directory [$ROH_DIR] exists in [$dir]; aborting"
-				echo
-				exit 1
-			fi
+	if [ -d "$roh_path" ]; then
+		if [ "$force_mode" = "true" ]; then
+			rm -rf "$dir/$ROH_DIR"
+			echo "Removed [$dir/$ROH_DIR]"
+		else
+			echo "ERROR: directory [$ROH_DIR] exists in [$dir]; aborting"
+			echo
+			exit 1
 		fi
+	fi
 
+	if [ -f "$dir/$archive_name" ]; then
 		unzip -q "$dir/$archive_name" -d "$dir"
 		if [ $? -eq 0 ]; then
 		    echo "Extracted [$ROH_DIR] from [$dir/$archive_name]"

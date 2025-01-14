@@ -243,6 +243,42 @@ mv "$ROH_DIR/file with spaces.txt.$HASH" "$TEST/file with spaces.txt.$HASH"
 $ROH_SCRIPT hide "$TEST" >/dev/null 2>&1
 run_test "$ROH_SCRIPT verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
+# roh.git
+echo
+echo "# roh.git"
+
+$GIT_BIN -C "$TEST" add "*" >/dev/null 2>&1
+$GIT_BIN -C "$TEST" commit -m "Initial hashes" >/dev/null 2>&1
+run_test "$GIT_BIN -C $TEST status" "0" "nothing to commit, working tree clean"
+
+run_test "$GIT_BIN -zC $TEST" "0" "$(escape_expected "Archived [.roh.git] to [test/_.roh.git.zip].*Removed [test/.roh.git]")"
+run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] exists in [test]; aborting")"
+mv "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
+run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] does NOT exist in [test]")"
+
+mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
+run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "Extracted [.roh.git] from [test/_.roh.git.zip].*Removed [test/_.roh.git.zip]")"
+run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] exists in [test]; aborting")"
+mv "$ROH_DIR" "$ROH_DIR~"
+run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] does NOT exist in [test]")"
+mv "$ROH_DIR~" "$ROH_DIR"
+
+cp -R "$ROH_DIR" "$ROH_DIR~"
+$GIT_BIN -zC "$TEST" >/dev/null 2>&1
+mv "$ROH_DIR~" "$ROH_DIR"
+run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Removed [test/_.roh.git.zip]")"
+
+cp "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
+$GIT_BIN -xC "$TEST" >/dev/null 2>&1
+mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
+run_test "$GIT_BIN --force -xC $TEST" "0" "$(escape_expected "Removed [test/.roh.git]")"
+
+# if show/hide dies while processing; recover
+mv "$ROH_DIR/file with spaces.txt.$HASH" "$TEST/file with spaces.txt.$HASH" 
+find "$TEST" -name "*.$HASH" -type f -delete 
+$GIT_BIN -C "$TEST" checkout . >/dev/null 2>&1
+run_test "$ROH_SCRIPT verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
+
 # process_directory()
 echo
 echo "# process_directory()"
