@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $(basename "$0") [--force] [OPTIONS][-C PATH] [ARGUMENTS]"
+    echo "Usage: $(basename "$0") [--force] <[-z|-x] -[z|x]C PATH> [ARGUMENTS]"
     echo "Options:"
 	echo "  -z             Archive the roh_git storage"
 	echo "  -x             Extract the roh_git storage"
@@ -15,7 +15,7 @@ usage() {
 	echo
 }
 
-current_working_dir="."
+current_working_dir=""
 archive_mode="false"
 extract_mode="false"
 force_mode="false"
@@ -45,19 +45,20 @@ while getopts ":zxC:h-:" opt; do
           exit 0
           ;;
         *)
-          echo "Invalid option: --${OPTARG}" >&2
+          echo "ERROR: invalid option: [--${OPTARG}]" >&2
           usage
           exit 1
           ;;
       esac
       ;;
     \?)
-      echo "Invalid option: -$OPTARG" >&2
+      echo "ERROR: invalid option: [-$OPTARG]" >&2
       usage
       exit 1
       ;;
     :)
-      echo "Option -$OPTARG requires an argument." >&2
+      echo "ERROR: option [-$OPTARG] requires an argument." >&2
+	  echo
       usage
       exit 1
       ;;
@@ -69,8 +70,31 @@ shift $((OPTIND-1))
 
 ROH_DIR=".roh.git"
 
-# echo "* current_working_dir $current_working_dir"
-# echo "* $@"
+# echo "* current_working_dir: [$current_working_dir]"
+# echo "* [$#][$@]"
+
+# Check if any mode is set or if positional arguments are needed
+if [ "$archive_mode" = "false" ] && [ "$extract_mode" = "false" ]; then
+	if [ $# -eq 0 ]; then
+		echo "ERROR: not enough arguments." >&2
+		echo
+		usage
+		exit 1
+	fi
+
+elif [ "$archive_mode" = "true" ] && [ "$extract_mode" = "true" ]; then
+		echo "ERROR: archive and extract operations are mutually exclusive." >&2
+		echo
+		usage
+		exit 1
+fi
+
+if [ -z "$current_working_dir" ] || ! [ -d "$current_working_dir" ]; then
+	echo "ERROR: invalid working directory [$current_working_dir]." >&2
+	echo
+	usage
+	exit 1
+fi
 
 archive_roh() {
     local dir="$1"
