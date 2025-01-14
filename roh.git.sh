@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $(basename "$0") [--force] <[-z|-x] -[z|x]C PATH> [ARGUMENTS]"
+    echo "Usage: $(basename "$0") [--force] <[-z|-x] [-[z|x]C PATH]> [ARGUMENTS]"
     echo "Options:"
 	echo "  -z             Archive the roh_git storage"
 	echo "  -x             Extract the roh_git storage"
