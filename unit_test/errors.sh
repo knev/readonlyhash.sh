@@ -212,7 +212,6 @@ echo "# manage_hash_visibility()"
 
 $ROH_SCRIPT show "$TEST" >/dev/null 2>&1
 run_test "$ROH_SCRIPT verify $TEST" "1" "$(escape_expected "ERROR:.* -- hash file [.*] exists/(NOT hidden)")"
-exit
 $ROH_SCRIPT hide "$TEST" >/dev/null 2>&1
 
 # cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
@@ -231,6 +230,14 @@ rm "$ROH_DIR/file with spaces.txt.sha256"
 run_test "$ROH_SCRIPT show $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- NO hash file found [$TEST/.roh.git/file with spaces.txt.sha256] for [$TEST/file with spaces.txt], not shown")"
 $ROH_SCRIPT hide "$TEST" >/dev/null 2>&1
 $ROH_SCRIPT write "$TEST" >/dev/null 2>&1
+
+# worst case
+echo
+echo "# worst case"
+
+mv "$ROH_DIR/file with spaces.txt.$HASH" "$TEST/file with spaces.txt.$HASH" 
+$ROH_SCRIPT hide "$TEST" >/dev/null 2>&1
+run_test "$ROH_SCRIPT verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
 # process_directory()
 echo
