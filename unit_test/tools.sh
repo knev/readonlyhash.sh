@@ -111,19 +111,18 @@ echo
 echo "# delete_hash()"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$FPATH_BIN delete $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists/(NOT hidden); can only delete hidden hashes")"
+run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] deleted -- OK")"
+run_test "ls -al test/$ROH_DIR" "1" "test/$ROH_DIR: No such file or directory"
 
-# delete does NOT kill $ROH_DIR, because the git repo is still there
-run_test "mkdir $ROH_DIR" "1" "mkdir: test/.roh.git: File exists"
-mv "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256" 
-echo "ABC" > "$TEST/file with spaces.txt"
-run_test "$FPATH_BIN delete $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash mismatch, cannot delete [$ROH_DIR/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]")"
-
-run_test "$FPATH_BIN delete --force $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash mismatch, [$ROH_DIR/file with spaces.txt.sha256] deleted with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!")"
+# mv "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256" 
+# echo "ABC" > "$TEST/file with spaces.txt"
+# run_test "$FPATH_BIN delete $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash mismatch, cannot delete [$ROH_DIR/file with spaces.txt.sha256] with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]")"
+# 
+# run_test "$FPATH_BIN delete --force $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash mismatch, [$ROH_DIR/file with spaces.txt.sha256] deleted with stored [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff] -- FORCED!")"
 
 echo "ZYXW" > "$TEST/file with spaces.txt"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
-run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash file in [$ROH_DIR] deleted -- OK")"
+run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash file [test/.roh.git/file with spaces.txt.sha256] deleted -- OK")"
 echo "ABC" > "$TEST/file with spaces.txt"
 
 run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "File: ")" "true"

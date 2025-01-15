@@ -315,36 +315,42 @@ delete_hash() {
 
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
     if [ -f "$dir_hash_fpath" ]; then
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden); can only delete hidden hashes"
-        ((ERROR_COUNT++))
-        return 1  # Error, hash file does not exist
+        # echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden); can only delete hidden hashes"
+        # ((ERROR_COUNT++))
+        # return 1  # Error, hash file does not exist
+
+		rm "$dir_hash_fpath"
+		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] deleted -- OK"
 	fi
 
-    if [ ! -f "$roh_hash_fpath" ]; then
+    if [ -f "$roh_hash_fpath" ]; then
+		rm "$roh_hash_fpath"
+		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$roh_hash_fpath] deleted -- OK"
+	else
         # echo "ERROR: [$dir] \"$(basename "$file")\" -- NO hash file found in []"
         # ((ERROR_COUNT++))
         # return 1  # Error, hash file does not exist
-		return 0
+		return 0;
     fi
 
-	local computed_hash=$(generate_hash "$fpath")
-	local stored=$(stored_hash "$roh_hash_fpath")
-	
-	if [ "$computed_hash" = "$stored" ]; then
-		rm "$roh_hash_fpath"
-		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file in [$ROH_DIR] deleted -- OK"
-		return 0  # No error
-	else
-		if [ "$force_mode" = "true" ]; then
-			rm "$roh_hash_fpath"
-			echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] deleted with stored [$stored] -- FORCED!"
-			return 0
-		else
-			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, cannot delete [$roh_hash_fpath] with stored [$stored]"
-			((ERROR_COUNT++))
-			return 1  # Error, hash mismatch
-		fi
-	fi
+#	local computed_hash=$(generate_hash "$fpath")
+#	local stored=$(stored_hash "$roh_hash_fpath")
+#	
+#	if [ "$computed_hash" = "$stored" ]; then
+#		rm "$roh_hash_fpath"
+#		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file in [$ROH_DIR] deleted -- OK"
+#		return 0  # No error
+#	else
+#		if [ "$force_mode" = "true" ]; then
+#			rm "$roh_hash_fpath"
+#			echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] deleted with stored [$stored] -- FORCED!"
+#			return 0
+#		else
+#			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, cannot delete [$roh_hash_fpath] with stored [$stored]"
+#			((ERROR_COUNT++))
+#			return 1  # Error, hash mismatch
+#		fi
+#	fi
 }
 
 manage_hash_visibility() {
@@ -677,17 +683,16 @@ run_directory_process() {
 	# find "test/.roh.git" -path "*/.git/*" -prune -o \( -type f -not -name ".*" -print \) -o \( -type d -not -name ".*" -print \)
 	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
 	
-	# We can't do this, because if git is being used, the path will never be empty
-	#
-	# if [ "$cmd" = "delete" ]; then
-	# 	#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
-	# 	if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
-	# 		if ! rmdir "$ROH_DIR"; then
-	# 			echo "ERROR: Failed to delete [$ROH_DIR]"
-	# 			((ERROR_COUNT++))
-	# 		fi
-	# 	fi
-	# fi
+	# This will fail if git is being used
+	if [ "$cmd" = "delete" ] || [ "$cmd" = "show" ]; then
+		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
+		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
+			if ! rmdir "$ROH_DIR"; then
+				echo "ERROR: Failed to delete [$ROH_DIR]"
+				((ERROR_COUNT++))
+			fi
+		fi
+	fi
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
