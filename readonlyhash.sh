@@ -8,11 +8,12 @@ HASH="sha256"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|verify --new-target TARGET_FPATH> [OPTIONS] <FPATH>"
+    echo "Usage: $(basename "$0") <COMMAND|<verify|transfer> --new-target TARGET_FPATH> [OPTIONS] <FPATH>"
 	echo "      init            ..."
 	echo "      verify          ..."
 	echo "      archive         ..."
 	echo "      extract         ..."
+	echo "      transfer        ..."
     echo "Options:"
 	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .loop.txt"
 	echo "      --new-target    adsf"
@@ -38,6 +39,8 @@ case "$1" in
         ;;
     extract) 
         ;;
+	transfer)
+	    ;;
 #    delete) 
 #        ;;
     -v)
@@ -112,10 +115,71 @@ while getopts "dh-:" opt; do
 done
 
 #------------------------------------------------------------------------------------------------------------------------------------------
+# captured output : NO spurious echo/printf outputs!
+
+rename_to_ro() {
+    local dir="$1"
+    local dir_ro="${dir}"
+
+	# Rename the directory by adding '.ro' if it doesn't already have it
+    if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
+        dir_ro="${dir}.ro"
+        mv "$dir" "$dir_ro"
+    fi
+    echo "$dir_ro"	
+}
+
+# Function to find common parent directory
+find_common_parent() {
+    # Convert paths to absolute paths
+    local path1=$(realpath "$1")
+    local path2=$(realpath "$2")
+
+    # Split paths into arrays of components
+    IFS='/' read -ra arr1 <<< "${path1:1}"  # remove leading slash
+    IFS='/' read -ra arr2 <<< "${path2:1}"
+
+    local common_path="/"
+    local i
+    for ((i = 0; i < ${#arr1[@]} && i < ${#arr2[@]}; i++)); do
+        if [ "${arr1[i]}" != "${arr2[i]}" ]; then
+            break
+        fi
+        common_path+="${arr1[i]}/"
+    done
+
+    # Remove trailing slash if it's not the root directory
+    [ "$common_path" != "/" ] && common_path=${common_path%/}
+
+    echo "$common_path"
+}
+
+get_target_remainder() {
+    local dir="$1"
+    local abs_target="$2"
+    local common_parent=$(find_common_parent "$dir" "$abs_target")
+
+    # Remove the common parent from the path
+    local remainder="${dir#$common_parent/}"
+
+    # If the common parent is just "/", return the path minus the leading slash
+    if [ "$common_parent" = "/" ]; then
+        remainder="${dir#*/}"
+    fi
+
+    # Remove '.ro' from the end of the remainder if it exists
+    if [[ "$remainder" = *.ro ]]; then
+        remainder="${remainder%.ro}"
+    fi
+
+    # Return the remainder
+    echo "$remainder"
+}
+
+#------------------------------------------------------------------------------------------------------------------------------------------
 
 init_directory() {
 	local dir="$1"
-	local echo_rename="$2"
 
 	ROH_DIR="$dir/.roh.git"
 
@@ -143,18 +207,9 @@ init_directory() {
 		$GIT_BIN -C "$dir" status
 	fi
 
-	dir_ro="${dir}"
-	# Check if the directory name ends with '.ro'
-	if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
-		dir_ro="${dir}.ro"
-
-		# Rename the directory by adding '.ro' if it doesn't already have it
-		mv "$dir" "$dir_ro"
-		echo "Renamed [$dir] to [${dir_ro}]"
-	fi					
-	if [ "$echo_rename" = "true" ]; then
-		echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
-	fi
+	dir_ro="$(rename_to_ro "$dir")"
+	echo "Renamed [$dir] to [${dir_ro}]"
+	echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
 }
 
 verify_directory() {
@@ -230,31 +285,6 @@ extract_directory() {
 	$GIT_BIN -xC "$dir" 
 }
 
-# Function to find common parent directory
-find_common_parent() {
-    # Convert paths to absolute paths
-    local path1=$(realpath "$1")
-    local path2=$(realpath "$2")
-
-    # Split paths into arrays of components
-    IFS='/' read -ra arr1 <<< "${path1:1}"  # remove leading slash
-    IFS='/' read -ra arr2 <<< "${path2:1}"
-
-    local common_path="/"
-    local i
-    for ((i = 0; i < ${#arr1[@]} && i < ${#arr2[@]}; i++)); do
-        if [ "${arr1[i]}" != "${arr2[i]}" ]; then
-            break
-        fi
-        common_path+="${arr1[i]}/"
-    done
-
-    # Remove trailing slash if it's not the root directory
-    [ "$common_path" != "/" ] && common_path=${common_path%/}
-
-    echo "$common_path"
-}
-
 # - get the absolute path of $TARGET
 # - for each (non-comment) dir in fpath_ro 
 # 	- 2] get the common parent with $TARGET; get remainder of dir
@@ -268,22 +298,10 @@ verify_target() {
 
 	ROH_DIR="$dir/.roh.git"
 
-	common_parent=$(find_common_parent "$dir" "$abs_target")
-	# echo "* Common parent directory: $common_parent"
+	remainder=$(get_target_remainder "$dir" "$abs_target")
 
-    # Remove the common parent from the path
-    local remainder="${dir#$common_parent/}"	
-    # If the common parent is just "/", return the path minus the leading slash
-    if [ "$common_parent" = "/" ]; then
-        remainder="${dir#*/}"
-    fi
-
-	if [[ "$remainder" = *.ro ]]; then
-		remainder="${remainder%.ro}"
-	fi
-
-	echo "* $dir : $abs_target : $remainder"
-	echo "$abs_target/$remainder"
+	# echo "* $dir : $abs_target : $remainder"
+	# echo "* $abs_target/$remainder"
 
 	$FPATH_BIN verify --roh-dir "$ROH_DIR" "$abs_target/$remainder"
 	if [ $? -ne 0 ]; then
@@ -291,6 +309,26 @@ verify_target() {
 		echo
 		exit 1
 	fi		
+}
+
+transfer_target() {
+	local dir="$1"
+	local abs_target="$2" # the absolute path of $new_target
+
+	ROH_DIR="$dir/.roh.git"
+
+	remainder=$(get_target_remainder "$dir" "$abs_target")
+
+	# echo "* $dir : $abs_target : $remainder"
+	# echo "* $abs_target/$remainder"
+
+	dir="$abs_target/$remainder"
+	mv "$ROH_DIR" "$dir"
+	echo "Moved [$ROH_DIR] to [$dir]"
+
+	dir_ro=$(rename_to_ro "$dir")
+	echo "Renamed [$dir] to [${dir_ro}]"
+	echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -327,11 +365,12 @@ while IFS= read -r dir; do
     if [ -d "$dir" ]; then
 
 		if [ "$cmd" = "init" ]; then
-			init_directory "$dir" "true"
+			init_directory "$dir"
 
 		elif [ "$cmd" = "verify" ]; then
 			if [ "$target_mode" = "true" ]; then
-				verify_target "$dir" "$(readlink -f "$new_target")"
+				abs_target="$(readlink -f "$new_target")"
+				verify_target "$dir" "$abs_target"
 			else
 				verify_directory "$dir"
 			fi
@@ -342,8 +381,13 @@ while IFS= read -r dir; do
 		elif [ "$cmd" = "extract" ]; then
 			extract_directory "$dir"
 
+		elif [ "$cmd" = "transfer" ]; then
+			abs_target="$(readlink -f "$new_target")"
+			transfer_target "$dir" "$abs_target"
+
 		elif [ "$cmd" = "delete" ]; then
 			echo delete
+			
 		fi
 
     else
@@ -359,7 +403,7 @@ if [ "$cmd" = "init" ]; then
 	echo "# ]" >> "${file_path%.loop.txt}~.loop.txt"
 
 	# Filter out comments at the end of lines and compare
-	if diff <(sed 's/#.*$//' "$file_path") <(sed 's/#.*$//' "${file_path%.loop.txt}~.loop.txt"); then
+	if diff <(sed 's/#.*$//' "$file_path") <(sed 's/#.*$//' "${file_path%.loop.txt}~.loop.txt") > /dev/null 2>&1; then
 		rm "${file_path%.loop.txt}~.loop.txt"
 	fi
 fi

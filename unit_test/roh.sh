@@ -2,8 +2,9 @@
 
 # Path to the hash script
 ROH_BIN="./readonlyhash.sh"
-GIT_BIN="roh.git"
 chmod +x $ROH_BIN
+GIT_BIN="./roh.git.sh"
+chmod +x $GIT_BIN
 fpath="Fotos.loop.txt"
 fpath_ro="Fotos~.loop.txt"
 fpath_ro_ro="Fotos~~.loop.txt"
@@ -99,7 +100,11 @@ run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
 unzip Fotos.zip -d $TARGET >/dev/null 2>&1
 rm -rf "$TARGET/__MACOSX"
 run_test "$ROH_BIN verify --new-target $TARGET $fpath_ro" "0" "ERROR" "true"
-rm -rf "$TARGET"
+
+run_test "$ROH_BIN transfer --new-target $TARGET $fpath_ro" "0" "$(escape_expected "Moved [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro/.roh.git] to [/Users/dev/Project-@knev/readonlyhash.sh.git/_target~/Fotos [space]/1999].*Moved [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/.roh.git] to [/Users/dev/Project-@knev/readonlyhash.sh.git/_target~/2002]")"
+run_test "$ROH_BIN verify $fpath_ro_ro" "0" "ERROR" "true"
+
+exit
 
 # Clean up test files
 echo
