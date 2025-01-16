@@ -65,9 +65,9 @@ echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 #	done < <(find "ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
 #	exit
 
-# write_hash()
+# write
 echo
-echo "# write_hash()"
+echo "# write"
 
 # Weird b3-Excito cyclic symlink
 pushd "$TEST" >/dev/null 2>&1
@@ -106,9 +106,9 @@ $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "File: ")" "true"
 
-# delete_hash()
+# delete
 echo
-echo "# delete_hash()"
+echo "# delete"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
 run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] deleted -- OK")"
@@ -128,9 +128,9 @@ echo "ABC" > "$TEST/file with spaces.txt"
 run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "File: ")" "true"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
-# verify_hash
+# verify
 echo
-echo "# verify_hash()"
+echo "# verify"
 
 mkdir "$TEST-empty"
 # we don't care about empty directories
@@ -187,9 +187,9 @@ rm -v "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: --.* file [$TEST/sub-directory with spaces/sub-sub-directory/jkl.txt] -- NOT found.* for corresponding hash [$TEST/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256][c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]")"
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 
-# recover_hash
+# recover
 echo
-echo "# recover_hash()"
+echo "# recover"
 
 cp "$TEST/$SUBDIR_WITH_SPACES/omn.txt" "$TEST/$SUBDIR_WITH_SPACES/dup.txt"
 run_test "$FPATH_BIN recover $TEST" "1" "$(escape_expected "WARN: [$TEST/sub-directory with spaces] \"dup.txt\" --.* stored [$TEST/.roh.git/sub-directory with spaces/omn.txt.sha256] -- identical file.* for computed [$TEST/sub-directory with spaces/dup.txt][20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1].*ERROR: [$TEST/sub-directory with spaces] \"dup.txt\" -- could not recover hash for file [$TEST/sub-directory with spaces/dup.txt][20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]")"
@@ -207,9 +207,9 @@ run_test "$FPATH_BIN recover $TEST" "1" "$(escape_expected "ERROR: [$TEST/sub-di
 rm "$ROH_DIR/$SUBDIR_WITH_SPACES/$SUBSUBDIR/OMG.txt.$HASH"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
-# manage_hash_visibility
+# show/hide
 echo
-echo "# manage_hash_visibility()"
+echo "# show/hide"
 
 $FPATH_BIN show "$TEST" >/dev/null 2>&1
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR:.* -- hash file [.*] exists/(NOT hidden)")"
