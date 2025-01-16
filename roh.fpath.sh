@@ -289,7 +289,7 @@ write_hash() {
 	        local stored=$(stored_hash "$roh_hash_fpath")
 	
 	        if [ "$computed_hash" = "$stored" ]; then
-				echo "File: [$computed_hash]: [$dir] $(basename "$fpath") -- SKIPPED!"
+				# echo "File: [$computed_hash]: [$dir] $(basename "$fpath") -- SKIPPED!"
 				return 0
 			else
 				if { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
@@ -305,7 +305,7 @@ write_hash() {
 			fi
 
 		else
-			echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
+			# echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
 			return 0  
 		fi
 	fi
