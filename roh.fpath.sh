@@ -283,9 +283,9 @@ write_hash() {
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
-		local computed_hash=$(generate_hash "$fpath")
 
 		if [ "$force_mode" = "true" ]; then
+			local computed_hash=$(generate_hash "$fpath")
 	        local stored=$(stored_hash "$roh_hash_fpath")
 	
 	        if [ "$computed_hash" = "$stored" ]; then
