@@ -681,10 +681,20 @@ run_directory_process() {
 		fi
 
 		if ! stat "$fpath" >/dev/null 2>&1; then
-			local stored=$(stored_hash "$roh_hash_fpath")
-			echo "ERROR: --                ... file [$fpath] -- NOT found"
-			echo "       ... for corresponding hash [$roh_hash_fpath][$stored]"
-			((ERROR_COUNT++))
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
+				if ! rm "$roh_hash_fpath"; then
+					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
+					((ERROR_COUNT++))
+				else
+					local stored=$(stored_hash "$roh_hash_fpath")
+					echo "  OK: -- orphaned hash [$roh_hash_fpath][$stored] removed"
+				fi
+			else
+				local stored=$(stored_hash "$roh_hash_fpath")
+				echo "ERROR: --                ... file [$fpath] -- NOT found"
+				echo "       ... for corresponding hash [$roh_hash_fpath][$stored]"
+				((ERROR_COUNT++))
+			fi
 		fi
 	# exclude "$ROH_DIR/.git" using --prune, return only files
 	# sort, because we want lower directories removed first, so upper directories can be empty and removed

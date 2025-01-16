@@ -106,6 +106,11 @@ $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "File: ")" "true"
 
+mv "$TEST/$SUBDIR_WITH_SPACES/omn.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/OMG.txt"
+run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "OK: -- orphaned hash [test/.roh.git/sub-directory with spaces/omn.txt.sha256][0000000000000000000000000000000000000000000000000000000000000000] removed")"
+
+exit
+
 # delete
 echo
 echo "# delete"
