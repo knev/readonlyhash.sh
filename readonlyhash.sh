@@ -323,8 +323,8 @@ transfer_target() {
 	# echo "* $abs_target/$remainder"
 
 	dir="$abs_target/$remainder"
-	mv "$ROH_DIR" "$dir"
-	echo "Moved [$ROH_DIR] to [$dir]"
+	mv "$ROH_DIR" "$dir/."
+	echo "Moved [$ROH_DIR] to [$dir/.]"
 
 	dir_ro=$(rename_to_ro "$dir")
 	echo "Renamed [$dir] to [${dir_ro}]"
