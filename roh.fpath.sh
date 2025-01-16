@@ -199,45 +199,68 @@ verify_hash() {
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 
-	local computed_hash=$(generate_hash "$fpath")
-
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
-    if [ -f "$dir_hash_fpath" ]; then
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden)"
+
+
+    if [ -f "$roh_hash_fpath" ] && [ -f "$dir_hash_fpath" ]; then
+		local stored_roh=$(stored_hash "$roh_hash_fpath")
+		local stored_dir=$(stored_hash "$dir_hash_fpath")
+
+        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- two hash files exist ..."
+		echo "       ... hidden [$stored_roh][$roh_hash_fpath]"
+		echo "        ... shown [$stored_dir][$dir_hash_fpath]"
         ((ERROR_COUNT++))
         return 1  
 	fi
 
-    if [ ! -f "$roh_hash_fpath" ]; then
+	local computed_hash=$(generate_hash "$fpath")
+
+    if [ -f "$roh_hash_fpath" ]; then
+		local stored=$(stored_hash "$roh_hash_fpath")
+	        
+		if [ "$computed_hash" = "$stored" ]; then
+			if [ "$recover_mode" != "true" ]; then
+				#echo "File: $(basename "$file") -- hash matches: [$computed_hash]"
+				echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- [$fpath] -- OK"
+			fi
+			return 0  # No error
+		else
+			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
+			echo "       ...   stored [$stored]: [$roh_hash_fpath]"
+			echo "       ... computed [$computed_hash]: [$fpath]"
+			((ERROR_COUNT++))
+			return 1  # Error, hash mismatch
+		fi
+
+    elif [ -f "$dir_hash_fpath" ]; then
+		local stored=$(stored_hash "$dir_hash_fpath")
+	        
+		if [ "$computed_hash" = "$stored" ]; then
+			if [ "$recover_mode" != "true" ]; then
+				#echo "File: $(basename "$file") -- hash matches: [$computed_hash]"
+				echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- [$fpath] -- OK"
+			fi
+			return 0  # No error
+		else
+			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
+			echo "       ...   stored [$stored]: [$dir_hash_fpath]"
+			echo "       ... computed [$computed_hash]: [$fpath]"
+			((ERROR_COUNT++))
+			return 1  # Error, hash mismatch
+		fi 
+	
+	else
 		# echo "$dir" "$fpath" "[$computed_hash]"
 		if [ "$recover_mode" = "true" ]; then
 			recover_hash "$dir" "$fpath"
 			return 1
 		else
-			#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file [$roh_hash_fpath] found for [$fpath][$computed_hash]"
 			echo "WARN: [$dir] \"$(basename "$fpath")\" -- ..."
-			echo "        ... hash file [$roh_hash_fpath] -- NOT found"
-			echo "              ... for [$fpath][$computed_hash]"
+			echo "      ... hash file [$roh_hash_fpath] -- NOT found"
+			echo "            ... for [$fpath][$computed_hash]"
 			((ERROR_COUNT++))
 			return 1  # Error, hash file does not exist
 		fi
-	fi
-
-	local stored=$(stored_hash "$roh_hash_fpath")
-        
-	if [ "$computed_hash" = "$stored" ]; then
-		if [ "$recover_mode" != "true" ]; then
-			#echo "File: $(basename "$file") -- hash matches: [$computed_hash]"
-			echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- [$fpath] -- OK"
-		fi
-		return 0  # No error
-	else
-		# echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: stored [$roh_hash_fpath][$stored], computed [$fpath][$computed_hash]"
-		echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
-		echo "       ...   stored [$stored]: [$roh_hash_fpath]"
-		echo "       ... computed [$computed_hash]: [$fpath]"
-		((ERROR_COUNT++))
-		return 1  # Error, hash mismatch
 	fi
 }
 
@@ -631,7 +654,7 @@ run_directory_process() {
 	if [ "$cmd" = "write" ] || [ "$cmd" = "hide" ]; then
 		ensure_dir "$ROH_DIR"
 
-	elif [ "$cmd" = "verify" ] || [ "$cmd" = "show" ]; then
+	elif [ "$cmd" = "show" ]; then
 		if [ ! -d "$ROH_DIR" ]; then
 			echo "ERROR: [$ROOT] -- missing [$ROH_DIR]. Aborting." >&2
 			exit 1

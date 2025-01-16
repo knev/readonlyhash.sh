@@ -21,7 +21,7 @@ run_test "$FPATH_BIN -h" "0" "Usage: roh.fpath.sh"
 run_test "$FPATH_BIN write --gobbligook" "1" "$(escape_expected "ERROR: invalid option: [--gobbligook]")"
 run_test "$FPATH_BIN write -g" "1" "$(escape_expected "ERROR: invalid option: [-]")" #TODO: should print [-g]
 
-run_test "$FPATH_BIN verify --roh-dir DOES_NOT_EXIST" "1" "$(escape_expected "Using ROH_DIR [DOES_NOT_EXIST]")"
+run_test "$FPATH_BIN verify --roh-dir DOES_NOT_EXIST" "0" "$(escape_expected "Using ROH_DIR [DOES_NOT_EXIST]")"
 
 # run_test "$FPATH_BIN -v --force" "1" "ERROR: --force can only be used with -d/--delete or -w/--write."
 # run_test "$FPATH_BIN --force -i" "1" "ERROR: --force can only be used with -d/--delete or -w/--write."
@@ -134,13 +134,11 @@ echo "# verify_hash()"
 
 mkdir "$TEST-empty"
 # we don't care about empty directories
-run_test "$FPATH_BIN verify $TEST-empty" "1" "$(escape_expected "ERROR: [$TEST-empty] -- missing [$TEST-empty/.roh.git]. Aborting.")"
-# run_test "$FPATH_BIN -v $TEST-empty" "0" "$(escape_expected "Processing directory: [test-empty]")"
-# run_test "$FPATH_BIN -v $TEST-empty" "0" "$(escape_expected "Done.")"
+run_test "$FPATH_BIN verify $TEST-empty" "0" "$(escape_expected "Done.")"
 rm -rf "$TEST-empty"
 
 echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.$HASH"
-run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.txt\" -- hash file [$TEST/file with spaces.txt.sha256] exists/(NOT hidden)")"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: [test] \"file with spaces.txt\" -- two hash files exist.* hidden [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69][test/.roh.git/file with spaces.txt.sha256].* shown [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69][test/file with spaces.txt.sha256]")"
 # see also first test in manage_hash_visibility: ERROR:.* -- hash file [.*] exists/(NOT hidden)
 rm "$TEST/file with spaces.txt.$HASH"
 
