@@ -40,6 +40,9 @@ install:
 	@echo "Done."
 	@echo
 
+test:
+	@./test.sh
+
 clean:
 	-rm ~/bin/${ROH}
 	-rm ~/bin/${ROH_FPATH}
