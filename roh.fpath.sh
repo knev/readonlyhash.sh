@@ -282,36 +282,32 @@ write_hash() {
         return 1  
 	fi
 
-	# local new_hash=$(generate_hash "$fpath")
-
     if [ -f "$roh_hash_fpath" ]; then
-        # local stored=$(stored_hash "$roh_hash_fpath")
+		local computed_hash=$(generate_hash "$fpath")
 
-        # if [ "$new_hash" = "$stored" ]; then
-		# 	# echo "File: [$new_hash]: [$dir] $(basename "$fpath") -- OK"
-		# 	return 0
-		# else
-		# 	if [ "$force_mode" = "true" ]; then
-		# 		if { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-		# 			# echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] exists; new hash stored [$new_hash] -- FORCED!"
-		# 			echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
-		# 			echo "       ...   stored [$stored]: [$roh_hash_fpath]"
-		# 			echo "       ... computed [$new_hash]: [$fpath] -- new hash stored -- FORCED!"
-		# 			return 0  # No error
- 		# 		else
- 		# 			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
- 		# 			((ERROR_COUNT++))
- 		# 			return 1  # Signal that an error occurred
-		# 		fi
-		# 	else
-		# 		echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] exists with stored [$stored]"
-		# 		((ERROR_COUNT++))
-		# 		return 1  # Signal that an error occurred
-		# 	fi
-		# fi
+		if [ "$force_mode" = "true" ]; then
+	        local stored=$(stored_hash "$roh_hash_fpath")
+	
+	        if [ "$computed_hash" = "$stored" ]; then
+				echo "File: [$computed_hash]: [$dir] $(basename "$fpath") -- SKIPPED!"
+				return 0
+			else
+				if { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
+					echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
+					echo "       ...   stored [$stored]: [$roh_hash_fpath]"
+					echo "       ... computed [$computed_hash]: [$fpath] -- new hash stored -- FORCED!"
+					return 0  # No error
+	 			else
+	 				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
+	 				((ERROR_COUNT++))
+	 				return 1  # Signal that an error occurred
+				fi
+			fi
 
- 		echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
-		return 0  
+		else
+			echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
+			return 0  
+		fi
 	fi
 
 	local new_hash=$(generate_hash "$fpath")
