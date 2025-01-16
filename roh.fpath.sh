@@ -327,49 +327,20 @@ write_hash() {
 delete_hash() {
     local dir="$1"
     local fpath="$2"
-    local force_mode="$3"
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
     if [ -f "$dir_hash_fpath" ]; then
-        # echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden); can only delete hidden hashes"
-        # ((ERROR_COUNT++))
-        # return 1  # Error, hash file does not exist
-
 		rm "$dir_hash_fpath"
-		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] deleted -- OK"
+		echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] deleted"
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
 		rm "$roh_hash_fpath"
-		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$roh_hash_fpath] deleted -- OK"
-	else
-        # echo "ERROR: [$dir] \"$(basename "$file")\" -- NO hash file found in []"
-        # ((ERROR_COUNT++))
-        # return 1  # Error, hash file does not exist
-		return 0;
+		echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$roh_hash_fpath] deleted"
     fi
-
-#	local computed_hash=$(generate_hash "$fpath")
-#	local stored=$(stored_hash "$roh_hash_fpath")
-#	
-#	if [ "$computed_hash" = "$stored" ]; then
-#		rm "$roh_hash_fpath"
-#		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file in [$ROH_DIR] deleted -- OK"
-#		return 0  # No error
-#	else
-#		if [ "$force_mode" = "true" ]; then
-#			rm "$roh_hash_fpath"
-#			echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$roh_hash_fpath] deleted with stored [$stored] -- FORCED!"
-#			return 0
-#		else
-#			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, cannot delete [$roh_hash_fpath] with stored [$stored]"
-#			((ERROR_COUNT++))
-#			return 1  # Error, hash mismatch
-#		fi
-#	fi
 }
 
 manage_hash_visibility() {
@@ -502,7 +473,7 @@ process_directory() {
 				        ;;
 				esac
 			else
-				delete_hash "$dir" "$entry" "$force_mode"
+				delete_hash "$dir" "$entry"
             fi
         fi
     done
@@ -633,8 +604,8 @@ if [ "$cmd" = "hash" ]; then
 fi
 
 # Check for force_mode usage
-if [ "$force_mode" = "true" ] && [ "$cmd" != "delete" ] && [ "$cmd" != "write" ]; then
-    echo "ERROR: --force can only be used with delete or write." >&2
+if [ "$force_mode" = "true" ] && [ "$cmd" != "write" ]; then
+    echo "ERROR: --force can only be used with write." >&2
     usage
     exit 1
 fi
@@ -672,7 +643,7 @@ run_directory_process() {
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
-						echo "ERROR: Failed to delete [$roh_hash_fpath]"
+						echo "ERROR: Failed to remove directory [$roh_hash_fpath]"
 						((ERROR_COUNT++))
 					fi
 				fi

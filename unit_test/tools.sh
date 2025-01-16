@@ -116,8 +116,15 @@ echo
 echo "# delete"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "File: [$TEST] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] deleted -- OK")"
+run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "  OK: [$TEST] \"file with spaces.txt\" -- hash file [test/file with spaces.txt.sha256] deleted")"
 run_test "ls -al test/$ROH_DIR" "1" "test/$ROH_DIR: No such file or directory"
+
+$FPATH_BIN write "$TEST" >/dev/null 2>&1
+run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "  OK: [$TEST] \"file with spaces.txt\" -- hash file [test/.roh.git/file with spaces.txt.sha256] deleted")"
+run_test "ls -al test/$ROH_DIR" "1" "test/$ROH_DIR: No such file or directory"
+
+run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "  OK: ")" "true"
+$FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 # mv "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256" 
 # echo "ABC" > "$TEST/file with spaces.txt"
