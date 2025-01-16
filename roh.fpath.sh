@@ -220,8 +220,8 @@ verify_hash() {
 	        
 		if [ "$computed_hash" = "$stored" ]; then
 			if [ "$recover_mode" != "true" ]; then
-				#echo "File: $(basename "$file") -- hash matches: [$computed_hash]"
-				echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- [$fpath] -- OK"
+				#echo "  OK: $(basename "$file") -- hash matches: [$computed_hash]"
+				echo "  OK: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- [$fpath]"
 			fi
 			return 0  # No error
 		else
@@ -237,8 +237,8 @@ verify_hash() {
 	        
 		if [ "$computed_hash" = "$stored" ]; then
 			if [ "$recover_mode" != "true" ]; then
-				#echo "File: $(basename "$file") -- hash matches: [$computed_hash]"
-				echo "File: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- [$fpath] -- OK"
+				#echo "  OK: $(basename "$file") -- hash matches: [$computed_hash]"
+				echo "  OK: [$computed_hash]: [$dir] \"$(basename "$fpath")\" -- [$fpath]"
 			fi
 			return 0  # No error
 		else
@@ -289,11 +289,11 @@ write_hash() {
 	        local stored=$(stored_hash "$roh_hash_fpath")
 	
 	        if [ "$computed_hash" = "$stored" ]; then
-				# echo "File: [$computed_hash]: [$dir] $(basename "$fpath") -- SKIPPED!"
+				# echo "SKIP: [$computed_hash]: [$dir] $(basename "$fpath")"
 				return 0
 			else
 				if { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-					echo "File: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
+					echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
 					echo "       ...   stored [$stored]: [$roh_hash_fpath]"
 					echo "       ... computed [$computed_hash]: [$fpath] -- new hash stored -- FORCED!"
 					return 0  # No error
@@ -314,7 +314,7 @@ write_hash() {
 	local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 
 	if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-		echo "File: [$new_hash]: [$dir] \"$(basename "$fpath")\" -- OK"
+		echo "  OK: [$new_hash]: [$dir] \"$(basename "$fpath")\""
 		return 0  # No error
 	else
 		echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath]"
@@ -398,13 +398,13 @@ manage_hash_visibility() {
 			mkdir -p "$roh_hash_just_path"
 		fi
         mv "$src_fpath" "$dest_fpath"
-        echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] moved($past_tense) -- OK"
+        echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] moved($past_tense)"
         return 0  # No error
 	else
 		# if [ -f "$dest_fpath" ]; then
 		# 	local stored=$(stored_hash "$dest_fpath")
 		# 	if [ "$computed_hash" = "$stored" ]; then
-		# 		echo "File: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(NOT $past_tense) -- OK"
+		# 		echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(NOT $past_tense)"
 		# 		return 0  # No error
 		# 	fi
 		# fi
