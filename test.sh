@@ -156,9 +156,9 @@ run_test() {
 
 		echo
 		if [ "$verbose_mode" = "true" ]; then
-			echo "# TEST: [$exit_status][$cmd]"
+			echo "# TEST: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
 		else
-			echo "# FAIL: [$exit_status][$cmd]"
+			echo "# FAIL: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
 		fi
 		echo "# Expected EXIT status: [$expected_status]"
 		echo "# Expected to NOT contain [$ok]: \"$expected_regex\""
@@ -186,9 +186,9 @@ run_test() {
 
 		echo
 		if [ "$verbose_mode" = "true" ]; then
-			echo "# TEST: [$exit_status][$cmd]"
+			echo "# TEST: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
 		else
-			echo "# FAIL: [$exit_status][$cmd]"
+			echo "# FAIL: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
 		fi
 		echo "# Expected EXIT status: [$expected_status]"
 		echo "# Expected to contain [$ok]: \"$expected_regex\""
