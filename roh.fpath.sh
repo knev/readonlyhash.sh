@@ -2,9 +2,8 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]>> [--roh-dir PATH] <FPATH>"
+    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]> --hash> [--roh-dir PATH] <FPATH>"
     echo "Commands:"
-	echo "      hash       Generate a hash of a single file"
 	echo "      verify     Verify computed hashes against stored hashes"
     echo "      write      Write SHA256 hashes for files into .roh directory"
     echo "      delete     Delete hash files for specified files"
@@ -13,6 +12,7 @@ usage() {
     echo "      recover    Attempt to recover orphaned hashes using verify"
 	echo
 	echo "Options:"
+	echo "      --hash     Generate a hash of a single file(s)"
 	echo "      --roh-dir  Specify the readonly hash path"
     echo "      --force    Force operation even if hash files do not match"
     echo "  -h, --help     Display this help and exit"
@@ -576,8 +576,6 @@ fi
 cmd="_INVALID_"
 # Parse command
 case "$1" in
-    hash) 
-        ;;
     verify) 
         ;;
     write) 
@@ -610,6 +608,7 @@ shift
 # Parse command line options
 roh_dir_mode="false"
 roh_dir="_INVALID_"
+hash_mode="false"
 visibility_mode="none"
 force_mode="false"
 
@@ -622,6 +621,9 @@ while getopts "h-:" opt; do
       ;;	  
     -)
       case "${OPTARG}" in
+        hash)
+          hash_mode="true"
+          ;;
         roh-dir)
 		  roh_dir_mode="true"
           roh_dir="${!OPTIND}"
@@ -672,18 +674,44 @@ else
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
-if [ "$cmd" = "hash" ]; then
-	if [ -f "$ROOT" ]; then
-		fpath="$ROOT"
+if [ "$hash_mode" = "true" ]; then
+	for fpath in "$@"; do
+		if ! [ -f "$fpath" ]; then
+			echo "WARN: [$fpath] not a file -- SKIPPING"
+			continue
+		fi
+
+		[[ "${fpath}" = *.sha256 ]] && continue
+
 		computed_hash=$(generate_hash "$fpath")
+		dir_hash_fpath="$fpath.$HASH"
 
-		echo "File: [$computed_hash]: \"$(basename "$fpath")\" -- OK"
-		exit 0
+		if [ "$cmd" = "write" ]; then
+			if echo "$computed_hash" > "$dir_hash_fpath" 2>/dev/null; then
+				echo "  OK: [$computed_hash]: \"$(basename "$fpath")\""
+			else
+				echo "ERROR: can not generate hash for [$fpath]"
+				((ERROR_COUNT++))
+			fi
+		
+		elif [ "$cmd" = "verify" ]; then
+			stored=$(stored_hash "$dir_hash_fpath")
+        
+			if [ "$computed_hash" = "$stored" ]; then
+				echo "  OK: [$fpath] -- hash matches: [$computed_hash]"
+			else
+				echo "ERROR: [$fpath] -- hash mismatch: stored [$stored], computed [$computed_hash]"
+				((ERROR_COUNT++))
+			fi
+		fi
+	done
+	if [ $ERROR_COUNT -gt 0 ]; then
+		echo "Number of ERRORs encountered: [$ERROR_COUNT]"
+		echo
+		exit 1
 	fi
-
-    echo "ERROR: [$ROOT] not a file"
-	echo
-    exit 1
+	echo "Done."
+	exit 0
 fi
 
 # Check for force_mode usage
