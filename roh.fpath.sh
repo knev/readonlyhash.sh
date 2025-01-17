@@ -34,6 +34,7 @@ SHA256_BIN="shasum -a 256" # macOS native
 HASH="sha256"
 
 ERROR_COUNT=0
+WARN_COUNT=0
 
 # Function to check if a file's extension is in the list to avoid
 check_extension() {
@@ -169,6 +170,7 @@ recover_hash() {
 				echo "WARN: [$dir] \"$(basename "$fpath")\" -- ..."
 				echo "            ... stored [$found_roh_hash_fpath] -- identical file"
 				echo "      ... for computed [$fpath][$computed_hash]"
+				((WARN_COUNT++))
 			else
 				local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 				mkdir -p "$roh_hash_just_path"
@@ -258,7 +260,7 @@ verify_hash() {
 			echo "WARN: [$dir] \"$(basename "$fpath")\" -- ..."
 			echo "      ... hash file [$roh_hash_fpath] -- NOT found"
 			echo "            ... for [$fpath][$computed_hash]"
-			((ERROR_COUNT++))
+			((WARN_COUNT++))
 			return 1  # Error, hash file does not exist
 		fi
 	fi
@@ -303,10 +305,12 @@ write_hash() {
 				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash]: [$fpath]"
 				echo "      ...   stored [$stored]: [$roh_hash_fpath] -- remove (FORCED)!"
+				((WARN_COUNT++))
 			else
 				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash]: [$fpath]"
 				echo "      ...   stored [$stored]: [$roh_hash_fpath]"
+				((WARN_COUNT++))
 
 				exists_and_not_eq="true"
 			fi
@@ -322,10 +326,12 @@ write_hash() {
 				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash]: [$fpath]"
 				echo "      ...   stored [$stored]: [$dir_hash_fpath] -- removed (FORCED)!"
+				((WARN_COUNT++))
 			else
 				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash]: [$fpath]"
 				echo "      ...   stored [$stored]: [$dir_hash_fpath]"
+				((WARN_COUNT++))
 
 				exists_and_not_eq="true"
 			fi
@@ -410,6 +416,7 @@ write_hash() {
 	# 		fi
 	# 	else
 	# 		# echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
+	#		((WARN_COUNT++))
 	# 		return 0  
 	# 	fi
 	# fi
@@ -518,6 +525,7 @@ process_directory() {
     for entry in "$dir"/*; do
 		if [ -L "$entry" ]; then
 			echo "WARN: Avoiding symlink [$entry] like the Plague =)"
+			((WARN_COUNT++))
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
@@ -678,6 +686,7 @@ if [ "$hash_mode" = "true" ]; then
 	for fpath in "$@"; do
 		if ! [ -f "$fpath" ]; then
 			echo "WARN: [$fpath] not a file -- SKIPPING"
+			((WARN_COUNT++))
 			continue
 		fi
 
@@ -815,12 +824,15 @@ if [ ! -d "$ROOT" ]; then
 fi
 
 run_directory_process "$cmd" "$ROOT" "$visibility_mode" "$force_mode"
-if [ $ERROR_COUNT -gt 0 ]; then
+if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
 	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
+	echo "Number of ...       WARNings: [$WARN_COUNT]"
 	echo
-	exit 1
+	if [ $ERROR_COUNT -gt 0 ]; then
+		exit 1
+	fi
+	exit 0 # WARNings
 fi
 
 echo "Done."
-echo
 
