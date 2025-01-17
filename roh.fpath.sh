@@ -2,7 +2,8 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]> --hash> [--roh-dir PATH] <FPATH>"
+    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]|<show|hide> [--force]> [--roh-dir PATH] <PATH>"
+    echo "       $(basename "$0") <write|verify --hash> <PATH/GLOBSPEC>"
     echo "Commands:"
 	echo "      verify     Verify computed hashes against stored hashes"
     echo "      write      Write SHA256 hashes for files into .roh directory"
@@ -200,22 +201,21 @@ verify_hash() {
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
-
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
 
+	local computed_hash=$(generate_hash "$fpath")
 
     if [ -f "$roh_hash_fpath" ] && [ -f "$dir_hash_fpath" ]; then
 		local stored_roh=$(stored_hash "$roh_hash_fpath")
 		local stored_dir=$(stored_hash "$dir_hash_fpath")
 
         echo "ERROR: [$dir] \"$(basename "$fpath")\" -- two hash files exist ..."
-		echo "       ... hidden [$stored_roh][$roh_hash_fpath]"
-		echo "        ... shown [$stored_dir][$dir_hash_fpath]"
+		echo "         ... hidden [$stored_roh][$roh_hash_fpath]"
+		echo "          ... shown [$stored_dir][$dir_hash_fpath]"
+		echo "       ... computed [$computed_hash]: [$fpath]"
         ((ERROR_COUNT++))
         return 1  
 	fi
-
-	local computed_hash=$(generate_hash "$fpath")
 
     if [ -f "$roh_hash_fpath" ]; then
 		local stored=$(stored_hash "$roh_hash_fpath")
@@ -304,7 +304,7 @@ write_hash() {
 				rm "$roh_hash_fpath"
 				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash]: [$fpath]"
-				echo "      ...   stored [$stored]: [$roh_hash_fpath] -- remove (FORCED)!"
+				echo "      ...   stored [$stored]: [$roh_hash_fpath] -- removed (FORCED)!"
 				((WARN_COUNT++))
 			else
 				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
@@ -341,7 +341,7 @@ write_hash() {
 	if [ "$exists_and_not_eq" = "true" ]; then
 		return 0
 	fi
-	# echo "* PLG \"$(basename "$fpath")\" "
+	# echo "* \"$(basename "$fpath")\" "
 
 	# exist-R=F         , exist-D=T (eq-D=T) // sh= T, nop
 	# exist-R=F         , exist-D=F			 // sh= T, write to R, move R->D
@@ -433,12 +433,12 @@ delete_hash() {
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
     if [ -f "$dir_hash_fpath" ]; then
 		rm "$dir_hash_fpath"
-		echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] deleted"
+		echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] -- deleted"
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
 		rm "$roh_hash_fpath"
-		echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$roh_hash_fpath] deleted"
+		echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$roh_hash_fpath] -- deleted"
     fi
 }
 
@@ -550,10 +550,10 @@ process_directory() {
 				        write_hash "$dir" "$entry" "$visibility_mode" "$force_mode"
 				        ;;
 				    "hide")
-				        manage_hash_visibility "$dir" "$entry" "hide"
+				        manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
 				        ;;
 				    "show")
-				        manage_hash_visibility "$dir" "$entry" "show"
+				        manage_hash_visibility "$dir" "$entry" "show" "$force_mode"
 				        ;;
 				    *)
 				        # No action for other cases, if needed
@@ -724,8 +724,8 @@ if [ "$hash_mode" = "true" ]; then
 fi
 
 # Check for force_mode usage
-if [ "$force_mode" = "true" ] && [ "$cmd" != "write" ]; then
-    echo "ERROR: --force can only be used with write." >&2
+if [ "$force_mode" = "true" ] && [ "$cmd" != "write" ] && [ "$cmd" != "show" ] && [ "$cmd" != "hide" ]; then
+    echo "ERROR: --force can only be used with: write|show|hide." >&2
     usage
     exit 1
 fi
@@ -765,6 +765,8 @@ run_directory_process() {
 					if ! rmdir "$roh_hash_fpath"; then
 						echo "ERROR: Failed to remove directory [$roh_hash_fpath]"
 						((ERROR_COUNT++))
+					else
+						echo "  OK: -- orphaned hash directory [$roh_hash_fpath] -- removed"
 					fi
 				fi
 			fi
@@ -778,7 +780,7 @@ run_directory_process() {
 					((ERROR_COUNT++))
 				else
 					local stored=$(stored_hash "$roh_hash_fpath")
-					echo "  OK: -- orphaned hash [$roh_hash_fpath][$stored] removed"
+					echo "  OK: -- orphaned hash [$roh_hash_fpath][$stored] -- removed"
 				fi
 			else
 				local stored=$(stored_hash "$roh_hash_fpath")
