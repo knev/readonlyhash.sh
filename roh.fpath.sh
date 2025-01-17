@@ -2,7 +2,7 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|(write|delete) --force> [OPTIONS][--roh-dir PATH] <FPATH>"
+    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]>> [--roh-dir PATH] <FPATH>"
     echo "Commands:"
 	echo "      hash       Generate a hash of a single file"
 	echo "      verify     Verify computed hashes against stored hashes"
@@ -268,59 +268,151 @@ verify_hash() {
 write_hash() {
     local dir="$1"
     local fpath="$2"
-    local force_mode="$3"
+	local visibility_mode="$3"
+    local force_mode="$4"
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
+	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
 
 	# echo "* [$dir]-[$ROOT]= [$sub_dir]; $roh_hash_fpath"
+	# echo "* dir_hash_fpath: $dir_hash_fpath"
 
-	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
-    if [ -f "$dir_hash_fpath" ]; then
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists/(NOT hidden)"
-        ((ERROR_COUNT++))
-        return 1  
-	fi
+	# exist-R=F         , exist-D=T (eq-D=F)
+	# exist-R=F         , exist-D=T (eq-D=T)
+	# exist-R=F         , exist-D=F
+	#---
+	# exist-R=T (eq-R=F), exist-D=T (eq-D=F)
+	# exist-R=T (eq-R=F), exist-D=T (eq-D=T)
+	# exist-R=T (eq-R=F), exist-D=F
+	#---
+	# exist-R=T (eq-R=T), exist-D=T (eq-D=F)
+	# exist-R=T (eq-R=T), exist-D=T (eq-D=T)
+	# exist-R=T (eq-R=T), exist-D=F
+
+	local computed_hash=$(generate_hash "$fpath")
+
+	local exists_and_not_eq="false"
 
     if [ -f "$roh_hash_fpath" ]; then
-
-		if [ "$force_mode" = "true" ]; then
-			local computed_hash=$(generate_hash "$fpath")
-	        local stored=$(stored_hash "$roh_hash_fpath")
-	
-	        if [ "$computed_hash" = "$stored" ]; then
-				# echo "SKIP: [$computed_hash]: [$dir] $(basename "$fpath")"
-				return 0
+		local stored=$(stored_hash "$roh_hash_fpath")
+		if [ "$computed_hash" != "$stored" ]; then
+			# exist-R=T (eq-R=F)
+			if [ "$force_mode" = "true" ]; then
+				rm "$roh_hash_fpath"
+				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
+				echo "      ... computed [$computed_hash]: [$fpath]"
+				echo "      ...   stored [$stored]: [$roh_hash_fpath] -- remove (FORCED)!"
 			else
-				if { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-					echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
-					echo "       ...   stored [$stored]: [$roh_hash_fpath]"
-					echo "       ... computed [$computed_hash]: [$fpath] -- new hash stored -- FORCED!"
-					return 0  # No error
-	 			else
-	 				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
-	 				((ERROR_COUNT++))
-	 				return 1  # Signal that an error occurred
-				fi
-			fi
+				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
+				echo "      ... computed [$computed_hash]: [$fpath]"
+				echo "      ...   stored [$stored]: [$roh_hash_fpath]"
 
-		else
-			# echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
-			return 0  
+				exists_and_not_eq="true"
+			fi
 		fi
 	fi
 
-	local new_hash=$(generate_hash "$fpath")
-	local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+	if [ -f "$dir_hash_fpath" ]; then
+		local stored=$(stored_hash "$dir_hash_fpath")
+		if [ "$computed_hash" != "$stored" ]; then
+			# exist-D=T (eq-D=F)
+			if [ "$force_mode" = "true" ]; then
+				rm "$dir_hash_fpath"
+				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
+				echo "      ... computed [$computed_hash]: [$fpath]"
+				echo "      ...   stored [$stored]: [$dir_hash_fpath] -- removed (FORCED)!"
+			else
+				echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
+				echo "      ... computed [$computed_hash]: [$fpath]"
+				echo "      ...   stored [$stored]: [$dir_hash_fpath]"
 
-	if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-		echo "  OK: [$new_hash]: [$dir] \"$(basename "$fpath")\""
-		return 0  # No error
-	else
-		echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath]"
-		((ERROR_COUNT++))
-		return 1  # Signal that an error occurred
+				exists_and_not_eq="true"
+			fi
+		fi
 	fi
+
+	if [ "$exists_and_not_eq" = "true" ]; then
+		return 0
+	fi
+	# echo "* PLG \"$(basename "$fpath")\" "
+
+	# exist-R=F         , exist-D=T (eq-D=T) // sh= T, nop
+	# exist-R=F         , exist-D=F			 // sh= T, write to R, move R->D
+	#---
+	# exist-R=T (eq-R=T), exist-D=T (eq-D=T) // sh= T, (write to R), move R->D
+	# exist-R=T (eq-R=T), exist-D=F          // sh= T, (write to R), move R->D
+
+	# exist-R=F         , exist-D=T (eq-D=T) // sh= F, (write to R), move D->R
+	# exist-R=F         , exist-D=F			 // sh= F, write to R
+	#---
+	# exist-R=T (eq-R=T), exist-D=T (eq-D=T) // sh= F, (write to R), move D->R
+	# exist-R=T (eq-R=T), exist-D=F          // sh= F, (write to R)
+
+	if ! [ -f "$dir_hash_fpath" ] && ! [ -f "$roh_hash_fpath" ]; then
+		# write to R
+		local new_hash=$(generate_hash "$fpath")
+		local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+	
+		if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
+			echo "  OK: [$new_hash]: [$dir] \"$(basename "$fpath")\""
+			return 0  # No error
+		else
+			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath]"
+			((ERROR_COUNT++))
+			return 1  # Signal that an error occurred
+		fi
+	fi
+
+	# exist-R=F         , exist-D=T (eq-D=T) // sh= T, nop
+	#---
+	# exist-R=T (eq-R=T), exist-D=T (eq-D=T) // sh= T, move R->D, clobber
+	# exist-R=T (eq-R=T), exist-D=F          // sh= T, move R->D
+
+	# exist-R=F         , exist-D=T (eq-D=T) // sh= F, move D->R
+	# exist-R=T (eq-R=T), exist-D=T (eq-D=T) // sh= F, move D->R, clobber
+	#---
+	# exist-R=T (eq-R=T), exist-D=F          // sh= F, nop
+
+	if [ "$visibility_mode" = "show" ] && [ -f "$roh_hash_fpath" ]; then
+		# move R->D: show
+		manage_hash_visibility "$dir" "$entry" "show" "$force_mode"
+
+	elif [ "$visibility_mode" != "show" ] && [ -f "$dir_hash_fpath" ]; then
+		# move D->R: hide
+		manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
+	
+	# else
+	#	echo "  OK: [$computed_hash]: [$dir] \"$(basename "$fpath")\""
+	fi
+
+	#------
+
+    # if [ -f "$roh_hash_fpath" ]; then
+	# 	if [ "$force_mode" = "true" ]; then
+	# 		local computed_hash=$(generate_hash "$fpath")
+	#         local stored=$(stored_hash "$roh_hash_fpath")
+	# 
+	#         if [ "$computed_hash" = "$stored" ]; then
+	# 			# echo "SKIP: [$computed_hash]: [$dir] $(basename "$fpath")"
+	# 			return 0
+	# 		else
+	# 			if { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
+	# 				echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
+	# 				echo "       ...   stored [$stored]: [$roh_hash_fpath]"
+	# 				echo "       ... computed [$computed_hash]: [$fpath] -- new hash stored -- FORCED!"
+	# 				return 0  # No error
+	#  			else
+	#  				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
+	#  				((ERROR_COUNT++))
+	#  				return 1  # Signal that an error occurred
+	# 			fi
+	# 		fi
+	# 	else
+	# 		# echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
+	# 		return 0  
+	# 	fi
+	# fi
 }
 
 # Function to delete hash files
@@ -347,6 +439,7 @@ manage_hash_visibility() {
     local dir="$1"
     local fpath="$2"
     local action="$3"
+    local force_mode="$4"
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
@@ -364,31 +457,16 @@ manage_hash_visibility() {
         exit 1
     fi
 
-	# # src yes, dest yes -> check dest hash, if computed!=dest= err else mv
+	# # src yes, dest yes -> err else mv (forced)
 	# # src yes, dest no  -> mv
 	# # src no,  dest yes -> check dest hash, if computed=dest; OK else err
 	# # src no,  dest no  -> err
 	
-	# src yes, dest yes -> err
-	# src yes, dest no  -> mv
-	# src no,  dest yes -> err
-	# src no,  dest no  -> err
-
 	local past_tense=$([ "$action" = "show" ] && echo "shown" || echo "hidden")
-	# local computed_hash=$(generate_hash "$fpath")
 
 	if [ -f "$src_fpath" ]; then
-		if [ -f "$dest_fpath" ]; then
-			# local stored=$(stored_hash "$dest_fpath")
-			# if [ "$computed_hash" = "$stored" ]; then
-			# 	#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch, [$dest_fpath] exists/($past_tense) with stored [$stored], not moving/(${action}ing)"
-			# 	echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash mismatch: ..."
-			# 	echo "       ... [$dest_fpath][$stored] exists/($past_tense), not moving/(not $past_tense)"
-			# 	((ERROR_COUNT++))
-			# 	return 1
-			# fi
-			#echo "ERROR: [$dir] \"$(basename "$fpath")\" -- [$dest_fpath][$stored] exists, not moving/(not $past_tense)"
-			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- [$dest_fpath] exists, not moving/(not $past_tense)"
+		if [ -f "$dest_fpath" ] && [ "$force_mode" = "false" ]; then
+			echo "ERROR: [$dir] \"$(basename "$fpath")\" -- [$dest_fpath] exists, for source [$src_fpath], not moving/(not $past_tense)"
 			((ERROR_COUNT++))
 			return 1
 		fi
@@ -399,19 +477,19 @@ manage_hash_visibility() {
 		fi
         mv "$src_fpath" "$dest_fpath"
         echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] moved($past_tense)"
-        return 0  # No error
+        return 0
 	else
-		# if [ -f "$dest_fpath" ]; then
+		if [ -f "$dest_fpath" ]; then
 		# 	local stored=$(stored_hash "$dest_fpath")
 		# 	if [ "$computed_hash" = "$stored" ]; then
-		# 		echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(NOT $past_tense)"
-		# 		return 0  # No error
+			echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash file [$dest_fpath] exists($past_tense), NOT moving/(NOT $past_tense)"
+			return 0  # No error
 		# 	fi
-		# fi
+		fi
 
         echo "ERROR: [$dir] \"$(basename "$fpath")\" -- NO hash file found [$src_fpath] for [$fpath], not $past_tense"
         ((ERROR_COUNT++))
-        return 1  # Error, hash file does not exist for the action
+        return 1
     fi
 }
 
@@ -422,7 +500,8 @@ process_directory() {
     local cmd="$1"
     local dir="$2"
 	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-    local force_mode="$3"
+	local visibility_mode="$3"
+    local force_mode="$4"
 
 	# ?! do we care about empty directories
 	#
@@ -442,7 +521,7 @@ process_directory() {
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
-			process_directory "$cmd" "$entry" "$force_mode"
+			process_directory "$cmd" "$entry" "$visibility_mode" "$force_mode"
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
@@ -460,7 +539,7 @@ process_directory() {
 				        verify_hash "$dir" "$entry" "true"
 				        ;;
 				    "write")
-				        write_hash "$dir" "$entry" "$force_mode"
+				        write_hash "$dir" "$entry" "$visibility_mode" "$force_mode"
 				        ;;
 				    "hide")
 				        manage_hash_visibility "$dir" "$entry" "hide"
@@ -531,6 +610,7 @@ shift
 # Parse command line options
 roh_dir_mode="false"
 roh_dir="_INVALID_"
+visibility_mode="none"
 force_mode="false"
 
 while getopts "h-:" opt; do
@@ -547,6 +627,9 @@ while getopts "h-:" opt; do
           roh_dir="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
+        show)
+          visibility_mode="show"
+          ;;
         force)
           force_mode="true"
           ;;
@@ -618,7 +701,7 @@ run_directory_process() {
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
     local force_mode="$3"
 
-	if [ "$cmd" = "write" ] || [ "$cmd" = "hide" ]; then
+	if [ "$cmd" = "hide" ] || ( [ "$cmd" = "write" ] && [ "$visibility_mode" != "show" ] ); then
 		ensure_dir "$ROH_DIR"
 
 	elif [ "$cmd" = "show" ]; then
@@ -639,7 +722,7 @@ run_directory_process() {
 		# echo "* FPATH: [$roh_hash_fpath] [$fpath]"
 
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$cmd" = "delete" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
@@ -684,7 +767,7 @@ run_directory_process() {
 	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
 	
 	# This will fail if git is being used
-	if [ "$cmd" = "delete" ] || [ "$cmd" = "show" ]; then
+	if [ "$cmd" = "delete" ] || [ "$cmd" = "show" ] || [ "$visibility_mode" = "show" ]; then
 		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
 			if ! rmdir "$ROH_DIR"; then
@@ -703,7 +786,7 @@ if [ ! -d "$ROOT" ]; then
     exit 1
 fi
 
-run_directory_process "$cmd" "$ROOT" "$force_mode"
+run_directory_process "$cmd" "$ROOT" "$visibility_mode" "$force_mode"
 if [ $ERROR_COUNT -gt 0 ]; then
 	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
 	echo
