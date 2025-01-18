@@ -3,11 +3,13 @@
 # Path to the hash script
 ROH_BIN="./readonlyhash.sh"
 chmod +x $ROH_BIN
+FPATH_BIN="./roh.fpath.sh"
+chmod +x $FPATH_BIN
 GIT_BIN="./roh.git.sh"
 chmod +x $GIT_BIN
 fpath="Fotos.loop.txt"
-fpath_ro="Fotos~.loop.txt"
-fpath_ro_ro="Fotos~~.loop.txt"
+fpath_ro="Fotos~ro.loop.txt"
+fpath_ro_ro="Fotos~ro~ro.loop.txt"
 TARGET="_target~"
 
 HASH="sha256"
@@ -32,20 +34,25 @@ rm "$fpath_ro" >/dev/null 2>&1
 echo
 echo "# init"
 
-run_test "$ROH_BIN init --directory /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos\ \[space\]/2003" "0" "ERROR" "true"
+$FPATH_BIN write --hash Fotos\ \[space\]/2003/2003-11-29\ Digital\ Reality/* >/dev/null 2>&1
+run_test "$ROH_BIN init --directory Fotos\ \[space\]/2003" "0" "ERROR" "true"
+rm -rf "Fotos [space]/2003.ro/$ROH_DIR"
+#mv "Fotos [space]/2003.ro" "Fotos [space]/2003"
+run_test "ls -al Fotos\ \[space\]/2003~ro.loop.txt" "0" "$(escape_expected "Fotos [space]/2003~ro.loop.txt" "0")"
+rm "Fotos [space]/2003~ro.loop.txt"
 
-echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos/2003" > "$fpath"
-run_test "$ROH_BIN init $fpath" "1" "$(escape_expected "ERROR: Directory [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos/2003] does not exist.")"
+echo "$PWD/Fotos/2003" > "$fpath"
+run_test "$ROH_BIN init $fpath" "1" "$(escape_expected "ERROR: Directory [$PWD/Fotos/2003] does not exist.")"
 run_test "ls -al $fpath_ro" "0" "$fpath_ro"
 rm "$fpath_ro"
 
-echo "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999" > "$fpath"
-echo "/Users/dev/Project-@knev/readonlyhash.sh.git/2002" >> "$fpath"
+echo "$PWD/Fotos [space]/1999" > "$fpath"
+echo "$PWD/2002" >> "$fpath"
 run_test "$ROH_BIN init $fpath" "0" "Initialized empty Git repository"
 run_test "ls -al $fpath_ro" "0" "$fpath_ro"
 rm "$fpath"
-run_test "$GIT_BIN -C /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
-run_test "$GIT_BIN -C /Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro status" "0" "nothing to commit, working tree clean"
+run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
+run_test "$GIT_BIN -C $PWD/2002.ro status" "0" "nothing to commit, working tree clean"
 
 run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
 run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
@@ -56,10 +63,10 @@ run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory"
 echo
 echo "# archive"
 
-run_test "$ROH_BIN archive $fpath_ro" "0" "$(escape_expected "Archived [.roh.git] to [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro/_.roh.git.zip].*Removed [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro/.roh.git].*Archived [.roh.git] to [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/_.roh.git.zip].*Removed [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/.roh.git]")"
+run_test "$ROH_BIN archive $fpath_ro" "0" "$(escape_expected "Archived [.roh.git] to [$PWD/Fotos [space]/1999.ro/_.roh.git.zip].*Removed [$PWD/Fotos [space]/1999.ro/.roh.git].*Archived [.roh.git] to [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/_.roh.git.zip].*Removed [$PWD/2002.ro/.roh.git]")"
 
-run_test "ls -al /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos\ \[space\]/1999.ro/_.roh.git.zip" "0" "$(escape_expected "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro/_.roh.git.zip")"
-run_test "ls -al /Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/_.roh.git.zip" "0" "$(escape_expected "/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/_.roh.git.zip")"
+run_test "ls -al $PWD/Fotos\ \[space\]/1999.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/Fotos [space]/1999.ro/_.roh.git.zip")"
+run_test "ls -al $PWD/2002.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/2002.ro/_.roh.git.zip")"
 
 # verify/extract
 echo
@@ -78,7 +85,7 @@ run_test "$ROH_BIN verify $fpath_ro" "1" "$(escape_expected "\"Untitled-001.jpg\
 echo "816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4" > "2002.ro/$ROH_DIR/2002_FIRE!/Untitled-001.jpg.$HASH"
 
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
-run_test "$ROH_BIN verify $fpath_ro" "1" "$(escape_expected "ERROR: local repo [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/$ROH_DIR] not clean")"
+run_test "$ROH_BIN verify $fpath_ro" "1" "$(escape_expected "ERROR: local repo [$PWD/2002.ro/$ROH_DIR] not clean")"
 rm "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
 
 run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
@@ -101,10 +108,9 @@ unzip Fotos.zip -d $TARGET >/dev/null 2>&1
 rm -rf "$TARGET/__MACOSX"
 run_test "$ROH_BIN verify --new-target $TARGET $fpath_ro" "0" "ERROR" "true"
 
-run_test "$ROH_BIN transfer --new-target $TARGET $fpath_ro" "0" "$(escape_expected "Moved [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro/.roh.git] to [/Users/dev/Project-@knev/readonlyhash.sh.git/_target~/Fotos [space]/1999/.].*Moved [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/.roh.git] to [/Users/dev/Project-@knev/readonlyhash.sh.git/_target~/2002/.]")"
-run_test "$ROH_BIN write $fpath_ro_ro" "0" "ERROR" "true"
-
-exit
+run_test "$ROH_BIN transfer --new-target $TARGET $fpath_ro" "0" "$(escape_expected "Moved [$PWD/Fotos [space]/1999.ro/.roh.git] to [$PWD/_target~/Fotos [space]/1999/.].*Moved [$PWD/2002.ro/.roh.git] to [$PWD/_target~/2002/.]")"
+run_test "$ROH_BIN verify $fpath_ro_ro" "0" "ERROR" "true"
+rm -rf "$TARGET"
 
 # Clean up test files
 echo

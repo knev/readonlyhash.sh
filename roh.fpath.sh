@@ -683,6 +683,7 @@ fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
 if [ "$hash_mode" = "true" ]; then
+	# echo "* $@"
 	for fpath in "$@"; do
 		if ! [ -f "$fpath" ]; then
 			echo "WARN: [$fpath] not a file -- SKIPPING"
@@ -694,6 +695,7 @@ if [ "$hash_mode" = "true" ]; then
 
 		computed_hash=$(generate_hash "$fpath")
 		dir_hash_fpath="$fpath.$HASH"
+		# echo "* dir_hash_fpath: [$dir_hash_fpath]"
 
 		if [ "$cmd" = "write" ]; then
 			if echo "$computed_hash" > "$dir_hash_fpath" 2>/dev/null; then

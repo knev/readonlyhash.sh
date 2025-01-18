@@ -66,8 +66,11 @@ echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 #	done < <(find "ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
 #	exit
 
-run_test "$FPATH_BIN write --hash test/sub-directory\ with\ spaces/*" "0" "$(escape_expected "OK: [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: \"omn.txt\".*OK: [1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f]: \"pno.txt\"
-WARN: [test/sub-directory with spaces/sub-sub-directory] not a file -- SKIPPING")"
+# --hash
+echo
+echo "# --hash"
+
+run_test "$FPATH_BIN write --hash test/sub-directory\ with\ spaces/*" "0" "$(escape_expected "OK: [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: \"omn.txt\".*OK: [1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f]: \"pno.txt\".*WARN: [test/sub-directory with spaces/sub-sub-directory] not a file -- SKIPPING")"
 run_test "ls -al test/sub-directory\ with\ spaces" "0" "$(escape_expected "omn.txt.sha256.*pno.txt.sha256")"
 
 run_test "$FPATH_BIN verify --hash test/sub-directory\ with\ spaces/*" "0" "ERROR: " "true"

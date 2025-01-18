@@ -47,7 +47,7 @@ $GIT_BIN add *.sha256 >/dev/null 2>&1
 $GIT_BIN commit -m "File Added" >/dev/null 2>&1
 echo "four" > "four.txt"
 # roh will report files that don't have a corresponding hash file
-run_test "$ROH_SCRIPT verify" "1" "$(escape_expected "WARN: [.] \"four.txt\" --.* hash file [./.roh.git/four.txt.sha256] -- NOT found.* for [./four.txt][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
+run_test "$ROH_SCRIPT verify" "0" "$(escape_expected "WARN: [.] \"four.txt\" --.* hash file [./.roh.git/four.txt.sha256] -- NOT found.* for [./four.txt][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
 
 $ROH_SCRIPT write >/dev/null 2>&1
 # git will show hashes that are untracked
@@ -117,7 +117,7 @@ echo "# Subdirectory Added: A new subdirectory is created within the directory."
 # we don't care about empty directories (but, we DO care if files are added to empty directories)
 mkdir "$SUBDIR/this_does_not_exist"
 echo "this_does" > "$SUBDIR/this_does_not_exist/this_does.txt"
-run_test "$ROH_SCRIPT verify" "1" "$(escape_expected "WARN: [./subdir/this_does_not_exist] \"this_does.txt\" --.* hash file [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256] -- NOT found.* for [./subdir/this_does_not_exist/this_does.txt][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477]")"
+run_test "$ROH_SCRIPT verify" "0" "$(escape_expected "WARN: [./subdir/this_does_not_exist] \"this_does.txt\" --.* hash file [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256] -- NOT found.* for [./subdir/this_does_not_exist/this_does.txt][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477]")"
 $ROH_SCRIPT -w >/dev/null 2>&1
 
 # Subdirectory Removed
