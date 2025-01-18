@@ -114,6 +114,11 @@ while getopts "dh-:" opt; do
   esac
 done
 
+# capture all remaining arguments after the options have been processed
+shift $((OPTIND-1))
+file_path="$1"
+LOOP_TXT_RO="${file_path%.loop.txt}~ro.loop.txt"
+
 #------------------------------------------------------------------------------------------------------------------------------------------
 # captured output : NO spurious echo/printf outputs!
 
@@ -209,7 +214,7 @@ init_directory() {
 
 	dir_ro="$(rename_to_ro "$dir")"
 	echo "Renamed [$dir] to [${dir_ro}]"
-	echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
+	echo "$dir_ro" >> "$LOOP_TXT_RO"
 }
 
 verify_directory() {
@@ -328,14 +333,10 @@ transfer_target() {
 
 	dir_ro=$(rename_to_ro "$dir")
 	echo "Renamed [$dir] to [${dir_ro}]"
-	echo "$dir_ro" >> "${file_path%.loop.txt}~.loop.txt"
+	echo "$dir_ro" >> "$LOOP_TXT_RO"
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
-
-# capture all remaining arguments after the options have been processed
-shift $((OPTIND-1))
-file_path="$1"
 
 if [ "$directory_mode" = "true" ]; then
 	init_directory "$file_path" "false"
@@ -350,8 +351,9 @@ fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
+
 if [ "$cmd" = "init" ]; then
-	echo "# $(basename "$0") [" > "${file_path%.loop.txt}~.loop.txt"
+	echo "# $(basename "$0") [" > "$LOOP_TXT_RO"
 fi
 
 # Read directories from the file
@@ -400,11 +402,11 @@ while IFS= read -r dir; do
 done < "$file_path"
 
 if [ "$cmd" = "init" ]; then
-	echo "# ]" >> "${file_path%.loop.txt}~.loop.txt"
+	echo "# ]" >> "$LOOP_TXT_RO"
 
 	# Filter out comments at the end of lines and compare
-	if diff <(sed 's/#.*$//' "$file_path") <(sed 's/#.*$//' "${file_path%.loop.txt}~.loop.txt") > /dev/null 2>&1; then
-		rm "${file_path%.loop.txt}~.loop.txt"
+	if diff <(sed 's/#.*$//' "$file_path") <(sed 's/#.*$//' "$LOOP_TXT_RO") > /dev/null 2>&1; then
+		rm "$LOOP_TXT_RO"
 	fi
 fi
 
