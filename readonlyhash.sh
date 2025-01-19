@@ -8,13 +8,14 @@ HASH="sha256"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|<verify|transfer> --new-target TARGET_FPATH> [OPTIONS] <FPATH>"
+    echo "Usage: $(basename "$0") <COMMAND|<verify|transfer> --new-target TARGET_FPATH> [OPTIONS] <FPATH> [--resume-at STRING]"
 	echo "      init            ..."
 	echo "      verify          ..."
 	echo "      archive         ..."
 	echo "      extract         ..."
 	echo "      transfer        ..."
     echo "Options:"
+	echo "      --resume-at     ..."
 	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .loop.txt"
 	echo "      --new-target    adsf"
     echo "  -v, --version       Display the version and exit"
@@ -118,6 +119,12 @@ done
 shift $((OPTIND-1))
 file_path="$1"
 LOOP_TXT_RO="${file_path%.loop.txt}~ro.loop.txt"
+
+shift
+resume_string=""
+if [ $# -eq 2 ] && [ "$1" = "--resume-at" ]; then
+	resume_string="$2"
+fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 # captured output : NO spurious echo/printf outputs!
@@ -365,6 +372,16 @@ while IFS= read -r dir; do
 
     # Check if the directory exists
     if [ -d "$dir" ]; then
+
+		base_dir="$dir"
+		if [[ "$dir" == *.ro ]]; then
+			base_dir=${dir%.ro}
+		fi
+
+		if [[ ! "$base_dir" == *"$resume_string" ]]; then
+			echo "SKIP: directory entry [$base_dir]"
+			continue
+		fi
 
 		if [ "$cmd" = "init" ]; then
 			init_directory "$dir"
