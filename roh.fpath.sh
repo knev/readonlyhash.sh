@@ -113,8 +113,8 @@ remove_top_dir() {
 # echo $(remove_top_dir "2002.ro/" "2002.ro//2002_FIRE!") # output: 2002_FIRE!
 # echo $(remove_top_dir "Fotos [space]/" "Fotos [space]//1999.ro/1999-07 Cool Runnings Memories") # output: 1999.ro/1999-07 Cool Runnings Memories
 # echo $(remove_top_dir "Fotos [space/" "Fotos [space//1999.ro/1999-07 Cool Runnings Memories") # output: 1999.ro/1999-07 Cool Runnings Memories
-# echo $(remove_top_dir "/Users/dev/Project-@knev/readonlyhash.sh.git" "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos") #output: Fotos
-# echo $(remove_top_dir "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro" "/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro/1999-07 Cool Runnings Memories") # output: 1999-07 Cool Runnings Memories
+# echo $(remove_top_dir "$PWD" "$PWD/Fotos") #output: Fotos
+# echo $(remove_top_dir "$PWD/Fotos [space]/1999.ro" "$PWD/Fotos [space]/1999.ro/1999-07 Cool Runnings Memories") # output: 1999-07 Cool Runnings Memories
 # exit
 
 

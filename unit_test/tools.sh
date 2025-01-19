@@ -52,7 +52,7 @@ echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 #	$GIT_BIN -C "$TEST" init >/dev/null 2>&1
 #	echo ".DS_Store" > "$TEST/.gitignore"
 #	
-#	TEST=/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos\ \[space\]/1999.ro
+#	TEST=$PWD/Fotos\ \[space\]/1999.ro
 #	
 #	while IFS= read -r roh_hash_fpath; do
 #		echo "[$roh_hash_fpath]"

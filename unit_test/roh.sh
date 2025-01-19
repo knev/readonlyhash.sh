@@ -54,7 +54,7 @@ rm "$fpath"
 run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
 run_test "$GIT_BIN -C $PWD/2002.ro status" "0" "nothing to commit, working tree clean"
 
-run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "SKIP: directory entry [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999]")"
+run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "SKIP: directory entry [$PWD/Fotos [space]/1999]")"
 
 run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
 run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
@@ -65,7 +65,7 @@ run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory"
 echo
 echo "# archive"
 
-run_test "$ROH_BIN archive $fpath_ro" "0" "$(escape_expected "Archived [.roh.git] to [$PWD/Fotos [space]/1999.ro/_.roh.git.zip].*Removed [$PWD/Fotos [space]/1999.ro/.roh.git].*Archived [.roh.git] to [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/_.roh.git.zip].*Removed [$PWD/2002.ro/.roh.git]")"
+run_test "$ROH_BIN archive $fpath_ro" "0" "$(escape_expected "Archived [.roh.git] to [$PWD/Fotos [space]/1999.ro/_.roh.git.zip].*Removed [$PWD/Fotos [space]/1999.ro/.roh.git].*Archived [.roh.git] to [$PWD/2002.ro/_.roh.git.zip].*Removed [$PWD/2002.ro/.roh.git]")"
 
 run_test "ls -al $PWD/Fotos\ \[space\]/1999.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/Fotos [space]/1999.ro/_.roh.git.zip")"
 run_test "ls -al $PWD/2002.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/2002.ro/_.roh.git.zip")"
@@ -93,18 +93,18 @@ rm "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
 run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
 
 # fpath_ro
-# /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999.ro
-# /Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro
-# 1]	/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/1999
-# 1]	/Users/dev/Project-@knev/readonlyhash.sh.git/2002
-# 2]		/Users/dev/Project-@knev/readonlyhash.sh.git
+# $PWD/Fotos [space]/1999.ro
+# $PWD/2002.ro
+# 1]	$PWD/Fotos [space]/1999
+# 1]	$PWD/2002
+# 2]		$PWD
 # 2]		; Fotos [space]/1999
 # 2]		; 2002
-# 3]			/Users/dev/Project-@knev/readonlyhash.sh.git/_target~/Fotos [space]/1999
-# 3]			/Users/dev/Project-@knev/readonlyhash.sh.git/_target~/2002
+# 3]			$PWD/_target~/Fotos [space]/1999
+# 3]			$PWD/_target~/2002
 # 
 # _target~
-# /Users/dev/Project-@knev/readonlyhash.sh.git/_target~/
+# $PWD/_target~/
 
 unzip Fotos.zip -d $TARGET >/dev/null 2>&1
 rm -rf "$TARGET/__MACOSX"
