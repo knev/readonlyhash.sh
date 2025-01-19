@@ -190,6 +190,8 @@ recover_hash() {
     return 1  # Recovery failed
 }
 
+roh_xor_dir_hash="true"
+
 verify_hash() {
     local dir="$1"
     local fpath="$2"
@@ -213,12 +215,20 @@ verify_hash() {
 		echo "         ... hidden [$stored_roh][$roh_hash_fpath]"
 		echo "          ... shown [$stored_dir][$dir_hash_fpath]"
 		echo "       ... computed [$computed_hash]: [$fpath]"
+
+		roh_xor_dir_hash="false"
         ((ERROR_COUNT++))
         return 1  
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
 		local stored=$(stored_hash "$roh_hash_fpath")
+
+		if [ "$roh_xor_dir_hash" = "true" ]; then
+			roh_xor_dir_hash="roh_hash"
+		elif [ "$roh_xor_dir_hash" = "dir_hash" ]; then
+			roh_xor_dir_hash="false"
+		fi
 	        
 		if [ "$computed_hash" = "$stored" ]; then
 			if [ "$recover_mode" != "true" ]; then
@@ -236,6 +246,12 @@ verify_hash() {
 
     elif [ -f "$dir_hash_fpath" ]; then
 		local stored=$(stored_hash "$dir_hash_fpath")
+	        
+		if [ "$roh_xor_dir_hash" = "true" ]; then
+			roh_xor_dir_hash="dir_hash"
+		elif [ "$roh_xor_dir_hash" = "roh_hash" ]; then
+			roh_xor_dir_hash="false"
+		fi
 	        
 		if [ "$computed_hash" = "$stored" ]; then
 			if [ "$recover_mode" != "true" ]; then
@@ -816,6 +832,11 @@ run_directory_process() {
 				((ERROR_COUNT++))
 			fi
 		fi
+	fi
+
+	if [ "$roh_xor_dir_hash" = "false" ]; then
+		echo "WARN: hashes not exclusively hidden or shown"
+		((WARN_COUNT++))
 	fi
 }
 
