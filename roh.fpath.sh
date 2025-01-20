@@ -28,10 +28,6 @@ EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 ROOT="_INVALID_"
 ROH_DIR="./.roh.git"
 
-# Variable for SHA-256 hash command
-#SHA256_BIN="sha256sum" # linux native, macOS via brew install coreutils
-SHA256_BIN="shasum -a 256" # macOS native
-#SHA256_BIN="openssl sha256" # pre-installed on macOS
 HASH="sha256"
 
 ERROR_COUNT=0
@@ -72,7 +68,10 @@ generate_hash() {
         echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] -- exists/(NOT hidden)"
         return 1
     fi
-    echo $($SHA256_BIN "$file" | awk '{print $1}')
+    # echo $($SHA256_BIN "$file" | awk '{print $1}')
+	# echo $(stdbuf -i0 shasum -a 256 "$file" | cut -c1-64) # brew install coreutils || gstdbuf Instead
+	# echo $(stdbuf -i0 openssl sha256 "$file" | tail -c 65) # brew install coreutils || gstdbuf Instead
+	echo $(openssl sha256 "$file" | tail -c 65) # brew install coreutils || gstdbuf Instead
 }
 
 stored_hash() {
