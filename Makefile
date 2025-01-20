@@ -5,7 +5,7 @@ ROH_FPATH=roh.fpath
 ROH_GIT=roh.git
 
 # Define the version here or pass it as an environment variable
-VERSION ?= "v0.6-0"
+VERSION := $(shell git describe --tags --long --match v[0-9]*.[0-9]* | sed 's/-g.*$$//')
 
 OUT= build
 
@@ -25,6 +25,7 @@ nothing:
 # 	@./version.sh --print
 
 install:
+	@echo "VERSION: $(VERSION)"
 	@mkdir -p ~/bin
 	@cp -v ./${ROH}.sh ~/bin/${ROH} # this will get clobbered !
 	@echo "#!/bin/bash" > ~/bin/${ROH}
