@@ -393,15 +393,19 @@ while IFS= read -r dir; do
     # Check if the directory exists
     if [ -d "$dir" ]; then
 
+		#---
+
 		base_dir="$dir"
 		if [[ "$dir" == *.ro ]]; then
 			base_dir=${dir%.ro}
 		fi
-
+		# echo "* base_dir: [$base_dir]"
 		if [[ ! "$base_dir" == *"$resume_string" ]]; then
-			echo "SKIP: directory entry [$base_dir]"
+			echo "SKIP: directory entry [$dir]"
 			continue
 		fi
+
+		#---
 
 		if [ "$cmd" = "init" ]; then
 			init_directory "$dir"
@@ -434,7 +438,7 @@ while IFS= read -r dir; do
 		echo
 		exit 1
     fi
-	echo 
+	echo "■"
 
 done < "$file_path"
 
