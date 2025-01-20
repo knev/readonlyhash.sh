@@ -73,7 +73,6 @@ run_test "$ROH_BIN archive $fpath_ro" "0" "$(escape_expected "SKIP: directory [$
 
 run_test "ls -al $PWD/Fotos\ \[space\]/1999.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/Fotos [space]/1999.ro/_.roh.git.zip")"
 run_test "ls -al $PWD/2002.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/2002.ro/_.roh.git.zip")"
-exit
 
 # verify/extract
 echo

@@ -47,7 +47,7 @@ $GIT_BIN add *.sha256 >/dev/null 2>&1
 $GIT_BIN commit -m "File Added" >/dev/null 2>&1
 echo "four" > "four.txt"
 # roh will report files that don't have a corresponding hash file
-run_test "$ROH_SCRIPT verify" "0" "$(escape_expected "WARN: [.] \"four.txt\" --.* hash file [./.roh.git/four.txt.sha256] -- NOT found.* for [./four.txt][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
+run_test "$ROH_SCRIPT verify" "0" "$(escape_expected "WARN: --.* hash file [./.roh.git/four.txt.sha256] -- NOT found.* for [./four.txt][ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]")"
 
 $ROH_SCRIPT write >/dev/null 2>&1
 # git will show hashes that are untracked
@@ -58,7 +58,7 @@ echo
 echo "# File Modified: Content of a file is altered, which updates the file's last modified timestamp"
 
 echo "six" > "two.txt"
-run_test "$ROH_SCRIPT verify" "1" "$(escape_expected "ERROR: [.] \"two.txt\" -- hash mismatch:.* stored [27dd8ed44a83ff94d557f9fd0412ed5a8cbca69ea04922d88c01184a07300a5a]: [$ROH_DIR/two.txt.sha256].* computed [fe2547fe2604b445e70fc9d819062960552f9145bdb043b51986e478a4806a2b]: [./two.txt]")"
+run_test "$ROH_SCRIPT verify" "1" "$(escape_expected "ERROR: -- hash mismatch:.* stored [27dd8ed44a83ff94d557f9fd0412ed5a8cbca69ea04922d88c01184a07300a5a][$ROH_DIR/two.txt.sha256].* computed [fe2547fe2604b445e70fc9d819062960552f9145bdb043b51986e478a4806a2b][./two.txt]")"
 echo "two" > "two.txt"
 
 # File Removed 
@@ -81,8 +81,8 @@ echo "# File Renamed: The name of a file is changed"
 echo "# File Moved: A file is moved either within the directory or outside of it"
 
 mv "five.txt" "seven.txt"
-run_test "$ROH_SCRIPT verify" "1" "$(escape_expected "WARN: [.] \"seven.txt\" --.* hash file [./.roh.git/seven.txt.sha256] -- NOT found.* for [./seven.txt][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].*ERROR: --.* file [./five.txt] -- NOT found.* for corresponding hash [./.roh.git/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35]")"
-run_test "$ROH_SCRIPT recover" "0" "$(escape_expected "Recovered: [.] \"seven.txt\" -- hash in [./.roh.git/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].* restored for [./seven.txt].* in [./.roh.git/seven.txt.sha256]")"
+run_test "$ROH_SCRIPT verify" "1" "$(escape_expected "WARN: --.* hash file [./.roh.git/seven.txt.sha256] -- NOT found.* for [./seven.txt][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].*ERROR: --.* file [./five.txt] -- NOT found.* for corresponding hash [./.roh.git/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35]")"
+run_test "$ROH_SCRIPT recover" "0" "$(escape_expected "Recovered: --          hash in [./.roh.git/five.txt.sha256][ac169f9fb7cb48d431466d7b3bf2dc3e1d2e7ad6630f6b767a1ac1801c496b35].* restored for [./seven.txt].* in [./.roh.git/seven.txt.sha256]")"
 
 # File Permissions Changed: The permissions (read, write, execute) of a file are modified.
 echo
@@ -117,7 +117,7 @@ echo "# Subdirectory Added: A new subdirectory is created within the directory."
 # we don't care about empty directories (but, we DO care if files are added to empty directories)
 mkdir "$SUBDIR/this_does_not_exist"
 echo "this_does" > "$SUBDIR/this_does_not_exist/this_does.txt"
-run_test "$ROH_SCRIPT verify" "0" "$(escape_expected "WARN: [./subdir/this_does_not_exist] \"this_does.txt\" --.* hash file [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256] -- NOT found.* for [./subdir/this_does_not_exist/this_does.txt][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477]")"
+run_test "$ROH_SCRIPT verify" "0" "$(escape_expected "WARN: --.* hash file [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256] -- NOT found.* for [./subdir/this_does_not_exist/this_does.txt][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477]")"
 $ROH_SCRIPT -w >/dev/null 2>&1
 
 # Subdirectory Removed
@@ -150,7 +150,7 @@ $ROH_SCRIPT write >/dev/null 2>&1
 mv "$SUBDIR/this_does_not_exist" "$SUBDIR/ok_it_does_exist"
 
 #$ROH_SCRIPT -v
-run_test "$ROH_SCRIPT recover" "0" "$(escape_expected "Recovered: [./subdir/ok_it_does_exist] \"and_so_does_this.txt\" -- hash in [./.roh.git/subdir/this_does_not_exist/and_so_does_this.txt.sha256][e5f9ed562b3724db0a83e7797d00492c83594548c5fe8e0a5c885e2bd2ac081d].* restored for [./subdir/ok_it_does_exist/and_so_does_this.txt].* in [./.roh.git/subdir/ok_it_does_exist/and_so_does_this.txt.sha256].*Recovered: [./subdir/ok_it_does_exist] \"this_does.txt\" -- hash in [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477].* restored for [./subdir/ok_it_does_exist/this_does.txt].* in [./.roh.git/subdir/ok_it_does_exist/this_does.txt.sha256]")"
+run_test "$ROH_SCRIPT recover" "0" "$(escape_expected "Recovered: --          hash in [./.roh.git/subdir/this_does_not_exist/and_so_does_this.txt.sha256][e5f9ed562b3724db0a83e7797d00492c83594548c5fe8e0a5c885e2bd2ac081d].* restored for [./subdir/ok_it_does_exist/and_so_does_this.txt].* in [./.roh.git/subdir/ok_it_does_exist/and_so_does_this.txt.sha256].*Recovered: --          hash in [./.roh.git/subdir/this_does_not_exist/this_does.txt.sha256][65cb0ca932c81498259bb87f57c982cef5df83a8b8faf169121b7df3af40b477].* restored for [./subdir/ok_it_does_exist/this_does.txt].* in [./.roh.git/subdir/ok_it_does_exist/this_does.txt.sha256]")"
 run_test "$ROH_SCRIPT verify" "0" "$(escape_expected "ERROR")" "true"
 rm "$ROH_DIR/$SUBDIR/ok_it_does_exist/this_does.txt.$HASH"
 rm "$ROH_DIR/$SUBDIR/ok_it_does_exist/and_so_does_this.txt.$HASH"
