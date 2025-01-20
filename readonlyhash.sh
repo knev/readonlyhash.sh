@@ -222,7 +222,9 @@ init_directory() {
 	fi
 
 	dir_ro="$(rename_to_ro "$dir")"
-	echo "Renamed [$dir] to [${dir_ro}]"
+	if ! [ "$dir" = "$dir_ro" ]; then
+		echo "Renamed [$dir] to [$dir_ro]"
+	fi
 	echo "$dir_ro" >> "$LOOP_TXT_RO"
 }
 
@@ -361,7 +363,9 @@ transfer_target() {
 	echo "Moved [$ROH_DIR] to [$dir/.]"
 
 	dir_ro=$(rename_to_ro "$dir")
-	echo "Renamed [$dir] to [${dir_ro}]"
+	if ! [ "$dir" = "$dir_ro" ]; then
+		echo "Renamed [$dir] to [$dir_ro]"
+	fi
 	echo "$dir_ro" >> "$LOOP_TXT_RO"
 }
 
@@ -403,7 +407,7 @@ while IFS= read -r dir; do
 		fi
 		# echo "* base_dir: [$base_dir]"
 		if [ "$skipping_mode" = "true" ] && [[ ! "$base_dir" == *"$resume_string" ]]; then
-			echo "SKIP: directory entry [$dir]"
+			echo "  OK: directory entry [$dir] -- SKIPPING"
 			continue
 		fi
 		skipping_mode="false"
