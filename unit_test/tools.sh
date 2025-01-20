@@ -197,7 +197,7 @@ run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file
 echo "349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff" > "$ROH_DIR/file with spaces.txt.$HASH"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: hashes not exclusively hidden or shown")"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: hashes not exclusively hidden in [$ROH_DIR]")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"

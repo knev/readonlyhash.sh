@@ -269,6 +269,13 @@ verify_directory() {
 			echo
 			exit 1
 		fi		
+
+		if [ ! -d "$ROH_DIR/.git" ]; then
+			echo "ERROR: local repo [$ROH_DIR/.git] does not exist"
+			echo
+			exit 1
+		fi
+
 		git_status=$($GIT_BIN -C "$dir" status)
 		echo "$git_status"
 		if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
@@ -284,11 +291,24 @@ verify_directory() {
 archive_directory() {
 	local dir="$1"
 
-	verify_directory "$dir"
+	ROH_DIR="$dir/.roh.git"
 
-	if [ ! -f "$dir/_.roh.git.zip" ]; then
-		$GIT_BIN -zC "$dir" 
+	if [ -f "$dir/_.roh.git.zip" ]; then
+		echo "SKIP: directory [$dir] -- [$dir/_.roh.git.zip] exists"
+		return 0
 	fi
+
+	if [ ! -d "$ROH_DIR/.git" ]; then
+		echo "ERROR: local repo [$ROH_DIR/.git] does not exist"
+		echo
+		exit 1
+	fi
+
+	# local tmp=$(find "$dir" -name '*.sha256' -type f -not -path '*/.roh.git/*')
+	# echo "$tmp"
+
+	verify_directory "$dir"
+	$GIT_BIN -zC "$dir" 
 }
 
 extract_directory() {

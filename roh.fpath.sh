@@ -190,7 +190,7 @@ recover_hash() {
     return 1  # Recovery failed
 }
 
-roh_xor_dir_hash="true"
+x_roh_hash="true" # exclusively roh hashes
 
 verify_hash() {
     local dir="$1"
@@ -216,7 +216,7 @@ verify_hash() {
 		echo "          ... shown [$stored_dir][$dir_hash_fpath]"
 		echo "       ... computed [$computed_hash]: [$fpath]"
 
-		roh_xor_dir_hash="false"
+		x_roh_hash="false"
         ((ERROR_COUNT++))
         return 1  
 	fi
@@ -224,12 +224,6 @@ verify_hash() {
     if [ -f "$roh_hash_fpath" ]; then
 		local stored=$(stored_hash "$roh_hash_fpath")
 
-		if [ "$roh_xor_dir_hash" = "true" ]; then
-			roh_xor_dir_hash="roh_hash"
-		elif [ "$roh_xor_dir_hash" = "dir_hash" ]; then
-			roh_xor_dir_hash="false"
-		fi
-	        
 		if [ "$computed_hash" = "$stored" ]; then
 			if [ "$recover_mode" != "true" ]; then
 				#echo "  OK: $(basename "$file") -- hash matches: [$computed_hash]"
@@ -247,11 +241,7 @@ verify_hash() {
     elif [ -f "$dir_hash_fpath" ]; then
 		local stored=$(stored_hash "$dir_hash_fpath")
 	        
-		if [ "$roh_xor_dir_hash" = "true" ]; then
-			roh_xor_dir_hash="dir_hash"
-		elif [ "$roh_xor_dir_hash" = "roh_hash" ]; then
-			roh_xor_dir_hash="false"
-		fi
+		x_roh_hash="false"
 	        
 		if [ "$computed_hash" = "$stored" ]; then
 			if [ "$recover_mode" != "true" ]; then
@@ -834,8 +824,8 @@ run_directory_process() {
 		fi
 	fi
 
-	if [ "$roh_xor_dir_hash" = "false" ]; then
-		echo "WARN: hashes not exclusively hidden or shown"
+	if [ "$x_roh_hash" = "false" ]; then
+		echo "WARN: hashes not exclusively hidden in [$ROH_DIR]"
 		((WARN_COUNT++))
 	fi
 }

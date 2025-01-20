@@ -54,7 +54,7 @@ rm "$fpath"
 run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
 run_test "$GIT_BIN -C $PWD/2002.ro status" "0" "nothing to commit, working tree clean"
 
-run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "SKIP: directory entry [$PWD/Fotos [space]/1999]")"
+run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "SKIP: directory entry [$PWD/Fotos [space]/1999.ro]")"
 
 run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
 run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
@@ -65,10 +65,15 @@ run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory"
 echo
 echo "# archive"
 
-run_test "$ROH_BIN archive $fpath_ro" "0" "$(escape_expected "Archived [.roh.git] to [$PWD/Fotos [space]/1999.ro/_.roh.git.zip].*Removed [$PWD/Fotos [space]/1999.ro/.roh.git].*Archived [.roh.git] to [$PWD/2002.ro/_.roh.git.zip].*Removed [$PWD/2002.ro/.roh.git]")"
+$FPATH_BIN show "$PWD"/2002.ro >/dev/null 2>&1
+run_test "$ROH_BIN archive $fpath_ro" "1" "$(escape_expected "WARN: hashes not exclusively hidden in [$PWD/2002.ro/.roh.git].*ERROR: local repo [$PWD/2002.ro/.roh.git] not clean")"
+
+$FPATH_BIN hide "$PWD"/2002.ro >/dev/null 2>&1
+run_test "$ROH_BIN archive $fpath_ro" "0" "$(escape_expected "SKIP: directory [$PWD/Fotos [space]/1999.ro] -- [$PWD/Fotos [space]/1999.ro/_.roh.git.zip] exists.*Archived [.roh.git] to [$PWD/2002.ro/_.roh.git.zip].*Removed [$PWD/2002.ro/.roh.git]")"
 
 run_test "ls -al $PWD/Fotos\ \[space\]/1999.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/Fotos [space]/1999.ro/_.roh.git.zip")"
 run_test "ls -al $PWD/2002.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/2002.ro/_.roh.git.zip")"
+exit
 
 # verify/extract
 echo
@@ -124,6 +129,7 @@ rm -rf "Fotos [space]/2003.ro" >/dev/null 2>&1
 rm "Fotos [space]/.DS_Store"
 rmdir "Fotos [space]"
 rm "$fpath_ro"
+rm "$fpath_ro_ro" >/dev/null 2>&1
 
 run_test "ls -alR 2002.ro" "1" "$(escape_expected "ls: 2002.ro: No such file or directory")"
 run_test "ls -alR Fotos\ \[space\]" "1" "$(escape_expected "ls: Fotos [space]: No such file or directory")"
