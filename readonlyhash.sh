@@ -121,9 +121,11 @@ file_path="$1"
 LOOP_TXT_RO="${file_path%.loop.txt}~ro.loop.txt"
 
 shift
+skipping_mode="false"
 resume_string=""
 if [ $# -eq 2 ] && [ "$1" = "--resume-at" ]; then
 	resume_string="$2"
+	skipping_mode="true"
 fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -400,10 +402,11 @@ while IFS= read -r dir; do
 			base_dir=${dir%.ro}
 		fi
 		# echo "* base_dir: [$base_dir]"
-		if [[ ! "$base_dir" == *"$resume_string" ]]; then
+		if [ "$skipping_mode" = "true" ] && [[ ! "$base_dir" == *"$resume_string" ]]; then
 			echo "SKIP: directory entry [$dir]"
 			continue
 		fi
+		skipping_mode="false"
 
 		#---
 
