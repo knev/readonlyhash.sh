@@ -85,7 +85,7 @@ echo "# write"
 pushd "$TEST" >/dev/null 2>&1
 ln -s . X11
 popd >/dev/null 2>&1
-run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected " WARN: Avoiding symlink [test/X11] like the Plague")"
+run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected " WARN: Avoiding symlink [test/X11] like the plague")"
 rm "$TEST/X11"
 
 $FPATH_BIN write "$TEST" >/dev/null 2>&1

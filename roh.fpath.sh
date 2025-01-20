@@ -402,7 +402,7 @@ write_hash() {
 	#         local stored=$(stored_hash "$roh_hash_fpath")
 	# 
 	#         if [ "$computed_hash" = "$stored" ]; then
-	# 			# echo "SKIP: [$computed_hash]: [$dir] $(basename "$fpath")"
+	# 			# echo "  OK: [$computed_hash]: [$dir] $(basename "$fpath") -- SKIPPING"
 	# 			return 0
 	# 		else
 	# 			if { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
@@ -528,7 +528,7 @@ process_directory() {
 
     for entry in "$dir"/*; do
 		if [ -L "$entry" ]; then
-			echo " WARN: Avoiding symlink [$entry] like the Plague =)"
+			echo " WARN: Avoiding symlink [$entry] like the plague =)"
 			((WARN_COUNT++))
 
 		# If the entry is a directory, process it recursively

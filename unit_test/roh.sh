@@ -54,7 +54,7 @@ rm "$fpath"
 run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
 run_test "$GIT_BIN -C $PWD/2002.ro status" "0" "nothing to commit, working tree clean"
 
-run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "SKIP: directory entry [$PWD/Fotos [space]/1999.ro]")"
+run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "  OK: directory entry [$PWD/Fotos [space]/1999.ro] -- SKIPPING")"
 
 run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
 run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
@@ -87,7 +87,7 @@ run_test "$ROH_BIN verify $fpath_ro" "0" "$(escape_expected "Removed [/var/folde
 run_test "$ROH_BIN verify $fpath_ro" "0" "$(escape_expected "Done..*On branch master.*nothing to commit, working tree clean.*Done..*On branch master.*nothing to commit, working tree clean")"
 
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_DIR/2002_FIRE!/Untitled-001.jpg.$HASH"
-run_test "$ROH_BIN verify $fpath_ro" "1" "$(escape_expected "\"Untitled-001.jpg\" -- hash mismatch:.* stored [0000000000000000000000000000000000000000000000000000000000000000].* verify] failed for directory")"
+run_test "$ROH_BIN verify $fpath_ro" "1" "$(escape_expected "ERROR: -- hash mismatch:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$PWD/2002.ro/.roh.git/2002_FIRE!/Untitled-001.jpg.sha256].* computed [816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4][$PWD/2002.ro/2002_FIRE!/Untitled-001.jpg]")"
 echo "816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4" > "2002.ro/$ROH_DIR/2002_FIRE!/Untitled-001.jpg.$HASH"
 
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
