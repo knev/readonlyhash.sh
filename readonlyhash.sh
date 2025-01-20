@@ -385,7 +385,7 @@ fi
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 
-if [ "$cmd" = "init" ]; then
+if [ "$cmd" = "init" ] || [ "$cmd" = "transfer" ]; then
 	echo "# $(basename "$0") [" > "$LOOP_TXT_RO"
 fi
 
@@ -408,6 +408,9 @@ while IFS= read -r dir; do
 		# echo "* base_dir: [$base_dir]"
 		if [ "$skipping_mode" = "true" ] && [[ ! "$base_dir" == *"$resume_string" ]]; then
 			echo "  OK: directory entry [$dir] -- SKIPPING"
+			if [ "$cmd" = "init" ] || [ "$cmd" = "transfer" ]; then
+				echo "$dir" >> "$LOOP_TXT_RO"
+			fi
 			continue
 		fi
 		skipping_mode="false"
@@ -449,7 +452,7 @@ while IFS= read -r dir; do
 
 done < "$file_path"
 
-if [ "$cmd" = "init" ]; then
+if [ "$cmd" = "init" ] || [ "$cmd" = "transfer" ]; then
 	echo "# ]" >> "$LOOP_TXT_RO"
 
 	# Filter out comments at the end of lines and compare

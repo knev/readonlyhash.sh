@@ -54,7 +54,7 @@ rm "$fpath"
 run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
 run_test "$GIT_BIN -C $PWD/2002.ro status" "0" "nothing to commit, working tree clean"
 
-run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "  OK: directory entry [$PWD/Fotos [space]/1999.ro] -- SKIPPING")"
+run_test "$ROH_BIN init $fpath_ro --resume-at 2002" "0" "$(escape_expected "  OK: directory entry [$PWD/Fotos [space]/1999.ro] -- SKIPPING")"
 
 run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
 run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
