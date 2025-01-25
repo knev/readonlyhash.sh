@@ -363,7 +363,6 @@ write_hash() {
 	
 		if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
 			echo "  OK: [$new_hash]: [$fpath]"
-			return 0  # No error
 		else
 			echo "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
 			((ERROR_COUNT++))
