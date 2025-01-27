@@ -303,10 +303,9 @@ write_hash() {
 			# exist-R=T (eq-R=F)
 			if [ "$force_mode" = "true" ]; then
 				rm "$roh_hash_fpath"
-				echo "WARN: -- hash mismatch: ..."
+				echo "  OK: -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
 				echo "      ...   stored [$stored][$roh_hash_fpath] -- removed (FORCED)!"
-				((WARN_COUNT++))
 			else
 				echo "WARN: -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
@@ -324,10 +323,9 @@ write_hash() {
 			# exist-D=T (eq-D=F)
 			if [ "$force_mode" = "true" ]; then
 				rm "$dir_hash_fpath"
-				echo "WARN: -- hash mismatch: ..."
+				echo "  OK: -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
 				echo "      ...   stored [$stored][$dir_hash_fpath] -- removed (FORCED)!"
-				((WARN_COUNT++))
 			else
 				echo "WARN: -- hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
