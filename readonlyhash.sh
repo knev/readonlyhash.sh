@@ -8,16 +8,16 @@ HASH="sha256"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|<verify|transfer> --new-target TARGET_FPATH> [OPTIONS] <FPATH> [--resume-at STRING]"
+    echo "Usage: $(basename "$0") <COMMAND|<verify|copy> --retarget BASEPATH:TARGET_BASEPATH> [OPTIONS] <FPATH> [--resume-at STRING]"
 	echo "      init            ..."
 	echo "      verify          ..."
 	echo "      archive         ..."
 	echo "      extract         ..."
-	echo "      transfer        ..."
+	echo "      copy            ..."
     echo "Options:"
 	echo "      --resume-at     ..."
 	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .loop.txt"
-	echo "      --new-target    adsf"
+	echo "      --retarget      ..."
     echo "  -v, --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
     echo
@@ -40,7 +40,7 @@ case "$1" in
         ;;
     extract) 
         ;;
-	transfer)
+	copy)
 	    ;;
 #    delete) 
 #        ;;
@@ -71,8 +71,8 @@ cmd="$1"
 shift
 
 directory_mode="false"
-target_mode="false"
-new_target="_INVALID_"
+retarget_mode="false"
+rebase_string="_INVALID_"
 
 while getopts "dh-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
@@ -86,9 +86,9 @@ while getopts "dh-:" opt; do
 		directory)
 		  directory_mode="true"
 		  ;;
-        new-target)
-		  target_mode="true"
-          new_target="${!OPTIND}"
+        retarget)
+		  retarget_mode="true"
+          rebase_string="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;	
         help)
@@ -143,51 +143,42 @@ rename_to_ro() {
     echo "$dir_ro"	
 }
 
-# Function to find common parent directory
-find_common_parent() {
-    # Convert paths to absolute paths
-    local path1=$(realpath "$1")
-    local path2=$(realpath "$2")
+#	validate_rebase_string() {
+#	    local string="$1"
+#	    [[ "$string" =~ ^[^:]+:[^:]+$ ]]
+#	    return $?
+#	}
+#	validate_rebase_string "path:to" && echo "Valid" || echo "Invalid"
+#	validate_rebase_string "path::to" && echo "Valid" || echo "Invalid"
+#	validate_rebase_string "::to" && echo "Valid" || echo "Invalid"
+#	validate_rebase_string ":to" && echo "Valid" || echo "Invalid"
+#	validate_rebase_string "path:" && echo "Valid" || echo "Invalid"
+#	validate_rebase_string "path" && echo "Valid" || echo "Invalid"
 
-    # Split paths into arrays of components
-    IFS='/' read -ra arr1 <<< "${path1:1}"  # remove leading slash
-    IFS='/' read -ra arr2 <<< "${path2:1}"
-
-    local common_path="/"
-    local i
-    for ((i = 0; i < ${#arr1[@]} && i < ${#arr2[@]}; i++)); do
-        if [ "${arr1[i]}" != "${arr2[i]}" ]; then
-            break
-        fi
-        common_path+="${arr1[i]}/"
-    done
-
-    # Remove trailing slash if it's not the root directory
-    [ "$common_path" != "/" ] && common_path=${common_path%/}
-
-    echo "$common_path"
-}
-
-get_target_remainder() {
+rebase_directory() {
     local dir="$1"
-    local abs_target="$2"
-    local common_parent=$(find_common_parent "$dir" "$abs_target")
+    local rebase_string="$2"
+
+    if ! [[ "$rebase_string" =~ ^([^:]+):([^:]+)$ ]]; then
+		echo "_INVALID_"
+		return
+	fi
+
+	local basepath="${BASH_REMATCH[1]}"
+	local target_basepath="${BASH_REMATCH[2]}"
+
+	abs_basepath="$(readlink -f "$basepath")"
+	abs_target_basepath="$(readlink -f "$target_basepath")"
 
     # Remove the common parent from the path
-    local remainder="${dir#$common_parent/}"
+    local suffix="${dir#$abs_basepath/}"
 
-    # If the common parent is just "/", return the path minus the leading slash
-    if [ "$common_parent" = "/" ]; then
-        remainder="${dir#*/}"
+	# Remove '.ro' from the end of the suffix if it exists
+    if [[ "$suffix" = *.ro ]]; then
+        suffix="${suffix%.ro}"
     fi
 
-    # Remove '.ro' from the end of the remainder if it exists
-    if [[ "$remainder" = *.ro ]]; then
-        remainder="${remainder%.ro}"
-    fi
-
-    # Return the remainder
-    echo "$remainder"
+	echo "$abs_target_basepath/$suffix"
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -330,43 +321,46 @@ extract_directory() {
 #
 verify_target() {
 	local dir="$1"
-	local abs_target="$2" # the absolute path of $new_target
+	local rebase_string="$2"
+	local dir_rebased=$(rebase_directory "$dir" "$rebase_string")
+	if [ "$dir_rebased" = "_INVALID_" ]; then
+        echo "ERROR: invalid rebase string [$rebase_string]"
+ 		echo
+ 		exit 1
+	fi
+	# echo "* $dir => $dir_rebased"
 
 	ROH_DIR="$dir/.roh.git"
 
-	remainder=$(get_target_remainder "$dir" "$abs_target")
-
-	# echo "* $dir : $abs_target : $remainder"
-	# echo "* $abs_target/$remainder"
-
-	$FPATH_BIN verify --roh-dir "$ROH_DIR" "$abs_target/$remainder"
+	$FPATH_BIN verify --roh-dir "$ROH_DIR" "$dir_rebased"
 	if [ $? -ne 0 ]; then
-        echo "ERROR: [$FPATH_BIN verify --roh-dir] failed for directory: [$abs_target/$remainder]"
+        echo "ERROR: [$FPATH_BIN verify --roh-dir] failed for directory: [$dir_rebased]"
 		echo
 		exit 1
 	fi		
 }
 
-transfer_target() {
+copy_to_target() {
 	local dir="$1"
-	local abs_target="$2" # the absolute path of $new_target
+	local rebase_string="$2"
+	local dir_rebased=$(rebase_directory "$dir" "$rebase_string")
+	if [ "$dir_rebased" = "_INVALID_" ]; then
+        echo "ERROR: invalid rebase string [$rebase_string]"
+ 		echo
+ 		exit 1
+	fi
+	# echo "* $dir => $dir_rebased"
 
 	ROH_DIR="$dir/.roh.git"
 
-	remainder=$(get_target_remainder "$dir" "$abs_target")
+	cp -R "$ROH_DIR" "$dir_rebased/."
+	echo "Copied [$ROH_DIR] to [$dir_rebased/.]"
 
-	# echo "* $dir : $abs_target : $remainder"
-	# echo "* $abs_target/$remainder"
-
-	dir="$abs_target/$remainder"
-	mv "$ROH_DIR" "$dir/."
-	echo "Moved [$ROH_DIR] to [$dir/.]"
-
-	dir_ro=$(rename_to_ro "$dir")
-	if ! [ "$dir" = "$dir_ro" ]; then
-		echo "Renamed [$dir] to [$dir_ro]"
+	dir_rebased_ro=$(rename_to_ro "$dir_rebased")
+	if ! [ "$dir_rebased" = "$dir_rebased_ro" ]; then
+		echo "Renamed [$dir_rebased] to [$dir_rebased_ro]"
 	fi
-	echo "$dir_ro" >> "$LOOP_TXT_RO"
+	echo "$dir_rebased_ro" >> "$LOOP_TXT_RO"
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -385,7 +379,7 @@ fi
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 
-if [ "$cmd" = "init" ] || [ "$cmd" = "transfer" ]; then
+if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
 	echo "# $(basename "$0") [" > "$LOOP_TXT_RO"
 fi
 
@@ -408,7 +402,7 @@ while IFS= read -r dir; do
 		# echo "* base_dir: [$base_dir]"
 		if [ "$skipping_mode" = "true" ] && [[ ! "$base_dir" == *"$resume_string" ]]; then
 			echo "  OK: directory entry [$dir] -- SKIPPING"
-			if [ "$cmd" = "init" ] || [ "$cmd" = "transfer" ]; then
+			if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
 				echo "$dir" >> "$LOOP_TXT_RO"
 			fi
 			continue
@@ -421,9 +415,8 @@ while IFS= read -r dir; do
 			init_directory "$dir"
 
 		elif [ "$cmd" = "verify" ]; then
-			if [ "$target_mode" = "true" ]; then
-				abs_target="$(readlink -f "$new_target")"
-				verify_target "$dir" "$abs_target"
+			if [ "$retarget_mode" = "true" ]; then
+				verify_target "$dir" "$rebase_string"
 			else
 				verify_directory "$dir"
 			fi
@@ -434,9 +427,8 @@ while IFS= read -r dir; do
 		elif [ "$cmd" = "extract" ]; then
 			extract_directory "$dir"
 
-		elif [ "$cmd" = "transfer" ]; then
-			abs_target="$(readlink -f "$new_target")"
-			transfer_target "$dir" "$abs_target"
+		elif [ "$cmd" = "copy" ]; then
+			copy_to_target "$dir" "$rebase_string"
 
 		elif [ "$cmd" = "delete" ]; then
 			echo delete
@@ -452,7 +444,7 @@ while IFS= read -r dir; do
 
 done < "$file_path"
 
-if [ "$cmd" = "init" ] || [ "$cmd" = "transfer" ]; then
+if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
 	echo "# ]" >> "$LOOP_TXT_RO"
 
 	# Filter out comments at the end of lines and compare

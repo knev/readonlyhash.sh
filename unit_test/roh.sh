@@ -23,6 +23,7 @@ rm -rf "__MACOSX"
 rm -rf "2002" >/dev/null 2>&1
 rm -rf "2002.ro" >/dev/null 2>&1
 rm -rf "Fotos [space]" >/dev/null 2>&1
+rm -rf "blammy"
 rm -rf "$TARGET"
 unzip Fotos.zip >/dev/null 2>&1
 rm -rf "__MACOSX"
@@ -97,26 +98,35 @@ rm "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
 run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
 
 # fpath_ro
-# $PWD/Fotos [space]/1999.ro
-# $PWD/2002.ro
-# 1]	$PWD/Fotos [space]/1999
-# 1]	$PWD/2002
-# 2]		$PWD
+# $Fractal/blammy/cheeze/Fotos [space]/1999.ro
+# $Fractal/blammy/cheeze/2002.ro
+# 1]	$Fractal/blammy/cheeze/Fotos [space]/1999
+# 1]	$Fractal/blammy/cheeze/2002
 # 2]		; Fotos [space]/1999
 # 2]		; 2002
-# 3]			$PWD/_target~/Fotos [space]/1999
-# 3]			$PWD/_target~/2002
-# 
-# _target~
-# $PWD/_target~/
+# 3]			$Fractal/_target~/Fotos [space]/1999
+# 3]			$Fractal/_target~/2002
+#
+#"$Fractal/blammy/cheeze:$Fractal/_target~"
 
+mkdir -p "blammy/cheeze"
+mv "$PWD/Fotos [space]" "$PWD/blammy/cheeze/." 
+mv "$PWD/2002.ro" "$PWD/blammy/cheeze/." 
 unzip Fotos.zip -d $TARGET >/dev/null 2>&1
 rm -rf "$TARGET/__MACOSX"
-run_test "$ROH_BIN verify --new-target $TARGET $fpath_ro" "0" "ERROR" "true"
+echo "$PWD/blammy/cheeze/Fotos [space]/1999.ro" > "$fpath_ro"
+echo "$PWD/blammy/cheeze/2002.ro" >> "$fpath_ro"
+run_test "$ROH_BIN verify --retarget blammy/cheeze:$TARGET $fpath_ro" "0" "ERROR" "true"
 
-run_test "$ROH_BIN transfer --new-target $TARGET $fpath_ro" "0" "$(escape_expected "Moved [$PWD/Fotos [space]/1999.ro/.roh.git] to [$PWD/_target~/Fotos [space]/1999/.].*Moved [$PWD/2002.ro/.roh.git] to [$PWD/_target~/2002/.]")"
+run_test "$ROH_BIN copy --retarget $TARGET $fpath_ro" "1" "$(escape_expected "ERROR: invalid rebase string [_target~]")"
+
+run_test "$ROH_BIN copy --retarget blammy/cheeze:$TARGET $fpath_ro" "0" "$(escape_expected "Copied [$PWD/blammy/cheeze/Fotos [space]/1999.ro/.roh.git] to [$PWD/$TARGET/Fotos [space]/1999/.].*Copied [$PWD/blammy/cheeze/2002.ro/.roh.git] to [$PWD/$TARGET/2002/.]")"
 run_test "$ROH_BIN verify $fpath_ro_ro" "0" "ERROR" "true"
 rm -rf "$TARGET"
+mv "$PWD/blammy/cheeze/Fotos [space]" "$PWD/."
+mv "$PWD/blammy/cheeze/2002.ro" "$PWD/." 
+rmdir "blammy/cheeze"
+rmdir "blammy"
 
 # Clean up test files
 echo
