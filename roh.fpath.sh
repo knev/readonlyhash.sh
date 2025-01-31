@@ -148,12 +148,59 @@ hash_fpath_to_fpath() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
+#DB_SQL=".roh.sqlite3.db"
+DB_SQL=$(mktemp) || { echo "Failed to create temp file"; exit 1; }
+
+roh_sqlite3_db_init() {
+	[ -f "$DB_SQL" ] && rm "$DB_SQL"
+
+# Create or open the SQLite database with a new schema
+sqlite3 "$DB_SQL" <<EOF
+CREATE TABLE IF NOT EXISTS hashes (
+    id INTEGER PRIMARY KEY,
+    hash TEXT NOT NULL,
+    roh_hash_fpath TEXT NOT NULL
+);
+
+-- Index for faster hash lookups (optional but recommended for performance)
+CREATE INDEX IF NOT EXISTS idx_hash ON hashes(hash);
+
+-- Remove all existing entries before inserting new ones (if needed)
+-- DELETE FROM hashes;
+
+EOF
+
+	# same loop as after run_directory_process/process_directory
+	while IFS= read -r roh_hash_fpath; do
+		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
+
+		[ -d "$roh_hash_fpath" ] && continue
+
+		local stored=$(stored_hash "$roh_hash_fpath")
+		# echo "   * roh_hash_fpath: [$roh_hash_fpath][$stored]"
+
+		# local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
+		# echo "   * fpath: [$roh_hash_fpath][$stored] [$fpath]"
+
+		escaped_roh_hash_fpath=${roh_hash_fpath//\'/\'\'}
+		sqlite3 "$DB_SQL" "INSERT INTO hashes (hash, roh_hash_fpath) VALUES ('$stored', '$escaped_roh_hash_fpath');"
+
+	done < <(find "$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
+}
+
+# Function to search for a hash in the database
+roh_sqlite3_db_search() {
+    local stored="$1"
+    sqlite3 "$DB_SQL" "SELECT roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+}
+
+#------------------------------------------------------------------------------------------------------------------------------------------
+
 x_roh_hash="true" # exclusively roh hashes
 
 verify_hash() {
     local dir="$1"
     local fpath="$2"
-    local recover_mode="$3"	
 
 	# local hash_fname="$(basename "$fpath").$HASH"
 	# local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
@@ -183,16 +230,14 @@ verify_hash() {
 		local stored=$(stored_hash "$roh_hash_fpath")
 
 		if [ "$computed_hash" = "$stored" ]; then
-			if [ "$recover_mode" != "true" ]; then
-				echo "  OK: [$computed_hash]: [$fpath]"
-			fi
-			return 0  # No error
+			echo "  OK: [$computed_hash]: [$fpath]"
+			return 0
 		else
 			echo "ERROR: -- hash mismatch: ..."
 			echo "          ...   stored [$stored][$roh_hash_fpath]"
 			echo "          ... computed [$computed_hash][$fpath]"
 			((ERROR_COUNT++))
-			return 1  # Error, hash mismatch
+			return 1
 		fi
 
     elif [ -f "$dir_hash_fpath" ]; then
@@ -201,30 +246,22 @@ verify_hash() {
 		x_roh_hash="false"
 	        
 		if [ "$computed_hash" = "$stored" ]; then
-			if [ "$recover_mode" != "true" ]; then
-				echo "  OK: [$computed_hash]: [$fpath]"
-			fi
-			return 0  # No error
+			echo "  OK: [$computed_hash]: [$fpath]"
+			return 0
 		else
 			echo "ERROR: -- hash mismatch: ..."
 			echo "          ...   stored [$stored][$dir_hash_fpath]"
 			echo "          ... computed [$computed_hash][$fpath]"
 			((ERROR_COUNT++))
-			return 1  # Error, hash mismatch
-		fi 
-	
-	else
-		# echo "$dir" "$fpath" "[$computed_hash]"
-		if [ "$recover_mode" = "true" ]; then
-			recover_hash "$dir" "$fpath"
 			return 1
-		else
-			echo "WARN: -- hash file [$roh_hash_fpath] -- NOT found"
-			echo "           ... for [$fpath][$computed_hash]"
-			((WARN_COUNT++))
-			return 1  # Error, hash file does not exist
-		fi
+		fi 
 	fi
+	
+	# echo "$dir" "$fpath" "[$computed_hash]"
+	echo "WARN: -- hash file [$roh_hash_fpath] -- NOT found"
+	echo "           ... for [$fpath][$computed_hash]"
+	((WARN_COUNT++))
+	return 1
 }
 
 # Function to recover hash files
@@ -237,42 +274,44 @@ recover_hash() {
 
 	local computed_hash=$(generate_hash "$fpath")
 
-    # Search for hash files in current directory and subdirectories
-	while IFS= read -r -d '' found_roh_hash_fpath; do
-        #if [ -f "$found_roh_hash_fpath" ]; then # "find -type f" takes care of this
-		local found_stored=$(stored_hash "$found_roh_hash_fpath")
-		#echo "FOUND: $found_roh_hash_fpath [$found_stored]"
-        if [ "$computed_hash" = "$found_stored" ]; then
-			# check if the hash has a valid corresponding file
-			local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
-			if [ -f "$found_fpath" ]; then
-				echo "WARN: --       ... stored [$found_roh_hash_fpath] -- identical file"
-				echo "         ... for computed [$fpath][$computed_hash]"
-				((WARN_COUNT++))
-			else
-				local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-				mkdir -p "$roh_hash_just_path"
-				mv "$found_roh_hash_fpath" "$roh_hash_fpath"
-				# echo "MV: mkdir $roh_hash_just_path; [$found_roh_hash_fpath] [$roh_hash_fpath]"
-				echo "Recovered: --          hash in [$found_roh_hash_fpath][$found_stored]"
-				echo "              ... restored for [$fpath]"
-				echo "              ...           in [$roh_hash_fpath]"
-				return 0 
-			fi
-        fi
-	done < <(find "$ROH_DIR" -name "*.$HASH" -type f -print0)
+	# echo "* fpath: [$fpath][$computed_hash]"
 
-    echo "ERROR: -- could not recover hash for file [$fpath][$computed_hash]"
-    ((ERROR_COUNT++))
-    return 1  # Recovery failed
+	found_roh_hash_fpath=$(roh_sqlite3_db_search "$computed_hash")
+	if [ -n "$found_roh_hash_fpath" ]; then
+	    # echo "* Found in file: [$found_roh_hash_fpath]"
+
+		local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
+
+		# check if the hash has a valid corresponding file
+		if [ -f "$found_fpath" ]; then
+			echo "WARN: --       ... stored [$found_roh_hash_fpath] -- identical file"
+			echo "         ... for computed [$fpath][$computed_hash]"
+			((WARN_COUNT++))
+		else
+			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+			mkdir -p "$roh_hash_just_path"
+			mv "$found_roh_hash_fpath" "$roh_hash_fpath"
+			# echo "* MV: mkdir $roh_hash_just_path; [$found_roh_hash_fpath] [$roh_hash_fpath]"
+			echo "Recovered: --          hash in [$found_roh_hash_fpath][$computed_hash]"
+			echo "              ... restored for [$fpath]"
+			echo "              ...           in [$roh_hash_fpath]"
+			return 0 
+		fi
+
+	else
+		echo "ERROR: -- could not recover hash for file [$fpath][$computed_hash]"
+		((ERROR_COUNT++))
+		return 1  # Recovery failed
+	fi
 }
 
 # New function for hashing
 write_hash() {
     local dir="$1"
     local fpath="$2"
-	local visibility_mode="$3"
-    local force_mode="$4"
+	local recover_mode="$3"	
+	local visibility_mode="$4"
+    local force_mode="$5"
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
@@ -297,6 +336,7 @@ write_hash() {
 
 	local exists_and_not_eq="false"
 
+	# exist-R=T
     if [ -f "$roh_hash_fpath" ]; then
 		local stored=$(stored_hash "$roh_hash_fpath")
 		if [ "$computed_hash" != "$stored" ]; then
@@ -317,6 +357,7 @@ write_hash() {
 		fi
 	fi
 
+	# exist-D=T
 	if [ -f "$dir_hash_fpath" ]; then
 		local stored=$(stored_hash "$dir_hash_fpath")
 		if [ "$computed_hash" != "$stored" ]; then
@@ -354,7 +395,14 @@ write_hash() {
 	# exist-R=T (eq-R=T), exist-D=T (eq-D=T) // sh= F, (write to R), move D->R
 	# exist-R=T (eq-R=T), exist-D=F          // sh= F, (write to R)
 
+	# exist-R=F         , exist-D=F
 	if ! [ -f "$dir_hash_fpath" ] && ! [ -f "$roh_hash_fpath" ]; then
+
+		if [ "$recover_mode" = "true" ]; then
+			recover_hash "$dir" "$fpath"
+			return 1
+		fi
+
 		# write to R
 		local new_hash=$(generate_hash "$fpath")
 		local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
@@ -544,10 +592,10 @@ process_directory() {
 				        verify_hash "$dir" "$entry" "false"
 				        ;;
 				    "recover")
-				        verify_hash "$dir" "$entry" "true"
+				        write_hash "$dir" "$entry" "true" "hide" "true"
 				        ;;
 				    "write")
-				        write_hash "$dir" "$entry" "$visibility_mode" "$force_mode"
+				        write_hash "$dir" "$entry" "false" "$visibility_mode" "$force_mode"
 				        ;;
 				    "hide")
 				        manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
@@ -748,14 +796,20 @@ run_directory_process() {
 	if [ "$cmd" = "hide" ] || ( [ "$cmd" = "write" ] && [ "$visibility_mode" != "show" ] ); then
 		ensure_dir "$ROH_DIR"
 
-	elif [ "$cmd" = "show" ]; then
-		if [ ! -d "$ROH_DIR" ]; then
-			echo "ERROR: [$ROOT] -- missing [$ROH_DIR]. Aborting." >&2
+	elif [ "$cmd" = "recover" ] || [ "$cmd" = "show" ]; then
+		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
+			echo "ERROR: [$ROOT] -- missing or inacccessible [$ROH_DIR]. Aborting." >&2
 			exit 1
 		fi 
+
+		[ "$cmd" = "recover" ] && roh_sqlite3_db_init
 	fi
 
     process_directory "$@"	
+
+	if [ "$cmd" = "recover" ]; then
+		[ -f "$DB_SQL" ] && rm "$DB_SQL"
+	fi
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
@@ -764,8 +818,9 @@ run_directory_process() {
 	while IFS= read -r roh_hash_fpath; do
 		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
 
+		# if the fpath is a directory AND empty, remove it on delete|write|recover
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "recover" ]; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
@@ -782,9 +837,10 @@ run_directory_process() {
 		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
 		# echo "   * fpath: [$fpath]"
 
+		# if the file corresponding to the hash doesn't it (orphaned), remove it on delete|write|recover
 		if ! stat "$fpath" >/dev/null 2>&1; then
 			local stored=$(stored_hash "$roh_hash_fpath")
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "recover" ]; then
 				if ! rm "$roh_hash_fpath"; then
 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 					((ERROR_COUNT++))
