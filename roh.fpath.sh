@@ -762,8 +762,7 @@ run_directory_process() {
 
 	# Now check for hash files without corresponding files
 	while IFS= read -r roh_hash_fpath; do
-		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
-		# echo "* FPATH: [$roh_hash_fpath] [$fpath]"
+		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
 
 		if [ -d "$roh_hash_fpath" ]; then
 			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
@@ -779,6 +778,9 @@ run_directory_process() {
 			fi
 			continue;
 		fi
+
+		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
+		# echo "   * fpath: [$fpath]"
 
 		if ! stat "$fpath" >/dev/null 2>&1; then
 			local stored=$(stored_hash "$roh_hash_fpath")
