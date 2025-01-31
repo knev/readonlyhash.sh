@@ -148,46 +148,6 @@ hash_fpath_to_fpath() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-# Function to recover hash files
-recover_hash() {
-    local dir="$1"
-    local fpath="$2"
- 	
-	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
-
-	local computed_hash=$(generate_hash "$fpath")
-
-    # Search for hash files in current directory and subdirectories
-	while IFS= read -r -d '' found_roh_hash_fpath; do
-        #if [ -f "$found_roh_hash_fpath" ]; then # "find -type f" takes care of this
-		local found_stored=$(stored_hash "$found_roh_hash_fpath")
-		#echo "FOUND: $found_roh_hash_fpath [$found_stored]"
-        if [ "$computed_hash" = "$found_stored" ]; then
-			# check if the hash has a valid corresponding file
-			local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
-			if [ -f "$found_fpath" ]; then
-				echo "WARN: --       ... stored [$found_roh_hash_fpath] -- identical file"
-				echo "         ... for computed [$fpath][$computed_hash]"
-				((WARN_COUNT++))
-			else
-				local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-				mkdir -p "$roh_hash_just_path"
-				mv "$found_roh_hash_fpath" "$roh_hash_fpath"
-				# echo "MV: mkdir $roh_hash_just_path; [$found_roh_hash_fpath] [$roh_hash_fpath]"
-				echo "Recovered: --          hash in [$found_roh_hash_fpath][$found_stored]"
-				echo "              ... restored for [$fpath]"
-				echo "              ...           in [$roh_hash_fpath]"
-				return 0 
-			fi
-        fi
-	done < <(find "$ROH_DIR" -name "*.$HASH" -type f -print0)
-
-    echo "ERROR: -- could not recover hash for file [$fpath][$computed_hash]"
-    ((ERROR_COUNT++))
-    return 1  # Recovery failed
-}
-
 x_roh_hash="true" # exclusively roh hashes
 
 verify_hash() {
@@ -265,6 +225,46 @@ verify_hash() {
 			return 1  # Error, hash file does not exist
 		fi
 	fi
+}
+
+# Function to recover hash files
+recover_hash() {
+    local dir="$1"
+    local fpath="$2"
+ 	
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
+
+	local computed_hash=$(generate_hash "$fpath")
+
+    # Search for hash files in current directory and subdirectories
+	while IFS= read -r -d '' found_roh_hash_fpath; do
+        #if [ -f "$found_roh_hash_fpath" ]; then # "find -type f" takes care of this
+		local found_stored=$(stored_hash "$found_roh_hash_fpath")
+		#echo "FOUND: $found_roh_hash_fpath [$found_stored]"
+        if [ "$computed_hash" = "$found_stored" ]; then
+			# check if the hash has a valid corresponding file
+			local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
+			if [ -f "$found_fpath" ]; then
+				echo "WARN: --       ... stored [$found_roh_hash_fpath] -- identical file"
+				echo "         ... for computed [$fpath][$computed_hash]"
+				((WARN_COUNT++))
+			else
+				local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+				mkdir -p "$roh_hash_just_path"
+				mv "$found_roh_hash_fpath" "$roh_hash_fpath"
+				# echo "MV: mkdir $roh_hash_just_path; [$found_roh_hash_fpath] [$roh_hash_fpath]"
+				echo "Recovered: --          hash in [$found_roh_hash_fpath][$found_stored]"
+				echo "              ... restored for [$fpath]"
+				echo "              ...           in [$roh_hash_fpath]"
+				return 0 
+			fi
+        fi
+	done < <(find "$ROH_DIR" -name "*.$HASH" -type f -print0)
+
+    echo "ERROR: -- could not recover hash for file [$fpath][$computed_hash]"
+    ((ERROR_COUNT++))
+    return 1  # Recovery failed
 }
 
 # New function for hashing
