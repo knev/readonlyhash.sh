@@ -152,7 +152,9 @@ hash_fpath_to_fpath() {
 DB_SQL=$(mktemp) || { echo "Failed to create temp file"; exit 1; }
 
 roh_sqlite3_db_init() {
-	[ -f "$DB_SQL" ] && rm "$DB_SQL"
+	[ -f "$DB_SQL" ] && rm "$DB_SQL"; echo "[$DB_SQL] -- removed"
+
+	echo -n "Initializing db: [$DB_SQL] -- "
 
 # Create or open the SQLite database with a new schema
 sqlite3 "$DB_SQL" <<EOF
@@ -186,6 +188,8 @@ EOF
 		sqlite3 "$DB_SQL" "INSERT INTO hashes (hash, roh_hash_fpath) VALUES ('$stored', '$escaped_roh_hash_fpath');"
 
 	done < <(find "$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
+
+	echo "initialized"
 }
 
 # Function to search for a hash in the database
@@ -276,27 +280,41 @@ recover_hash() {
 
 	# echo "* fpath: [$fpath][$computed_hash]"
 
-	found_roh_hash_fpath=$(roh_sqlite3_db_search "$computed_hash")
-	if [ -n "$found_roh_hash_fpath" ]; then
-	    # echo "* Found in file: [$found_roh_hash_fpath]"
+	list_roh_hash_fpaths=$(roh_sqlite3_db_search "$computed_hash")
+	if [ -n "$list_roh_hash_fpaths" ]; then
+	    # echo "* Found in file(s): [ ..."
+		# echo "$list_roh_hash_fpaths"
+		# echo "...]"
 
-		local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
+		while IFS= read -r found_roh_hash_fpath || [[ -n "$found_roh_hash_fpath" ]]; do
+			local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
 
-		# check if the hash has a valid corresponding file
-		if [ -f "$found_fpath" ]; then
-			echo "WARN: --       ... stored [$found_roh_hash_fpath] -- identical file"
-			echo "         ... for computed [$fpath][$computed_hash]"
-			((WARN_COUNT++))
-		else
-			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-			mkdir -p "$roh_hash_just_path"
-			mv "$found_roh_hash_fpath" "$roh_hash_fpath"
-			# echo "* MV: mkdir $roh_hash_just_path; [$found_roh_hash_fpath] [$roh_hash_fpath]"
-			echo "Recovered: --          hash in [$found_roh_hash_fpath][$computed_hash]"
-			echo "              ... restored for [$fpath]"
-			echo "              ...           in [$roh_hash_fpath]"
-			return 0 
-		fi
+			# check to make sure some other greedy file didn't already take the orphan
+			[ ! -f "$found_roh_hash_fpath" ] && continue
+	
+			# check if the hash has a valid corresponding file
+			if [ -f "$found_fpath" ]; then
+				echo "WARN: --       ... stored [$found_roh_hash_fpath] -- identical file"
+				echo "         ... for computed [$fpath][$computed_hash]"
+				((WARN_COUNT++))
+			else
+				local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+				# echo "* mkdir $roh_hash_just_path; mv [$sub_dir] [$roh_hash_fpath]"
+
+				if mkdir -p "$roh_hash_just_path" && mv "$found_roh_hash_fpath" "$roh_hash_fpath"; then
+					echo "Recovered: --          hash in [$found_roh_hash_fpath][$computed_hash]"
+					echo "               ... restored in [$roh_hash_fpath]"
+					echo "               ...         for [$fpath]"
+				else
+					echo "ERROR: failed to mkdir [$roh_hash_just_path]; mv file [$found_roh_hash_fpath] to [$roh_hash_fpath]"
+					((ERROR_COUNT++))
+					return 1  # Signal that an error occurred
+				fi
+
+				# greedy: take the first available orphaned hash and split
+				return 0
+			fi
+		done <<< "$list_roh_hash_fpaths"	
 
 	else
 		echo "ERROR: -- could not recover hash for file [$fpath][$computed_hash]"
@@ -818,9 +836,9 @@ run_directory_process() {
 	while IFS= read -r roh_hash_fpath; do
 		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
 
-		# if the fpath is a directory AND empty, remove it on delete|write|recover
+		# if the fpath is a directory AND empty, remove it on delete|write
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "recover" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
@@ -837,10 +855,10 @@ run_directory_process() {
 		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
 		# echo "   * fpath: [$fpath]"
 
-		# if the file corresponding to the hash doesn't it (orphaned), remove it on delete|write|recover
+		# if the file corresponding to the hash doesn't it (orphaned), remove it on delete|write
 		if ! stat "$fpath" >/dev/null 2>&1; then
 			local stored=$(stored_hash "$roh_hash_fpath")
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "recover" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
 				if ! rm "$roh_hash_fpath"; then
 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 					((ERROR_COUNT++))
