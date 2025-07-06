@@ -33,6 +33,8 @@ HASH="sha256"
 ERROR_COUNT=0
 WARN_COUNT=0
 
+VERBOSE_MODE="false"
+
 # Function to check if a file's extension is in the list to avoid
 check_extension() {
     local file="$1"
@@ -184,12 +186,14 @@ EOF
 		# local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
 		# echo "   * fpath: [$roh_hash_fpath][$stored] [$fpath]"
 
+		[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored]: [$roh_hash_fpath]"
+
 		escaped_roh_hash_fpath=${roh_hash_fpath//\'/\'\'}
 		sqlite3 "$DB_SQL" "INSERT INTO hashes (hash, roh_hash_fpath) VALUES ('$stored', '$escaped_roh_hash_fpath');"
 
 	done < <(find "$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
 
-	echo "initialized"
+	echo "initialized."
 }
 
 # Function to search for a hash in the database
@@ -234,7 +238,7 @@ verify_hash() {
 		local stored=$(stored_hash "$roh_hash_fpath")
 
 		if [ "$computed_hash" = "$stored" ]; then
-			echo "  OK: [$computed_hash]: [$fpath]"
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath]"
 			return 0
 		else
 			echo "ERROR: -- hash mismatch: ..."
@@ -250,7 +254,7 @@ verify_hash() {
 		x_roh_hash="false"
 	        
 		if [ "$computed_hash" = "$stored" ]; then
-			echo "  OK: [$computed_hash]: [$fpath]"
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath]"
 			return 0
 		else
 			echo "ERROR: -- hash mismatch: ..."
@@ -262,8 +266,7 @@ verify_hash() {
 	fi
 	
 	# echo "$dir" "$fpath" "[$computed_hash]"
-	echo "WARN: -- hash file [$roh_hash_fpath] -- NOT found"
-	echo "           ... for [$fpath][$computed_hash]"
+	echo "WARN: -- [$computed_hash]: [$fpath] -- NO hash found"
 	((WARN_COUNT++))
 	return 1
 }
@@ -317,7 +320,7 @@ recover_hash() {
 		done <<< "$list_roh_hash_fpaths"	
 
 	else
-		echo "ERROR: -- could not recover hash for file [$fpath][$computed_hash]"
+		echo "ERROR: -- [$computed_hash]: [$fpath] -- NO hash recovered"
 		((ERROR_COUNT++))
 		return 1  # Recovery failed
 	fi
@@ -426,7 +429,7 @@ write_hash() {
 		local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 	
 		if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-			echo "  OK: [$new_hash]: [$fpath]"
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$fpath]"
 		else
 			echo "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
 			((ERROR_COUNT++))
@@ -497,12 +500,12 @@ delete_hash() {
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
     if [ -f "$dir_hash_fpath" ]; then
 		rm "$dir_hash_fpath"
-		echo "  OK: [$fpath] -- hash file [$dir_hash_fpath] -- deleted"
+		[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$dir_hash_fpath] -- deleted"
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
 		rm "$roh_hash_fpath"
-		echo "  OK: [$fpath] -- hash file [$roh_hash_fpath] -- deleted"
+		[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$roh_hash_fpath] -- deleted"
     fi
 }
 
@@ -549,7 +552,7 @@ manage_hash_visibility() {
 			mkdir -p "$roh_hash_just_path"
 		fi
         mv "$src_fpath" "$dest_fpath"
-        echo "  OK: [$fpath] -- hash file [$dest_fpath] -- moved($past_tense)"
+        [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$dest_fpath] -- moved($past_tense)"
         return 0
 	else
 		if [ -f "$dest_fpath" ]; then
@@ -685,7 +688,6 @@ roh_dir="_INVALID_"
 hash_mode="false"
 visibility_mode="none"
 force_mode="false"
-
 while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
@@ -709,6 +711,9 @@ while getopts "h-:" opt; do
         force)
           force_mode="true"
           ;;
+		verbose)
+		  VERBOSE_MODE="true"
+		  ;;
         help)
           usage
           exit 0
@@ -845,7 +850,7 @@ run_directory_process() {
 						echo "ERROR: Failed to remove directory [$roh_hash_fpath]"
 						((ERROR_COUNT++))
 					else
-						echo "  OK: -- orphaned hash directory [$roh_hash_fpath] -- removed"
+						[ "$VERBOSE_MODE" = "true" ] && echo "  OK: -- orphaned hash directory [$roh_hash_fpath] -- removed"
 					fi
 				fi
 			fi
@@ -866,8 +871,9 @@ run_directory_process() {
 					echo "  OK: -- orphaned hash [$roh_hash_fpath][$stored] -- removed"
 				fi
 			else
-				echo "ERROR: --                ... file [$fpath] -- NOT found"
-				echo "       ... for corresponding hash [$roh_hash_fpath][$stored]"
+				echo "ERROR: -- [$stored]: [$roh_hash_fpath]"
+				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
+				echo "                                                                              [$fpath] -- NO corresponding file"
 				((ERROR_COUNT++))
 			fi
 		fi
