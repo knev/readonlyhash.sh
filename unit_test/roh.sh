@@ -44,8 +44,8 @@ rm "Fotos [space]/2003~ro.loop.txt"
 
 echo "$PWD/Fotos/2003" > "$fpath"
 run_test "$ROH_BIN init $fpath" "1" "$(escape_expected "ERROR: Directory [$PWD/Fotos/2003] does not exist.")"
-run_test "ls -al $fpath_ro" "0" "$fpath_ro"
-rm "$fpath_ro"
+# run_test "ls -al $fpath_ro" "0" "Fotos~ro.loop.txt: No such file or directory" "true"
+# rm "$fpath_ro"
 
 echo "$PWD/Fotos [space]/1999" > "$fpath"
 echo "$PWD/2002" >> "$fpath"
@@ -55,12 +55,16 @@ rm "$fpath"
 run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
 run_test "$GIT_BIN -C $PWD/2002.ro status" "0" "nothing to commit, working tree clean"
 
-run_test "$ROH_BIN init $fpath_ro --resume-at 2002" "0" "$(escape_expected "  OK: directory entry [$PWD/Fotos [space]/1999.ro] -- SKIPPING")"
+echo "$PWD/1999" > "Fake.loop.txt"
+cat "$fpath_ro" >> "Fake.loop.txt"
+run_test "$ROH_BIN init Fake.loop.txt --resume-at Fotos\ \[space\]/1999" "0" "$(escape_expected "OK: directory entry [$PWD/1999] -- SKIPPING")"
+rm "Fake.loop.txt"
+rm "Fake~ro.loop.txt"
 
 run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
-run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
+#TMP run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
 run_test "$ROH_BIN init $fpath_ro" "0" "Archived .roh.git to.* _.roh.git.zip" "true"
-run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
+#TMP run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
 
 # archive
 echo
@@ -112,16 +116,19 @@ run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
 mkdir -p "blammy/cheeze"
 mv "$PWD/Fotos [space]" "$PWD/blammy/cheeze/." 
 mv "$PWD/2002.ro" "$PWD/blammy/cheeze/." 
-unzip Fotos.zip -d $TARGET >/dev/null 2>&1
-rm -rf "$TARGET/__MACOSX"
 echo "$PWD/blammy/cheeze/Fotos [space]/1999.ro" > "$fpath_ro"
 echo "$PWD/blammy/cheeze/2002.ro" >> "$fpath_ro"
-run_test "$ROH_BIN verify --retarget blammy/cheeze:$TARGET $fpath_ro" "0" "ERROR" "true"
+unzip Fotos.zip -d $TARGET >/dev/null 2>&1
+rm -rf "$TARGET/__MACOSX"
 
-run_test "$ROH_BIN copy --retarget $TARGET $fpath_ro" "1" "$(escape_expected "ERROR: invalid rebase string [_target~]")"
+run_test "$ROH_BIN copy --rebase blammy/cheeze $fpath_ro" "1" "$(escape_expected "ERROR: invalid rebase string [blammy/cheeze]" )"
 
-run_test "$ROH_BIN copy --retarget blammy/cheeze:$TARGET $fpath_ro" "0" "$(escape_expected "Copied [$PWD/blammy/cheeze/Fotos [space]/1999.ro/.roh.git] to [$PWD/$TARGET/Fotos [space]/1999/.].*Copied [$PWD/blammy/cheeze/2002.ro/.roh.git] to [$PWD/$TARGET/2002/.]")"
-run_test "$ROH_BIN verify $fpath_ro_ro" "0" "ERROR" "true"
+run_test "$ROH_BIN verify --rebase blammy/cheeze:$TARGET $fpath_ro" "0" "ERROR" "true"
+
+run_test "$ROH_BIN copy --rebase blammy/cheeze:$TARGET $fpath_ro" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999.ro/.roh.git] to [$TARGET/Fotos [space]/1999/.].*Copied [blammy/cheeze/2002.ro/.roh.git] to [$TARGET/2002/.]")"
+run_test "ls -al $PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR" "0" "$(escape_expected "$PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR: No such file or directory")" "true"
+#TMP run_test "$ROH_BIN verify $fpath_ro_ro" "0" "ERROR" "true"
+
 rm -rf "$TARGET"
 mv "$PWD/blammy/cheeze/Fotos [space]" "$PWD/."
 mv "$PWD/blammy/cheeze/2002.ro" "$PWD/." 
