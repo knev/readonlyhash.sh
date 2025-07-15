@@ -2,31 +2,56 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]|<show|hide> [--force]> [--roh-dir PATH] <PATH>"
+    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]|<show|hide> [--force]> [--roh-dir PATH] [--index PATH] <PATH>"
     echo "       $(basename "$0") <write|verify --hash> <PATH/GLOBSPEC>"
+    echo "       $(basename "$0") <query --index PATH> <HASH>"
     echo "Commands:"
 	echo "      verify     Verify computed hashes against stored hashes"
     echo "      write      Write SHA256 hashes for files into .roh directory"
     echo "      delete     Delete hash files for specified files"
     echo "      hide       Move hash files from file's directory to .roh"
     echo "      show       Move hash files from .roh to file's directory"
+	echo "      build      Build a index database of all HIDDEN hashes"
+	echo "      query      ..."
     echo "      recover    Attempt to recover orphaned hashes using verify"
 	echo
 	echo "Options:"
 	echo "      --hash     Generate a hash of a single file(s)"
 	echo "      --roh-dir  Specify the readonly hash path"
     echo "      --force    Force operation even if hash files do not match"
+	echo "      --verbose  Verbose operational output"
+	echo "      --index    ..."
     echo "  -h, --help     Display this help and exit"
     echo
     echo "If no directory is specified, the current directory is used."
 	echo
 }
 
+#TODO: when doing a --resume-at, can't specify a .ro ending
+#TODO: archive, then try a retarget
+#TODO: how does the extract to tmp of zip interact with the --retarget ?!
+#TODO: verify with an interactive mode? so, that it pauses so that you can take care of the situation?
+
+#TODO: if there is a .roh.git in a subdir, then refuse certain ops: write, because a new hash will be written top level instead of using the .roh.git subdir hash
+
+#TODO: delete ROH_DIR after archive?! or just have a delete command?!
+#TODO: update readme
+#TODO: ? write parts in C++ or rust to improve performance
+#TODO: should probably add a delete on the ROH level to delete the hashes and .git
+#TODO: when using --roh-dir, perhaps the output paths should show that the roh-dir is different than the file location.
+#TODO: rm -rf .roh.git.rslsc
+#TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
+#TODO: if two hashes files exist for the same file, recover could reomve the wrong one using the computed hash
+
+#TODO: -- PATHSPEC ; start at a lower level in the tree with the command
+
+
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
 ROOT="_INVALID_"
-ROH_DIR="./.roh.git"
+ROH_DIR="_INVALID_"
+DB_SQL="_INVALID_"
 
 HASH="sha256"
 
@@ -150,19 +175,21 @@ hash_fpath_to_fpath() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-#DB_SQL=".roh.sqlite3.db"
-DB_SQL=$(mktemp) || { echo "Failed to create temp file"; exit 1; }
+#DB_SQL="roh.sqlite3.db"
+#DB_SQL=$(mktemp) || { echo "Failed to create temp file"; exit 1; }
 
 roh_sqlite3_db_init() {
-	[ -f "$DB_SQL" ] && rm "$DB_SQL"; echo "[$DB_SQL] -- removed"
+    local DB_SQL="$1"
 
-	echo -n "Initializing db: [$DB_SQL] -- "
+	# no point if we are using mktemp
+	[ -f "$DB_SQL" ] && rm "$DB_SQL"; echo "[$DB_SQL] -- removed"
 
 # Create or open the SQLite database with a new schema
 sqlite3 "$DB_SQL" <<EOF
 CREATE TABLE IF NOT EXISTS hashes (
     id INTEGER PRIMARY KEY,
     hash TEXT NOT NULL,
+    fpath TEXT NOT NULL,
     roh_hash_fpath TEXT NOT NULL
 );
 
@@ -174,32 +201,14 @@ CREATE INDEX IF NOT EXISTS idx_hash ON hashes(hash);
 
 EOF
 
-	# same loop as after run_directory_process/process_directory
-	while IFS= read -r roh_hash_fpath; do
-		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
-
-		[ -d "$roh_hash_fpath" ] && continue
-
-		local stored=$(stored_hash "$roh_hash_fpath")
-		# echo "   * roh_hash_fpath: [$roh_hash_fpath][$stored]"
-
-		# local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
-		# echo "   * fpath: [$roh_hash_fpath][$stored] [$fpath]"
-
-		[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored]: [$roh_hash_fpath]"
-
-		escaped_roh_hash_fpath=${roh_hash_fpath//\'/\'\'}
-		sqlite3 "$DB_SQL" "INSERT INTO hashes (hash, roh_hash_fpath) VALUES ('$stored', '$escaped_roh_hash_fpath');"
-
-	done < <(find "$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
-
-	echo "initialized."
+	echo "db: [$DB_SQL] -- initialized"
 }
 
 # Function to search for a hash in the database
 roh_sqlite3_db_search() {
     local stored="$1"
-    sqlite3 "$DB_SQL" "SELECT roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+	# sqlite3 "$DB_SQL" "SELECT '[' || roh_hash_fpath || ']' FROM hashes WHERE hash = '$stored';"
+	sqlite3 "$DB_SQL" "SELECT fpath || ':' || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -209,6 +218,7 @@ x_roh_hash="true" # exclusively roh hashes
 verify_hash() {
     local dir="$1"
     local fpath="$2"
+	local index_mode="$3"
 
 	# local hash_fname="$(basename "$fpath").$HASH"
 	# local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
@@ -265,9 +275,28 @@ verify_hash() {
 		fi 
 	fi
 	
-	# echo "$dir" "$fpath" "[$computed_hash]"
 	echo "WARN: -- [$computed_hash]: [$fpath] -- NO hash found"
 	((WARN_COUNT++))
+
+	# echo "$dir" "$fpath" "[$computed_hash]"
+	if [ "$index_mode" = "true" ]; then
+		list_roh_hash_fpaths=$(roh_sqlite3_db_search "$computed_hash")
+		if [ -n "$list_roh_hash_fpaths" ]; then 
+			#echo "$list_roh_hash_fpaths"
+			while IFS= read -r fpath_roh_hash_fpath; do
+				IFS=':' read -r fpath roh_hash_fpath <<< "$fpath_roh_hash_fpath"
+				if stat "$fpath" >/dev/null 2>&1; then
+				#	echo "WARN: -- [0000000000000000000000000000000000000000000000000000000000000000]: [$fpath]"
+					echo "                                                                           : [$fpath] -- INDEXED"
+				else
+					echo "                                                                           : [$fpath] -- INDEXED -- ORPHANED"
+				fi
+			done <<< "$list_roh_hash_fpaths"
+
+			return 1
+		fi
+	fi
+
 	return 1
 }
 
@@ -578,6 +607,7 @@ process_directory() {
 	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local visibility_mode="$3"
     local force_mode="$4"
+	local index_mode="$5"
 
 	# ?! do we care about empty directories
 	#
@@ -610,7 +640,7 @@ process_directory() {
 				fi
 				case "$cmd" in
 				    "verify")
-				        verify_hash "$dir" "$entry" "false"
+				        verify_hash "$dir" "$entry" "$index_mode"
 				        ;;
 				    "recover")
 				        write_hash "$dir" "$entry" "true" "hide" "true"
@@ -650,6 +680,8 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+QUERY_HASH="0000000000000000000000000000000000000000000000000000000000000000"
+
 cmd="_INVALID_"
 # Parse command
 case "$1" in
@@ -663,6 +695,11 @@ case "$1" in
         ;;
     show) 
         ;;
+	build)
+		;;
+	query)
+#       query_hash="${@:$((OPTIND+1)):1}"
+		;;
     recover) 
         ;;
     -h)
@@ -685,6 +722,8 @@ shift
 # Parse command line options
 roh_dir_mode="false"
 roh_dir="_INVALID_"
+index_mode="false"
+index="_INVALID_"
 hash_mode="false"
 visibility_mode="none"
 force_mode="false"
@@ -703,6 +742,11 @@ while getopts "h-:" opt; do
         roh-dir)
 		  roh_dir_mode="true"
           roh_dir="${!OPTIND}"
+          OPTIND=$((OPTIND + 1))
+          ;;		  
+        index)
+		  index_mode="true"
+          index="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
         show)
@@ -752,6 +796,14 @@ else
 	ROH_DIR="$ROOT/.roh.git"
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
+
+if [ "$index_mode" = "true" ]; then
+	DB_SQL="$index"
+	echo "Using DB_SQL [$DB_SQL]"
+else 
+	DB_SQL="$ROOT/.roh.sqlite3"
+fi
+# echo "* DB_SQL [$DB_SQL]"
 
 if [ "$hash_mode" = "true" ]; then
 	# echo "* $@"
@@ -814,7 +866,9 @@ run_directory_process() {
 	local cmd="$1"
     local dir="$2"
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-    local force_mode="$3"
+	local visibility_mode="$3"
+    local force_mode="$4"
+	local index_mode="$5"
 
 	if [ "$cmd" = "hide" ] || ( [ "$cmd" = "write" ] && [ "$visibility_mode" != "show" ] ); then
 		ensure_dir "$ROH_DIR"
@@ -824,14 +878,12 @@ run_directory_process() {
 			echo "ERROR: [$ROOT] -- missing or inacccessible [$ROH_DIR]. Aborting." >&2
 			exit 1
 		fi 
-
-		[ "$cmd" = "recover" ] && roh_sqlite3_db_init
 	fi
 
-    process_directory "$@"	
-
-	if [ "$cmd" = "recover" ]; then
-		[ -f "$DB_SQL" ] && rm "$DB_SQL"
+	if [ "$cmd" = "build" ]; then
+		roh_sqlite3_db_init "$DB_SQL"
+	else
+		process_directory "$@"	
 	fi
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
@@ -877,6 +929,18 @@ run_directory_process() {
 				((ERROR_COUNT++))
 			fi
 		fi
+
+		if [ "$cmd" = "build" ]; then
+			local stored=$(stored_hash "$roh_hash_fpath")
+			# echo "   * fpath: [$roh_hash_fpath][$stored] [$fpath]"
+	
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored]: [$roh_hash_fpath] -- indexed"
+	
+			escaped_fpath=${fpath//\'/\'\'}
+			escaped_roh_hash_fpath=${roh_hash_fpath//\'/\'\'}
+			sqlite3 "$DB_SQL" "INSERT INTO hashes (hash, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fpath', '$escaped_roh_hash_fpath');"			
+		fi
+
 	# exclude "$ROH_DIR/.git" using --prune, return only files
 	# sort, because we want lower directories removed first, so upper directories can be empty and removed
 	# 	done < <(find "$ROH_DIR" -path "$ROH_DIR/.*" -prune -o -type f -name "*" -print)
@@ -912,13 +976,25 @@ run_directory_process() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
+if [ "$cmd" = "query" ]; then
+	QUERY_HASH="$ROOT"
+	echo "QUERY_HASH [$QUERY_HASH]"
+	list_roh_hash_fpaths=$(roh_sqlite3_db_search "$QUERY_HASH")
+	# echo "$list_roh_hash_fpaths"
+	while IFS= read -r path; do
+		echo "[$path]"
+	done <<< "$list_roh_hash_fpaths"
+	echo "Done."
+	exit 0
+fi
+
 if [ ! -d "$ROOT" ]; then
     echo "ERROR: Directory [$ROOT] does not exist"
 	echo
     exit 1
 fi
 
-run_directory_process "$cmd" "$ROOT" "$visibility_mode" "$force_mode"
+run_directory_process "$cmd" "$ROOT" "$visibility_mode" "$force_mode" "$index_mode"
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
 	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
 	echo "Number of ...       WARNings: [$WARN_COUNT]"

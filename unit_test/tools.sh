@@ -240,6 +240,28 @@ rm -v "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: -- [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]: [$TEST/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].* [$TEST/sub-directory with spaces/sub-sub-directory/jkl.txt] -- NO corresponding file")"
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 
+# index
+echo
+echo "# index"
+
+# create two files with the same hash to test the building of the index below
+echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl copy.txt"
+$FPATH_BIN write --verbose "$TEST" >/dev/null 2>&1
+
+mkdir -p "${TEST}2"
+mv "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt" "${TEST}2"
+
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: -- [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]: [$TEST/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].* [$TEST/sub-directory with spaces/sub-sub-directory/jkl.txt] -- NO corresponding file")"
+
+$FPATH_BIN build --verbose "$TEST" >/dev/null 2>&1
+run_test "$FPATH_BIN query --index test/.roh.sqlite3 c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "0" "$(escape_expected "QUERY_HASH [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65].*[test/sub-directory with spaces/sub-sub-directory/jkl.txt:test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].*[test/sub-directory with spaces/sub-sub-directory/jkl copy.txt:test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl copy.txt.sha256]")"
+run_test "$FPATH_BIN verify ${TEST}2" "0" "$(escape_expected "WARN: -- [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]: [test2/jkl.txt] -- NO hash found")"
+
+run_test "$FPATH_BIN verify --index $TEST/.roh.sqlite3 ${TEST}2" "0" "$(escape_expected "ADSFASF")"
+
+rm -rf "${TEST}2"
+exit
+
 # recover
 echo
 echo "# recover"
