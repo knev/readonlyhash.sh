@@ -8,10 +8,10 @@ usage() {
     echo "Commands:"
 	echo "      verify     Verify computed hashes against stored hashes"
     echo "      write      Write SHA256 hashes for files into .roh directory"
+	echo "		write+index ..."
     echo "      delete     Delete hash files for specified files"
     echo "      hide       Move hash files from file's directory to .roh"
     echo "      show       Move hash files from .roh to file's directory"
-	echo "      build      Build a index database of all HIDDEN hashes"
 	echo "      query      ..."
     echo "      recover    Attempt to recover orphaned hashes using verify"
 	echo
@@ -20,7 +20,7 @@ usage() {
 	echo "      --roh-dir  Specify the readonly hash path"
     echo "      --force    Force operation even if hash files do not match"
 	echo "      --verbose  Verbose operational output"
-	echo "      --index    ..."
+	echo "      --db       ..."
     echo "  -h, --help     Display this help and exit"
     echo
     echo "If no directory is specified, the current directory is used."
@@ -175,40 +175,69 @@ hash_fpath_to_fpath() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-#DB_SQL="roh.sqlite3.db"
-#DB_SQL=$(mktemp) || { echo "Failed to create temp file"; exit 1; }
-
 roh_sqlite3_db_init() {
-    local DB_SQL="$1"
+    local db="$1"
 
-	# no point if we are using mktemp
-	[ -f "$DB_SQL" ] && rm "$DB_SQL"; echo "[$DB_SQL] -- removed"
+    # Remove existing database file if it exists (no point if using mktemp)
+	if [ -f "$db" ]; then
+		# rm "$db"; echo "db: [$db] -- removed"
+		return
+	fi
 
-# Create or open the SQLite database with a new schema
-sqlite3 "$DB_SQL" <<EOF
+    # Create or open the SQLite database with a new schema
+    sqlite3 "$db" <<EOF
 CREATE TABLE IF NOT EXISTS hashes (
     id INTEGER PRIMARY KEY,
     hash TEXT NOT NULL,
-    fpath TEXT NOT NULL,
-    roh_hash_fpath TEXT NOT NULL
+    filename TEXT NOT NULL,
+    fpath TEXT NOT NULL UNIQUE,
+    roh_hash_fpath TEXT NOT NULL UNIQUE
 );
 
--- Index for faster hash lookups (optional but recommended for performance)
+-- Index for faster hash lookups
 CREATE INDEX IF NOT EXISTS idx_hash ON hashes(hash);
+
+-- Index for faster filename lookups
+CREATE INDEX IF NOT EXISTS idx_filename ON hashes(filename);
 
 -- Remove all existing entries before inserting new ones (if needed)
 -- DELETE FROM hashes;
 
 EOF
 
-	echo "db: [$DB_SQL] -- initialized"
+    echo "db: [$db] -- initialized"
 }
 
-# Function to search for a hash in the database
+roh_sqlite3_db_insert() {
+    local db="$1"
+    local fpath="$2"
+    local roh_hash_fpath="$3"
+    local stored="$4"
+	
+    # Get basename and absolute paths
+    local fpath_fn=$(basename "$fpath")
+    local absolute_fpath=$(readlink -f "$fpath")
+    local absolute_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
+
+    # Escape single quotes for SQLite
+    local escaped_fpath_fn=${fpath_fn//\'/\'\'}
+    local escaped_fpath=${absolute_fpath//\'/\'\'}
+    local escaped_roh_hash_fpath=${absolute_roh_hash_fpath//\'/\'\'}
+
+    # Insert into the database
+    sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fpath_fn', '$escaped_fpath', '$escaped_roh_hash_fpath');"
+}
+
+# Function to search for a hash in the databases
 roh_sqlite3_db_search() {
-    local stored="$1"
-	# sqlite3 "$DB_SQL" "SELECT '[' || roh_hash_fpath || ']' FROM hashes WHERE hash = '$stored';"
-	sqlite3 "$DB_SQL" "SELECT fpath || ':' || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+    local db_path="$1"
+    local stored="$2"
+    if [ -f "$db_path" ]; then
+        sqlite3 "$db_path" "SELECT fpath || ':' || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+    else
+        echo "Warning: Database file [$db_path] not found" >&2
+        return 1
+    fi
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -277,27 +306,29 @@ verify_hash() {
 	
 	echo "WARN: -- [$computed_hash]: [$fpath] -- NO hash found"
 	((WARN_COUNT++))
+	return 1
 
 	# echo "$dir" "$fpath" "[$computed_hash]"
-	if [ "$index_mode" = "true" ]; then
-		list_roh_hash_fpaths=$(roh_sqlite3_db_search "$computed_hash")
-		if [ -n "$list_roh_hash_fpaths" ]; then 
-			#echo "$list_roh_hash_fpaths"
-			while IFS= read -r fpath_roh_hash_fpath; do
-				IFS=':' read -r fpath roh_hash_fpath <<< "$fpath_roh_hash_fpath"
-				if stat "$fpath" >/dev/null 2>&1; then
-				#	echo "WARN: -- [0000000000000000000000000000000000000000000000000000000000000000]: [$fpath]"
-					echo "                                                                           : [$fpath] -- INDEXED"
-				else
-					echo "                                                                           : [$fpath] -- INDEXED -- ORPHANED"
-				fi
-			done <<< "$list_roh_hash_fpaths"
+# 	if [ "$index_mode" = "true" ]; then
+# 		for db_path in "${DB_SQL[@]}"; do
+# 			# echo "db: [$db_path]"
+# 			list_idx_roh_hash_fpaths=$(roh_sqlite3_db_search "$db_path" "$QUERY_HASH")
+# 			# Only print non-empty paths
+# 			while IFS= read -r idx_fpath_roh_hash_fpath; do
+# 				[ -z "$idx_fpath_roh_hash_fpath" ] && continue;
+# 		
+# 				IFS=':' read -r idx_fpath idx_roh_hash_fpath <<< "$idx_fpath_roh_hash_fpath"
+# 				if stat "$idx_fpath" >/dev/null 2>&1; then
+# 				#	echo "WARN: -- [0000000000000000000000000000000000000000000000000000000000000000]: [$idx_fpath]"
+# 					echo "                                                                           : [$idx_fpath] -- INDEXED"
+# 				else
+# 					echo "                                                                           : [$idx_fpath] -- INDEXED -- ORPHANED"
+# 				fi
+# 
+# 			done <<< "$list_idx_roh_hash_fpaths"
+# 		done
+# 	fi
 
-			return 1
-		fi
-	fi
-
-	return 1
 }
 
 # Function to recover hash files
@@ -359,13 +390,29 @@ recover_hash() {
 write_hash() {
     local dir="$1"
     local fpath="$2"
-	local recover_mode="$3"	
-	local visibility_mode="$4"
-    local force_mode="$5"
+	local visibility_mode="$3"
+    local force_mode="$4"
+    local index_mode="$5"
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
+
+	if [ "$index_mode" = "true" ]; then
+		local absolute_fpath=$(readlink -f "$fpath")
+		local escaped_fpath=${absolute_fpath//\'/\'\'}
+
+		# echo "   * fpath: [$roh_hash_fpath][................................................................] [$absolute_fpath]"
+
+		#local fpath_exists=$(sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = '$escaped_fpath';")
+		#if [ "$fpath_exists" -ne 0 ]; then
+		local stored=$(sqlite3 "$DB_SQL" "SELECT hash FROM hashes WHERE fpath = '$escaped_fpath';")
+		if [ -n "$stored" ]; then
+			# [ "$VERBOSE_MODE" = "true" ] && echo "  IDX: [$stored]: [$roh_hash_fpath] -- already exists, SKIPPING"
+			echo "  IDX: [$stored]: [$fpath] -- already exists, SKIPPING"
+			return
+		fi
+	fi
 
 	# echo "* [$dir]-[$ROOT]= [$sub_dir]; $roh_hash_fpath"
 	# echo "* dir_hash_fpath: $dir_hash_fpath"
@@ -628,7 +675,7 @@ process_directory() {
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
-			process_directory "$cmd" "$entry" "$visibility_mode" "$force_mode"
+			process_directory "$cmd" "$entry" "$visibility_mode" "$force_mode" "$index_mode"
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
@@ -646,7 +693,7 @@ process_directory() {
 				        write_hash "$dir" "$entry" "true" "hide" "true"
 				        ;;
 				    "write")
-				        write_hash "$dir" "$entry" "false" "$visibility_mode" "$force_mode"
+				        write_hash "$dir" "$entry" "$visibility_mode" "$force_mode" "$index_mode"
 				        ;;
 				    "hide")
 				        manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
@@ -683,11 +730,16 @@ fi
 QUERY_HASH="0000000000000000000000000000000000000000000000000000000000000000"
 
 cmd="_INVALID_"
+index_mode="false"
+
 # Parse command
 case "$1" in
     verify) 
         ;;
     write) 
+        ;;
+    write+index) 
+		index_mode="true"
         ;;
     delete) 
         ;;
@@ -695,7 +747,8 @@ case "$1" in
         ;;
     show) 
         ;;
-	build)
+	index)
+		index_mode="true"
 		;;
 	query)
 #       query_hash="${@:$((OPTIND+1)):1}"
@@ -716,14 +769,17 @@ case "$1" in
         exit 1
         ;;
 esac
-cmd="$1"
+if [ "$1" = "write+index" ]; then
+	cmd="write"
+else
+	cmd="$1"
+fi
 shift
 
 # Parse command line options
 roh_dir_mode="false"
 roh_dir="_INVALID_"
-index_mode="false"
-index="_INVALID_"
+db=""
 hash_mode="false"
 visibility_mode="none"
 force_mode="false"
@@ -744,9 +800,8 @@ while getopts "h-:" opt; do
           roh_dir="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
-        index)
-		  index_mode="true"
-          index="${!OPTIND}"
+        db)
+          db="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
         show)
@@ -797,13 +852,12 @@ else
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
-if [ "$index_mode" = "true" ]; then
-	DB_SQL="$index"
-	echo "Using DB_SQL [$DB_SQL]"
-else 
-	DB_SQL="$ROOT/.roh.sqlite3"
+if [ -z "$db" ]; then
+    DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array
+else	
+	IFS=':' read -r -a DB_SQL <<< "$db"  # Assign colon-separated paths to DB_SQL array
 fi
-# echo "* DB_SQL [$DB_SQL]"
+# echo "Using DB_SQL [${DB_SQL[*]}]"
 
 if [ "$hash_mode" = "true" ]; then
 	# echo "* $@"
@@ -880,11 +934,11 @@ run_directory_process() {
 		fi 
 	fi
 
-	if [ "$cmd" = "build" ]; then
-		roh_sqlite3_db_init "$DB_SQL"
-	else
-		process_directory "$@"	
+	if [ "$index_mode" = "true" ]; then
+		roh_sqlite3_db_init "$DB_SQL" 
 	fi
+
+	process_directory "$@"	
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
@@ -923,22 +977,34 @@ run_directory_process() {
 					echo "  OK: -- orphaned hash [$roh_hash_fpath][$stored] -- removed"
 				fi
 			else
-				echo "ERROR: -- [$stored]: [$roh_hash_fpath]"
-				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
-				echo "                                                                              [$fpath] -- NO corresponding file"
-				((ERROR_COUNT++))
+				if [ "$index_mode" = "true" ]; then
+					echo "WARN: -- [$stored]: [$roh_hash_fpath]"
+					echo "                                                                             [$fpath] -- NO corresponding file"
+					((WARN_COUNT++))
+				else
+					echo "ERROR: -- [$stored]: [$roh_hash_fpath]"
+					#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
+					echo "                                                                              [$fpath] -- NO corresponding file"
+					((ERROR_COUNT++))
+				fi
 			fi
 		fi
 
-		if [ "$cmd" = "build" ]; then
+		if [ "$index_mode" = "true" ]; then
 			local stored=$(stored_hash "$roh_hash_fpath")
-			# echo "   * fpath: [$roh_hash_fpath][$stored] [$fpath]"
-	
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored]: [$roh_hash_fpath] -- indexed"
-	
-			escaped_fpath=${fpath//\'/\'\'}
-			escaped_roh_hash_fpath=${roh_hash_fpath//\'/\'\'}
-			sqlite3 "$DB_SQL" "INSERT INTO hashes (hash, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fpath', '$escaped_roh_hash_fpath');"			
+
+			local absolute_fpath=$(readlink -f "$fpath")
+			local escaped_fpath=${absolute_fpath//\'/\'\'}
+
+			# echo "   * fpath: [$roh_hash_fpath][$stored] [$absolute_fpath]"
+
+			local fpath_exists=$(sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = '$escaped_fpath';")
+			if [ "$fpath_exists" -eq 0 ]; then
+				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+				[ "$VERBOSE_MODE" = "true" ] && echo "  IDX: [$stored]: [$roh_hash_fpath] -- inserted"
+			else
+				[ "$VERBOSE_MODE" = "true" ] && echo "  IDX: [$stored]: [$roh_hash_fpath] -- already exists, SKIPPING"
+			fi
 		fi
 
 	# exclude "$ROH_DIR/.git" using --prune, return only files
@@ -977,15 +1043,19 @@ run_directory_process() {
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 if [ "$cmd" = "query" ]; then
-	QUERY_HASH="$ROOT"
-	echo "QUERY_HASH [$QUERY_HASH]"
-	list_roh_hash_fpaths=$(roh_sqlite3_db_search "$QUERY_HASH")
-	# echo "$list_roh_hash_fpaths"
-	while IFS= read -r path; do
-		echo "[$path]"
-	done <<< "$list_roh_hash_fpaths"
-	echo "Done."
-	exit 0
+    QUERY_HASH="$ROOT"
+    echo "query hash: [$QUERY_HASH]"
+    # Loop through DB_SQL array
+    for db_path in "${DB_SQL[@]}"; do
+		echo "db: [$db_path]"
+        list_roh_hash_fpaths=$(roh_sqlite3_db_search "$db_path" "$QUERY_HASH")
+        # Only print non-empty paths
+        while IFS= read -r fpath; do
+            [ -n "$fpath" ] && echo "[$fpath]"
+        done <<< "$list_roh_hash_fpaths"
+    done
+    echo "Done."
+    exit 0
 fi
 
 if [ ! -d "$ROOT" ]; then

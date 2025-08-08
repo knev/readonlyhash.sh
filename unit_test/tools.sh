@@ -94,6 +94,11 @@ echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST
 run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "WARN:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$ROH_DIR/file with spaces.txt.sha256].*WARN:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$TEST/file with spaces.txt.sha256]")"
 run_test "$FPATH_BIN write --force $TEST" "0" "$(escape_expected "  OK:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$ROH_DIR/file with spaces.txt.sha256] -- removed (FORCED)!.*OK:.* computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69][test/file with spaces.txt].* stored [0000000000000000000000000000000000000000000000000000000000000000][$TEST/file with spaces.txt.sha256] -- removed (FORCED)!")"
 
+$FPATH_BIN delete "$TEST"
+run_test "$FPATH_BIN write+index --db \"\" --verbose $TEST" "0" "$(escape_expected "db: [test/.roh.sqlite3] -- initialized.* IDX: .* [1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f]: [test/.roh.git/sub-directory with spaces/pno.txt.sha256] -- inserted")"
+run_test "$FPATH_BIN write+index --db \"\" --verbose $TEST" "0" "$(escape_expected "[1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f]: [test/.roh.git/sub-directory with spaces/pno.txt.sha256] -- already exists, SKIPPING")"
+rm -rf "$TEST/.roh.sqlite3"
+
 # exist-R=F         , exist-D=T (eq-D=T) // sh= F
 # exist-R=F         , exist-D=F			 // sh= F
 # exist-R=T (eq-R=T), exist-D=T (eq-D=T) // sh= F
@@ -244,12 +249,26 @@ echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 echo
 echo "# index"
 
+$FPATH_BIN index --verbose "$TEST" >/dev/null 2>&1
+run_test "$FPATH_BIN query --db $TEST/.roh.sqlite3 c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "0" "$(escape_expected "query hash: [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65].*[/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces/sub-sub-directory/jkl.txt:/Users/dev/Project-@knev/readonlyhash.sh.git/test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256]")"
+
 # create two files with the same hash to test the building of the index below
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl copy.txt"
 $FPATH_BIN write --verbose "$TEST" >/dev/null 2>&1
 
-mkdir -p "${TEST}2"
-mv "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt" "${TEST}2"
+run_test "$FPATH_BIN index --verbose $TEST" "0" "$(escape_expected "IDX: [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]: [test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl copy.txt.sha256] -- inserted")"
+run_test "$FPATH_BIN query --db $TEST/.roh.sqlite3 c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "0" "$(escape_expected "query hash: [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65].*[/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces/sub-sub-directory/jkl.txt:/Users/dev/Project-@knev/readonlyhash.sh.git/test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].*[/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces/sub-sub-directory/jkl copy.txt:/Users/dev/Project-@knev/readonlyhash.sh.git/test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl copy.txt.sha256]")"
+rm -rf "$TEST/.roh.sqlite3"
+
+$FPATH_BIN delete --verbose "$TEST" >/dev/null 2>&1
+cp -R "$TEST/sub-directory with spaces" "$TEST/sub-dir copy"
+$FPATH_BIN write --verbose "$TEST/sub-directory with spaces" >/dev/null 2>&1
+$FPATH_BIN write --verbose "$TEST/sub-dir copy" >/dev/null 2>&1
+$FPATH_BIN index --db $TEST/.roh.sqlite3 --verbose "$TEST/sub-directory with spaces" # >/dev/null 2>&1
+$FPATH_BIN index --db $TEST/.roh.sqlite3 --verbose "$TEST/sub-dir copy" # >/dev/null 2>&1
+
+$FPATH_BIN write+index --verbose "$TEST" # >/dev/null 2>&1
+run_test "$FPATH_BIN write+index --verbose $TEST" "0" "$(escape_expected "-- inserted")" "true"
 
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: -- [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]: [$TEST/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].* [$TEST/sub-directory with spaces/sub-sub-directory/jkl.txt] -- NO corresponding file")"
 
