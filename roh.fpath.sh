@@ -331,61 +331,6 @@ verify_hash() {
 
 }
 
-# Function to recover hash files
-recover_hash() {
-    local dir="$1"
-    local fpath="$2"
- 	
-	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
-
-	local computed_hash=$(generate_hash "$fpath")
-
-	# echo "* fpath: [$fpath][$computed_hash]"
-
-	list_roh_hash_fpaths=$(roh_sqlite3_db_search "$computed_hash")
-	if [ -n "$list_roh_hash_fpaths" ]; then
-	    # echo "* Found in file(s): [ ..."
-		# echo "$list_roh_hash_fpaths"
-		# echo "...]"
-
-		while IFS= read -r found_roh_hash_fpath || [[ -n "$found_roh_hash_fpath" ]]; do
-			local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
-
-			# check to make sure some other greedy file didn't already take the orphan
-			[ ! -f "$found_roh_hash_fpath" ] && continue
-	
-			# check if the hash has a valid corresponding file
-			if [ -f "$found_fpath" ]; then
-				echo "WARN: --       ... stored [$found_roh_hash_fpath] -- identical file"
-				echo "         ... for computed [$fpath][$computed_hash]"
-				((WARN_COUNT++))
-			else
-				local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-				# echo "* mkdir $roh_hash_just_path; mv [$sub_dir] [$roh_hash_fpath]"
-
-				if mkdir -p "$roh_hash_just_path" && mv "$found_roh_hash_fpath" "$roh_hash_fpath"; then
-					echo "Recovered: --          hash in [$found_roh_hash_fpath][$computed_hash]"
-					echo "               ... restored in [$roh_hash_fpath]"
-					echo "               ...         for [$fpath]"
-				else
-					echo "ERROR: failed to mkdir [$roh_hash_just_path]; mv file [$found_roh_hash_fpath] to [$roh_hash_fpath]"
-					((ERROR_COUNT++))
-					return 1  # Signal that an error occurred
-				fi
-
-				# greedy: take the first available orphaned hash and split
-				return 0
-			fi
-		done <<< "$list_roh_hash_fpaths"	
-
-	else
-		echo "ERROR: -- [$computed_hash]: [$fpath] -- NO hash recovered"
-		((ERROR_COUNT++))
-		return 1  # Recovery failed
-	fi
-}
-
 # New function for hashing
 write_hash() {
     local dir="$1"
@@ -915,6 +860,61 @@ if [ "$force_mode" = "true" ] && [ "$cmd" != "write" ] && [ "$cmd" != "show" ] &
 fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
+
+# Function to recover hash files
+recover_hash() {
+    local dir="$1"
+    local fpath="$2"
+ 	
+	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
+
+	local computed_hash=$(generate_hash "$fpath")
+
+	echo "* fpath: [$fpath][$computed_hash]"
+
+# 	list_roh_hash_fpaths=$(roh_sqlite3_db_search "$computed_hash")
+# 	if [ -n "$list_roh_hash_fpaths" ]; then
+# 	    # echo "* Found in file(s): [ ..."
+# 		# echo "$list_roh_hash_fpaths"
+# 		# echo "...]"
+# 
+# 		while IFS= read -r found_roh_hash_fpath || [[ -n "$found_roh_hash_fpath" ]]; do
+# 			local found_fpath="$(hash_fpath_to_fpath "$found_roh_hash_fpath")"
+# 
+# 			# check to make sure some other greedy file didn't already take the orphan
+# 			[ ! -f "$found_roh_hash_fpath" ] && continue
+# 	
+# 			# check if the hash has a valid corresponding file
+# 			if [ -f "$found_fpath" ]; then
+# 				echo "WARN: --       ... stored [$found_roh_hash_fpath] -- identical file"
+# 				echo "         ... for computed [$fpath][$computed_hash]"
+# 				((WARN_COUNT++))
+# 			else
+# 				local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+# 				# echo "* mkdir $roh_hash_just_path; mv [$sub_dir] [$roh_hash_fpath]"
+# 
+# 				if mkdir -p "$roh_hash_just_path" && mv "$found_roh_hash_fpath" "$roh_hash_fpath"; then
+# 					echo "Recovered: --          hash in [$found_roh_hash_fpath][$computed_hash]"
+# 					echo "               ... restored in [$roh_hash_fpath]"
+# 					echo "               ...         for [$fpath]"
+# 				else
+# 					echo "ERROR: failed to mkdir [$roh_hash_just_path]; mv file [$found_roh_hash_fpath] to [$roh_hash_fpath]"
+# 					((ERROR_COUNT++))
+# 					return 1  # Signal that an error occurred
+# 				fi
+# 
+# 				# greedy: take the first available orphaned hash and split
+# 				return 0
+# 			fi
+# 		done <<< "$list_roh_hash_fpaths"	
+# 
+# 	else
+# 		echo "ERROR: -- [$computed_hash]: [$fpath] -- NO hash recovered"
+# 		((ERROR_COUNT++))
+# 		return 1  # Recovery failed
+# 	fi
+}
 
 run_directory_process() {
 	local cmd="$1"
