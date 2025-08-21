@@ -74,7 +74,7 @@ done
 #
 escape_expected() {
     local raw_pattern="$1"
-    echo "$raw_pattern" | sed 's/\[/\\[/g; s/\]/\\]/g; s/(/\\(/g; s/)/\\)/g; s/?/\\?/g; s/!/\\!/g'
+    echo "$raw_pattern" | sed 's/\[/\\[/g; s/\]/\\]/g; s/(/\\(/g; s/)/\\)/g; s/?/\\?/g; s/!/\\!/g; s/|/\\|/g'
 }
 	
 # Helper function to run commands and check their output
