@@ -892,7 +892,7 @@ recover_hash() {
 		# echo "$list_roh_hash_fpaths"
 		# echo "...]"
 
-		local found_file="false"
+		local found_file=0
 	
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
@@ -915,8 +915,10 @@ recover_hash() {
 				if [ -f "$found_fpath" ]; then
 					computed_hash=$(generate_hash "$found_fpath")
 					if [ "$computed_hash" = "$stored" ]; then
-						echo "            ... [$found_fpath] -- duplicate FOUND"
-						found_file="true"
+						((found_file++))
+						if [ "$found_file" -lt 3 ]; then
+							echo "            ... [$found_fpath] -- duplicate FOUND"
+						fi
 					else
 						echo "  ERROR:    ... [$found_fpath] -- hash mismatch: ..."
 						echo "                ... computed [$computed_hash]"
@@ -931,7 +933,10 @@ recover_hash() {
 			fi
 	    done <<< "$list_roh_hash_fpaths"
 
-		if [ "$found_file" = "true" ]; then
+		if [ "$found_file" -ne 0 ]; then
+			if [ "$found_file" -gt 2 ]; then
+				echo "            ... $((found_file - 2)) more ..."
+			fi
 			if ! rm "$roh_hash_fpath"; then
 				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 				((ERROR_COUNT++))
@@ -949,8 +954,8 @@ recover_hash() {
 	# else
 	# no matching hash found, file identical file names
 
-	echo "   WARN:    ... hash not in IDX [$fpath] -- file DELETED !?"
-	((WARN_COUNT++))
+	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
+	((ERROR_COUNT++))
 
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fpath_fn")
 	if [ -n "$list_roh_hash_fpaths" ]; then
