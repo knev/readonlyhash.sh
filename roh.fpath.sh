@@ -22,8 +22,6 @@ usage() {
 	echo "      --verbose  Verbose operational output"
 	echo "      --db       ..."
     echo "  -h, --help     Display this help and exit"
-    echo
-    echo "If no directory is specified, the current directory is used."
 	echo
 }
 
@@ -234,7 +232,7 @@ roh_sqlite3_db_find_hash() {
     local db_path="$1"
     local stored="$2"
     if [ -f "$db_path" ]; then
-        sqlite3 "$db_path" "SELECT fpath || ':' || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+        sqlite3 "$db_path" "SELECT fpath || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
     else
         echo "Warning: Database file [$db_path] not found" >&2
         return 1
@@ -246,7 +244,7 @@ roh_sqlite3_db_find_fn() {
     local db_path="$1"
     local fn="$2"
     if [ -f "$db_path" ]; then
-        sqlite3 "$db_path" "SELECT fpath || ':' || roh_hash_fpath || ':' || hash FROM hashes WHERE filename = '$fn';"
+        sqlite3 "$db_path" "SELECT fpath || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$fn';"
     else
         echo "Warning: Database file [$db_path] not found" >&2
         return 1
@@ -861,7 +859,7 @@ fi
 
 # Check for force_mode usage
 if [ "$force_mode" = "true" ] && [ "$cmd" != "write" ] && [ "$cmd" != "show" ] && [ "$cmd" != "hide" ]; then
-    echo "ERROR: --force can only be used with: write|show|hide." >&2
+    echo "ERROR: --force can only be used with: write|show|hide" >&2
     usage
     exit 1
 fi
@@ -897,8 +895,8 @@ recover_hash() {
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
 	        if [ -n "$found" ]; then
-				IFS=':' read -r found_fpath found_roh_hash_fpath <<< "$found"
-				# echo "[$found_fpath] [$found_roh_hash_fpath]"
+				IFS=$'\r' read -r found_fpath found_roh_hash_fpath <<< "$found"
+				echo "[$found_fpath] [$found_roh_hash_fpath]"
 
 				# same fpath
 				if [ "$found_roh_hash_fpath" = "$absolute_roh_hash_fpath" ]; then
@@ -969,7 +967,7 @@ recover_hash() {
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
 			if [ -n "$found" ]; then
-				IFS=':' read -r found_fpath found_roh_hash_fpath found_hash <<< "$found"
+				IFS=$'\r' read -r found_fpath found_roh_hash_fpath found_hash <<< "$found"
 				# echo "[$found_fpath] [$found_roh_hash_fpath]"
 
 				# same fpath
@@ -1198,8 +1196,8 @@ if [ "$cmd" = "query" ]; then
     QUERY_HASH="$ROOT"
     echo "query hash: [$QUERY_HASH]"
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$QUERY_HASH")
-	while IFS= read -r fpath; do
-		[ -n "$fpath" ] && echo "[$fpath]"
+	while IFS=$'\r' read -r fpath roh_hash_fpath; do
+		[ -n "$fpath" ] && echo "[$fpath:$roh_hash_fpath]"
 	done <<< "$list_roh_hash_fpaths"
 #    # Loop through DB_SQL array
 #    for db_path in "${DB_SQL[@]}"; do
