@@ -2,7 +2,7 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]|<show|hide> [--force]> [--roh-dir PATH] <PATH>"
+    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]|<show|hide> [--force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC>"
     echo "       $(basename "$0") <write|verify --hash> <PATH/GLOBSPEC>"
     echo "       $(basename "$0") <query <HASH> --loop-txt"
     echo "Commands:"
@@ -42,13 +42,12 @@ usage() {
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 #TODO: if two hashes files exist for the same file, recover could reomve the wrong one using the computed hash
 
-#TODO: -- PATHSPEC ; start at a lower level in the tree with the command
-
 
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
 ROOT="_INVALID_"
+PATHSPEC="_INVALID_"
 ROH_DIR="_INVALID_"
 DB_SQL="_INVALID_"
 
@@ -787,10 +786,23 @@ done
 
 # capture all remaining arguments after the options have been processed
 shift $((OPTIND-1))
-ROOT="$1"
 # Bash's parameter expansion feature, specifically the ${parameter:-default_value} syntax
-ROOT=${ROOT:-.}
-# echo "* ROOT [$ROOT]"
+ROOT="${1:-.}"
+ echo "* ROOT [$ROOT]"
+
+# Check for -- <PATH>
+if [ "$2" = "--" ] && [ $# -eq 3 ]; then
+    PATHSPEC="$3"
+     echo "* PATHSPEC set to [$PATHSPEC]"
+    shift 2    # Remove -- and PATHSPEC from $@
+elif [ $# -ne 1 ] && [ "$hash_mode" = "false" ]; then
+	echo "ERROR: unexpected argument [$@]" >&2
+	usage
+	exit 1	
+else
+    PATHSPEC="$ROOT"
+	# leave $@ pointing to ROOT
+fi
 
 if [ "$roh_dir_mode" = "true" ]; then
 	ROH_DIR="$roh_dir"
@@ -1218,7 +1230,7 @@ if [ ! -d "$ROOT" ]; then
     exit 1
 fi
 
-run_directory_process "$cmd" "$ROOT" "$visibility_mode" "$force_mode" "$index_mode"
+run_directory_process "$cmd" "$PATHSPEC" "$visibility_mode" "$force_mode" "$index_mode"
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
 	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
 	echo "Number of ...       WARNings: [$WARN_COUNT]"

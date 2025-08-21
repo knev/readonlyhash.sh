@@ -32,6 +32,11 @@ run_test "$FPATH_BIN -h --force ." "0" "Usage: roh.fpath.sh"
 
 run_test "$FPATH_BIN verify SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST" "1" "$(escape_expected "ERROR: Directory [SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST] does not exist")"
 
+run_test "$FPATH_BIN verify -- PATHSPEC SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST" "1" "$(escape_expected "ERROR: unexpected argument [PATHSPEC SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST]")"
+run_test "$FPATH_BIN verify PATHSPEC SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST" "1" "$(escape_expected "ERROR: unexpected argument [PATHSPEC SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST]")"
+run_test "$FPATH_BIN verify PATHSPEC -- SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST aslkfjasf" "1" "$(escape_expected "ERROR: unexpected argument [PATHSPEC -- SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST aslkfjasf]")"
+run_test "$FPATH_BIN verify SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST -- PATHSPEC" "1" "$(escape_expected "ERROR: Directory [SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST] does not exist")"
+
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 TEST="test"
@@ -229,6 +234,9 @@ run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK: -- orpha
 echo "DS_Store" > "$ROH_DIR/.DS_Store"
 $GIT_BIN -C "$TEST" init >/dev/null 2>&1
 run_test "$FPATH_BIN verify $TEST" "0" ".DS_Store.$HASH" "true"
+
+# write PATHSPECT
+run_test "$FPATH_BIN verify --verbose $TEST -- test/sub-directory\ with\ spaces" "0" "$(escape_expected "file with spaces.txt")" "true"
 
 # test --roh-dir 
 TMP="_tmp~"
