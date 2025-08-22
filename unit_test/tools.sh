@@ -236,7 +236,7 @@ $GIT_BIN -C "$TEST" init >/dev/null 2>&1
 run_test "$FPATH_BIN verify $TEST" "0" ".DS_Store.$HASH" "true"
 
 # write PATHSPECT
-run_test "$FPATH_BIN verify --verbose $TEST -- test/sub-directory\ with\ spaces" "0" "$(escape_expected "file with spaces.txt")" "true"
+run_test "$FPATH_BIN verify --verbose $TEST -- sub-directory\ with\ spaces" "0" "$(escape_expected "file with spaces.txt")" "true"
 
 # test --roh-dir 
 TMP="_tmp~"

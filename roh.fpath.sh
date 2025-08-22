@@ -805,16 +805,16 @@ ROOT="${1:-.}"
 # Check for -- <PATH>
 if [ "$2" = "--" ] && [ $# -eq 3 ]; then
     PATHSPEC="$3"
-    # echo "* PATHSPEC set to [$PATHSPEC]"
     shift 2    # Remove -- and PATHSPEC from $@
 elif [ $# -ne 1 ] && [ "$hash_mode" = "false" ]; then
 	echo "ERROR: unexpected argument [$@]" >&2
 	usage
 	exit 1	
 else
-    PATHSPEC="$ROOT"
+    PATHSPEC=""
 	# leave $@ pointing to ROOT
 fi
+# echo "* PATHSPEC set to [$PATHSPEC]"
 
 if [ "$roh_dir_mode" = "true" ]; then
 	ROH_DIR="$roh_dir"
@@ -1080,7 +1080,7 @@ run_directory_process() {
 
 		# if the fpath is a directory AND empty, remove it on delete|write
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "recover" ]; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
@@ -1107,21 +1107,19 @@ run_directory_process() {
 				else
 					echo "  OK: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
 				fi
+			elif [ "$cmd" = "recover" ]; then
+				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+				echo "RECOVER: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
+				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+			elif [ "$index_mode" = "true" ]; then
+				echo "WARN: -- [$stored]: [$roh_hash_fpath]"
+				echo "                                                                             [$fpath] -- NO corresponding file"
+				((WARN_COUNT++))
 			else
-				if [ "$cmd" = "recover" ]; then
-					# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-					echo "RECOVER: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
-					recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-				elif [ "$index_mode" = "true" ]; then
-					echo "WARN: -- [$stored]: [$roh_hash_fpath]"
-					echo "                                                                             [$fpath] -- NO corresponding file"
-					((WARN_COUNT++))
-				else
-					echo "ERROR: -- [$stored]: [$roh_hash_fpath]"
-					#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
-					echo "                                                                              [$fpath] -- NO corresponding file"
-					((ERROR_COUNT++))
-				fi
+				echo "ERROR: -- [$stored]: [$roh_hash_fpath]"
+				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
+				echo "                                                                              [$fpath] -- NO corresponding file"
+				((ERROR_COUNT++))
 			fi
 
 		elif [ "$index_mode" = "true" ]; then
@@ -1149,7 +1147,7 @@ run_directory_process() {
 	# expected is in the start directory where .gitignore .git (the entire directory) and .DS_store 
 	# should be skipped along with any other dot files or directories.
 	# 	done < <(find "$ROH_DIR" -path "$ROH_DIR/.*" -prune -o -print | sort -r)
-	done < <(find "$ROH_DIR" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
+	done < <(find "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
 	# 	-path "*/.git/*" -prune: This specifically prunes .git directories and their contents. 
 	# 	It ensures that .git and everything inside it at any level within .roh.git is skipped.
 	#	-o -not -name ".*": Then, it prints files that don't start with a dot.
@@ -1204,7 +1202,8 @@ if [ ! -d "$ROOT" ]; then
     exit 1
 fi
 
-run_directory_process "$cmd" "$PATHSPEC" "$visibility_mode" "$force_mode" "$index_mode"
+# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
+run_directory_process "$cmd" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$index_mode"
 [ $? -ne 0 ] && echo && exit 1
 
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
