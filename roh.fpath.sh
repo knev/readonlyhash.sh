@@ -280,7 +280,7 @@ verify_hash() {
 
 		x_roh_hash="false"
         ((ERROR_COUNT++))
-        return 1  
+        return 0  
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
@@ -294,7 +294,7 @@ verify_hash() {
 			echo "          ...   stored [$stored][$roh_hash_fpath]"
 			echo "          ... computed [$computed_hash][$fpath]"
 			((ERROR_COUNT++))
-			return 1
+			return 0
 		fi
 
     elif [ -f "$dir_hash_fpath" ]; then
@@ -310,13 +310,13 @@ verify_hash() {
 			echo "          ...   stored [$stored][$dir_hash_fpath]"
 			echo "          ... computed [$computed_hash][$fpath]"
 			((ERROR_COUNT++))
-			return 1
+			return 0
 		fi 
 	fi
 	
 	echo "WARN: -- [$computed_hash]: [$fpath] -- NO hash found"
 	((WARN_COUNT++))
-	return 1
+	return 0
 
 	# echo "$dir" "$fpath" "[$computed_hash]"
 # 	if [ "$index_mode" = "true" ]; then
@@ -459,7 +459,7 @@ write_hash() {
 		else
 			echo "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
 			((ERROR_COUNT++))
-			return 1  # Signal that an error occurred
+			return 0  # Signal that an error occurred
 		fi
 	fi
 
@@ -570,7 +570,7 @@ manage_hash_visibility() {
 			echo "                   ... destination [$dest_fpath] -- exists"
 			echo "                    ... for source [$src_fpath]"
 			((ERROR_COUNT++))
-			return 1
+			return 0
 		fi
 
 		if [ "$action" = "hide" ]; then
@@ -591,7 +591,7 @@ manage_hash_visibility() {
 
         echo "ERROR: [$fpath] -- NO hash file found [$src_fpath] -- not $past_tense"
         ((ERROR_COUNT++))
-        return 1
+        return 0
     fi
 }
 
@@ -612,20 +612,26 @@ process_directory() {
 	#		if [ ! -d "$ROH_DIR/$sub_dir" ]; then
 	#			echo "ERROR: [$dir] -- not a READ-ONLY directory, missing [$ROH_DIR/$sub_dir]"
 	#			((ERROR_COUNT++))
-	#			return 1 
+	#			return 0 
 	#		fi
 	#	fi
 
-	# echo "Processing directory: [$dir]"
+	if [ -d "$dir" ]; then
+		: # echo "Processing directory: [$dir]"
+	else
+		echo "ERROR: can't find directory [$dir] for processing"
+		return 1
+	fi
 
     for entry in "$dir"/*; do
 		if [ -L "$entry" ]; then
-			echo " WARN: Avoiding symlink [$entry] like the plague =)"
+			echo " WARN: Avoiding symlink [$entry] like the Plague"
 			((WARN_COUNT++))
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
 			process_directory "$cmd" "$entry" "$visibility_mode" "$force_mode" "$index_mode"
+			[ $? -ne 0 ] && return 1
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
@@ -638,15 +644,19 @@ process_directory() {
 				case "$cmd" in
 				    "verify")
 				        verify_hash "$dir" "$entry" "$index_mode"
+						[ $? -ne 0 ] && return 1
 				        ;;
 				    "write")
 				        write_hash "$dir" "$entry" "$visibility_mode" "$force_mode" "$index_mode"
+						[ $? -ne 0 ] && return 1
 				        ;;
 				    "hide")
 				        manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
+						[ $? -ne 0 ] && return 1
 				        ;;
 				    "show")
 				        manage_hash_visibility "$dir" "$entry" "show" "$force_mode"
+						[ $? -ne 0 ] && return 1
 				        ;;
 				    *)
 				        # No action for other cases, if needed
@@ -664,6 +674,8 @@ process_directory() {
 	# local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 	# [ ! -d "$roh_hash_just_path" ] && return 0
 	# ...
+
+	return 0
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -788,12 +800,12 @@ done
 shift $((OPTIND-1))
 # Bash's parameter expansion feature, specifically the ${parameter:-default_value} syntax
 ROOT="${1:-.}"
- echo "* ROOT [$ROOT]"
+# echo "* ROOT [$ROOT]"
 
 # Check for -- <PATH>
 if [ "$2" = "--" ] && [ $# -eq 3 ]; then
     PATHSPEC="$3"
-     echo "* PATHSPEC set to [$PATHSPEC]"
+    # echo "* PATHSPEC set to [$PATHSPEC]"
     shift 2    # Remove -- and PATHSPEC from $@
 elif [ $# -ne 1 ] && [ "$hash_mode" = "false" ]; then
 	echo "ERROR: unexpected argument [$@]" >&2
@@ -1098,6 +1110,7 @@ run_directory_process() {
 	fi
 
 	process_directory "$@"	
+	[ $? -ne 0 ] && return 1
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
@@ -1200,6 +1213,8 @@ run_directory_process() {
 		echo "WARN: hashes not exclusively hidden in [$ROH_DIR]"
 		((WARN_COUNT++))
 	fi
+	
+	return 0
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -1231,6 +1246,8 @@ if [ ! -d "$ROOT" ]; then
 fi
 
 run_directory_process "$cmd" "$PATHSPEC" "$visibility_mode" "$force_mode" "$index_mode"
+[ $? -ne 0 ] && echo && exit 1
+
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
 	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
 	echo "Number of ...       WARNings: [$WARN_COUNT]"
