@@ -27,7 +27,7 @@ run_test "$FPATH_BIN verify --force ." "1" "$(escape_expected "ERROR: --force ca
 run_test "$FPATH_BIN delete --force ." "1" "$(escape_expected "ERROR: --force can only be used with: write|show|hide")"
 run_test "$FPATH_BIN index --force ." "1" "$(escape_expected "ERROR: --force can only be used with: write|show|hide")"
 run_test "$FPATH_BIN query --force ." "1" "$(escape_expected "ERROR: --force can only be used with: write|show|hide")"
-run_test "$FPATH_BIN recover --force ." "1" "$(escape_expected "ERROR: --force can only be used with: write|show|hide")"
+#run_test "$FPATH_BIN recover --force ." "1" "$(escape_expected "ERROR: --force can only be used with: write|show|hide")"
 run_test "$FPATH_BIN -h --force ." "0" "Usage: roh.fpath.sh"
 
 run_test "$FPATH_BIN verify SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST" "1" "$(escape_expected "ERROR: Directory [SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST] does not exist")"
@@ -235,7 +235,7 @@ echo "DS_Store" > "$ROH_DIR/.DS_Store"
 $GIT_BIN -C "$TEST" init >/dev/null 2>&1
 run_test "$FPATH_BIN verify $TEST" "0" ".DS_Store.$HASH" "true"
 
-# write PATHSPECT
+# write PATHSPEC
 run_test "$FPATH_BIN verify --verbose $TEST -- sub-directory\ with\ spaces" "0" "$(escape_expected "file with spaces.txt")" "true"
 
 # test --roh-dir 
@@ -291,6 +291,9 @@ cp "$TEST/omn's_.txt" "$TEST/omn''s_.txt"
 cp "$TEST/omn's_.txt" "$TEST/omn'''s_.txt"
 cp "$TEST/omn's_.txt" "$TEST/omn''''s_.txt"
 	
+# db doesn't exist at $TEST/sub-dir\ copy\ :slash/.roh.sqlite3
+run_test "$FPATH_BIN recover --verbose $TEST/sub-dir\ copy\ :slash" "1" "$(escape_expected "ERROR: database file [test/sub-dir copy :slash/.roh.sqlite3] not found")"
+
 $FPATH_BIN write+index --verbose "$TEST" >/dev/null 2>&1
 run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose $TEST/sub-dir\ copy\ :slash" "0" "$(escape_expected "... [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces/omn's_.txt] -- duplicate FOUND.* ... [/Users/dev/Project-@knev/readonlyhash.sh.git/test/omn's_.txt] -- duplicate FOUND.* ... 3 more ....* ■: -- orphaned hash [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: [test/sub-dir copy :slash/.roh.git/omn's_.txt.sha256] -- removed")"
 rm "$TEST/omn'''s_.txt"

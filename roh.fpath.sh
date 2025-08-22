@@ -233,7 +233,7 @@ roh_sqlite3_db_find_hash() {
     if [ -f "$db_path" ]; then
         sqlite3 "$db_path" "SELECT fpath || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
     else
-        echo "Warning: Database file [$db_path] not found" >&2
+        echo "ERROR: database file [$db_path] not found" >&2
         return 1
     fi
 }
@@ -245,7 +245,7 @@ roh_sqlite3_db_find_fn() {
     if [ -f "$db_path" ]; then
         sqlite3 "$db_path" "SELECT fpath || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$fn';"
     else
-        echo "Warning: Database file [$db_path] not found" >&2
+        echo "ERROR: database file [$db_path] not found" >&2
         return 1
     fi
 }
@@ -831,7 +831,14 @@ else
 	DB_SQL="$db"
 fi
 # echo "Using DB_SQL [${DB_SQL[*]}]"
-# echo "Using DB_SQL [$DB_SQL]"
+if [ "$cmd" = "recover" ]; then
+	if  [ -f "$DB_SQL" ]; then
+		echo "Using DB_SQL [$DB_SQL]"
+	else
+		echo "ERROR: database file [$DB_SQL] not found" >&2
+		exit 1
+	fi
+fi
 
 if [ "$hash_mode" = "true" ]; then
 	# echo "* $@"
@@ -908,6 +915,7 @@ recover_hash() {
     local escaped_roh_hash_fpath=${absolute_roh_hash_fpath//\'/\'\'}
 
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$stored")
+	[ $? -ne 0 ] && return 1
 	if [ -n "$list_roh_hash_fpaths" ]; then
 
 		# echo "* Found in file(s): [ ..."
@@ -980,6 +988,7 @@ recover_hash() {
 	((ERROR_COUNT++))
 
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fpath_fn")
+	[ $? -ne 0 ] && return 1
 	if [ -n "$list_roh_hash_fpaths" ]; then
 
 		# echo "* Found in file(s): [ ..."
@@ -1060,7 +1069,7 @@ run_directory_process() {
 	elif [ "$cmd" = "recover" ] || [ "$cmd" = "show" ]; then
 		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
 			echo "ERROR: [$ROOT] -- missing or inacccessible [$ROH_DIR]. Aborting." >&2
-			exit 1
+			return 1
 		fi 
 	fi
 
@@ -1111,6 +1120,7 @@ run_directory_process() {
 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 				echo "RECOVER: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+				[ $? -ne 0 ] && return 1
 			elif [ "$index_mode" = "true" ]; then
 				echo "WARN: -- [$stored]: [$roh_hash_fpath]"
 				echo "                                                                             [$fpath] -- NO corresponding file"
