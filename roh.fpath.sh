@@ -584,12 +584,12 @@ manage_hash_visibility() {
 		if [ -f "$dest_fpath" ]; then
 		# 	local stored=$(stored_hash "$dest_fpath")
 		# 	if [ "$computed_hash" = "$stored" ]; then
-			echo "  OK: [$fpath] -- hash file [$dest_fpath] exists($past_tense) -- NOT moving/(NOT $past_tense)"
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$dest_fpath] already exists($past_tense) -- nothing to move($action), NOOP"
 			return 0  # No error
 		# 	fi
 		fi
 
-        echo "ERROR: [$fpath] -- NO hash file found [$src_fpath] -- not $past_tense"
+        echo "ERROR: [$fpath] -- hash file [$src_fpath] -- NOT found, not $past_tense"
         ((ERROR_COUNT++))
         return 0
     fi

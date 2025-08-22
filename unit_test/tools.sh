@@ -400,10 +400,10 @@ run_test "$FPATH_BIN show --verbose --force $TEST" "0" "$(escape_expected "OK: [
 run_test "$FPATH_BIN hide --verbose $TEST" "0" "$(escape_expected "OK: [$TEST/file with spaces.txt] -- hash file [$ROH_DIR/file with spaces.txt.sha256] -- moved(hidden)")"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
-run_test "$FPATH_BIN show $TEST" "0" "$(escape_expected "OK: [$TEST/file with spaces.txt] -- hash file [$TEST/file with spaces.txt.sha256] exists(shown) -- NOT moving/(NOT shown)")"
+run_test "$FPATH_BIN show --verbose $TEST" "0" "$(escape_expected "OK: [test/file with spaces.txt] -- hash file [test/file with spaces.txt.sha256] already exists(shown) -- nothing to move(show), NOOP")"
 
 rm "$TEST/file with spaces.txt.sha256"
-run_test "$FPATH_BIN hide $TEST" "1" "$(escape_expected "ERROR: [$TEST/file with spaces.txt] -- NO hash file found [$TEST/file with spaces.txt.sha256] -- not hidden")"
+run_test "$FPATH_BIN hide $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- hash file [test/file with spaces.txt.sha256] -- NOT found, not hidden")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 # worst case
