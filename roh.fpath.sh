@@ -317,28 +317,6 @@ verify_hash() {
 	echo "WARN: -- [$computed_hash]: [$fpath] -- NO hash found"
 	((WARN_COUNT++))
 	return 0
-
-	# echo "$dir" "$fpath" "[$computed_hash]"
-# 	if [ "$index_mode" = "true" ]; then
-# 		for db_path in "${DB_SQL[@]}"; do
-# 			# echo "db: [$db_path]"
-# 			list_idx_roh_hash_fpaths=$(roh_sqlite3_db_search "$db_path" "$QUERY_HASH")
-# 			# Only print non-empty paths
-# 			while IFS= read -r idx_fpath_roh_hash_fpath; do
-# 				[ -z "$idx_fpath_roh_hash_fpath" ] && continue;
-# 		
-# 				IFS=':' read -r idx_fpath idx_roh_hash_fpath <<< "$idx_fpath_roh_hash_fpath"
-# 				if stat "$idx_fpath" >/dev/null 2>&1; then
-# 				#	echo "WARN: -- [0000000000000000000000000000000000000000000000000000000000000000]: [$idx_fpath]"
-# 					echo "                                                                           : [$idx_fpath] -- INDEXED"
-# 				else
-# 					echo "                                                                           : [$idx_fpath] -- INDEXED -- ORPHANED"
-# 				fi
-# 
-# 			done <<< "$list_idx_roh_hash_fpaths"
-# 		done
-# 	fi
-
 }
 
 # New function for hashing
@@ -928,7 +906,7 @@ recover_hash() {
 	    while IFS= read -r found; do
 	        if [ -n "$found" ]; then
 				IFS=$'\r' read -r found_fpath found_roh_hash_fpath <<< "$found"
-				echo "[$found_fpath] [$found_roh_hash_fpath]"
+				# echo "[$found_fpath] [$found_roh_hash_fpath]"
 
 				# same fpath
 				if [ "$found_roh_hash_fpath" = "$absolute_roh_hash_fpath" ]; then
@@ -1096,7 +1074,7 @@ run_directory_process() {
 						echo "ERROR: Failed to remove directory [$roh_hash_fpath]"
 						((ERROR_COUNT++))
 					else
-						[ "$VERBOSE_MODE" = "true" ] && echo "  OK: -- orphaned hash directory [$roh_hash_fpath] -- removed"
+						[ "$VERBOSE_MODE" = "true" ] && echo "OK: orphaned hash directory [$roh_hash_fpath] -- removed"
 					fi
 				fi
 			fi
@@ -1114,7 +1092,7 @@ run_directory_process() {
 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 					((ERROR_COUNT++))
 				else
-					echo "  OK: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
+					echo "OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
 				fi
 			elif [ "$cmd" = "recover" ]; then
 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
