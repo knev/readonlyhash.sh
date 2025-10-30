@@ -78,14 +78,6 @@ check_extension() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-# Ensure .roh directory exists
-ensure_dir() {
-    local dir="$1"
-    if [ ! -d "$dir" ]; then
-        mkdir "$dir"
-    fi
-}
-
 generate_hash() {
     local file="$1"
 	if [ ! -r "$file" ]; then
@@ -605,9 +597,16 @@ process_directory() {
 		if [ -L "$entry" ]; then
 			echo " WARN: Avoiding symlink [$entry] like the Plague"
 			((WARN_COUNT++))
+			continue
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
+			if [ -d "$entry/.roh.git" ]; then
+				echo " WARN: [$entry] is a read-only directory"
+				((WARN_COUNT++))
+				continue
+			fi
+
 			process_directory "$cmd" "$entry" "$visibility_mode" "$force_mode" "$index_mode"
 			[ $? -ne 0 ] && return 1
 
@@ -1042,8 +1041,9 @@ run_directory_process() {
 	local index_mode="$5"
 
 	if [ "$cmd" = "hide" ] || ( [ "$cmd" = "write" ] && [ "$visibility_mode" != "show" ] ); then
-		ensure_dir "$ROH_DIR"
-
+		if [ ! -d "$ROH_DIR" ]; then
+			mkdir "$ROH_DIR"
+		fi
 	elif [ "$cmd" = "recover" ] || [ "$cmd" = "show" ]; then
 		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
 			echo "ERROR: [$ROOT] -- missing or inacccessible [$ROH_DIR]. Aborting." >&2
