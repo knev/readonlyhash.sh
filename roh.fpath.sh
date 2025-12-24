@@ -20,6 +20,7 @@ usage() {
 	echo "      --hash     Generate a hash of a single file(s)"
 	echo "      --roh-dir  Specify the readonly hash path"
     echo "      --force    Force operation even if hash files do not match"
+	echo "      --no-warn  ..."
 	echo "      --verbose  Verbose operational output"
 	echo "      --db       ..."
     echo "  -h, --help     Display this help and exit"
@@ -249,7 +250,8 @@ x_roh_hash="true" # exclusively roh hashes
 verify_hash() {
     local dir="$1"
     local fpath="$2"
-	local index_mode="$3"
+	local no_warn="$3"
+	local index_mode="$4"
 
 	# local hash_fname="$(basename "$fpath").$HASH"
 	# local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
@@ -306,8 +308,10 @@ verify_hash() {
 		fi 
 	fi
 	
-	echo "WARN: -- [$computed_hash]: [$fpath] -- NO hash found"
-	((WARN_COUNT++))
+	if [ "$no_warn" != "true" ]; then
+		echo "WARN: -- [$computed_hash]: [$fpath] -- NO hash found"
+		((WARN_COUNT++))
+	fi
 	return 0
 }
 
@@ -574,7 +578,8 @@ process_directory() {
 	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local visibility_mode="$3"
     local force_mode="$4"
-	local index_mode="$5"
+	local no_warn="$5"
+	local index_mode="$6"
 
 	# ?! do we care about empty directories
 	#
@@ -620,7 +625,7 @@ process_directory() {
 				fi
 				case "$cmd" in
 				    "verify")
-				        verify_hash "$dir" "$entry" "$index_mode"
+				        verify_hash "$dir" "$entry" "$no_warn" "$index_mode"
 						[ $? -ne 0 ] && return 1
 				        ;;
 				    "write")
@@ -721,6 +726,7 @@ db=""
 hash_mode="false"
 visibility_mode="none"
 force_mode="false"
+no_warn="false"
 while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
@@ -747,6 +753,9 @@ while getopts "h-:" opt; do
           ;;
         force)
           force_mode="true"
+          ;;
+        no-warn)
+          no_warn="true"
           ;;
 		verbose)
 		  VERBOSE_MODE="true"
@@ -1043,7 +1052,8 @@ run_directory_process() {
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local visibility_mode="$3"
     local force_mode="$4"
-	local index_mode="$5"
+	local no_warn="$5"
+	local index_mode="$6"
 
 	if [ "$cmd" = "hide" ] || ( [ "$cmd" = "write" ] && [ "$visibility_mode" != "show" ] ); then
 		if [ ! -d "$ROH_DIR" ]; then

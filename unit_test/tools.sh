@@ -223,6 +223,7 @@ echo "349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff" > "$TEST
 
 rm "$TEST/file with spaces.txt.$HASH"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- NO hash found")"
+run_test "$FPATH_BIN verify --no-warn $TEST" "0" "$(escape_expected "WARN: -- [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- NO hash found")" "true"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 mkdir "$ROH_DIR/this_is_a_directory.sha256"
