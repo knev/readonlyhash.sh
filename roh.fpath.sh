@@ -14,6 +14,7 @@ usage() {
     echo "      show       Move hash files from .roh to file's directory"
 	echo "      query      ..."
     echo "      recover    Operates on the hashes, trying to match to corresponding files"
+	echo "      sweep      Execute the hash maintanence only"
 	echo
 	echo "Options:"
 	echo "      --hash     Generate a hash of a single file(s)"
@@ -690,6 +691,8 @@ case "$1" in
 		;;
     recover) 
         ;;
+    sweep) 
+        ;;
     -h)
 		usage
         exit 0
@@ -1072,13 +1075,15 @@ hash_maintanence() {
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
 
+	echo "Hash maintanence (sweeping) ..."
+
 	# Now check for hash files without corresponding files
 	while IFS= read -r roh_hash_fpath; do
 		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
 
 		# if the fpath is a directory AND empty, remove it on delete|write
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "recover" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "recover" ] || [ "$cmd" = "sweep" ]; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
@@ -1098,7 +1103,7 @@ hash_maintanence() {
 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on delete|write
 		if ! stat "$fpath" >/dev/null 2>&1; then
 			local stored=$(stored_hash "$roh_hash_fpath")
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "sweep" ]; then
 				if ! rm "$roh_hash_fpath"; then
 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 					((ERROR_COUNT++))
