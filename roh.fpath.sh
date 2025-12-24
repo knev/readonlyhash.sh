@@ -4,7 +4,7 @@ usage() {
 	echo
     echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]|<show|hide> [--force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC>"
     echo "       $(basename "$0") <write|verify --hash> <PATH/GLOBSPEC>"
-    echo "       $(basename "$0") <query <HASH> --loop-txt"
+    echo "       $(basename "$0") <query [--db PATH] <HASH> --loop-txt"
     echo "Commands:"
 	echo "      verify     Verify computed hashes against stored hashes"
     echo "      write      Write SHA256 hashes for files into .roh directory"
@@ -794,6 +794,7 @@ ROOT="${1:-.}"
 if [ "$2" = "--" ] && [ $# -eq 3 ]; then
     PATHSPEC="$3"
     shift 2    # Remove -- and PATHSPEC from $@
+	echo "* PATHSPEC set to [$PATHSPEC]"
 elif [ $# -ne 1 ] && [ "$hash_mode" = "false" ]; then
 	echo "ERROR: unexpected argument [$@]" >&2
 	usage
@@ -1147,9 +1148,9 @@ hash_maintanence() {
 			local fpath_exists=$(sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = '$escaped_fpath';")
 			if [ "$fpath_exists" -eq 0 ]; then
 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INSERTED"
+				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
 			else
-				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] -- already exists, skipping"
+				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
 			fi
 		fi
 
