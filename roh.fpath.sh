@@ -792,6 +792,15 @@ else
 fi
 # echo "* PATHSPEC set to [$PATHSPEC]"
 
+# Check for force_mode usage
+if [ "$force_mode" = "true" ] && [ "$cmd" != "write" ] && [ "$cmd" != "show" ] && [ "$cmd" != "hide" ]; then
+    echo "ERROR: --force can only be used with: write|show|hide" >&2
+    usage
+    exit 1
+fi
+
+# ----
+
 if [ "$roh_dir_mode" = "true" ]; then
 	ROH_DIR="$roh_dir"
 	echo "Using ROH_DIR [$ROH_DIR]"
@@ -807,7 +816,8 @@ else
 	DB_SQL="$db"
 fi
 # echo "Using DB_SQL [${DB_SQL[*]}]"
-if [ "$cmd" = "recover" ]; then
+
+if [ "$cmd" = "recover" ] || [ "$index_mode" = "true" ]; then
 	if  [ -f "$DB_SQL" ]; then
 		echo "Using DB_SQL [$DB_SQL]"
 	else
@@ -862,13 +872,6 @@ if [ "$hash_mode" = "true" ]; then
 
 	echo "Done."
 	exit 0
-fi
-
-# Check for force_mode usage
-if [ "$force_mode" = "true" ] && [ "$cmd" != "write" ] && [ "$cmd" != "show" ] && [ "$cmd" != "hide" ]; then
-    echo "ERROR: --force can only be used with: write|show|hide" >&2
-    usage
-    exit 1
 fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -1050,12 +1053,21 @@ run_directory_process() {
 		fi 
 	fi
 
-	if [ "$index_mode" = "true" ]; then
-		roh_sqlite3_db_init "$DB_SQL" 
-	fi
-
 	process_directory "$@"	
 	[ $? -ne 0 ] && return 1
+
+	return 0
+}
+
+
+hash_maintanence() {
+	local cmd="$1"
+#    local dir="$2"
+	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
+#	local visibility_mode="$3"
+#   local force_mode="$4"
+#	local no_warn="$5"
+#	local index_mode="$6"
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
@@ -1190,7 +1202,16 @@ if [ ! -d "$ROOT" ]; then
 fi
 
 # append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
-run_directory_process "$cmd" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$index_mode"
+if [ "$cmd" != "index" ] && [ "$cmd" != "sweep" ]; then
+	run_directory_process "$cmd" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn" "$index_mode"
+	[ $? -ne 0 ] && echo && exit 1
+fi
+
+if [ "$index_mode" = "true" ]; then
+	roh_sqlite3_db_init "$DB_SQL" 
+fi
+
+hash_maintanence "$cmd" # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn" "$index_mode"
 [ $? -ne 0 ] && echo && exit 1
 
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
