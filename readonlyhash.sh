@@ -315,6 +315,9 @@ archive_directory() {
 	# echo "$tmp"
 
 	verify_directory "$dir"
+	if [ -f "$dir/_.roh.sqlite3" ]; then
+		rm -r "$dir/.roh.sqlite3"
+	fi
 	$GIT_BIN -zC "$dir" 
 }
 
