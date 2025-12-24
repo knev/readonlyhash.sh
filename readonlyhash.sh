@@ -128,9 +128,15 @@ LOOP_TXT_RO="${file_path%.loop.txt}~ro.loop.txt"
 shift
 skipping_mode="false"
 resume_string=""
-if [ $# -eq 2 ] && [ "$1" = "--resume-at" ]; then
-	resume_string="$2"
-	skipping_mode="true"
+if [ $# -ne 0 ]; then
+	if [ $# -eq 2 ] && [ "$1" = "--resume-at" ]; then
+		resume_string="$2"
+		skipping_mode="true"
+	else
+		echo "ERROR: invalid option [$@]"
+		usage
+		exit 1
+	fi
 fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -427,12 +433,10 @@ while IFS= read -r dir; do
 
 	#---
 
-	base_dir="$dir"
-	if [[ "$dir" == *.ro ]]; then
-		base_dir=${dir%.ro}
-	fi
+	base_dir=${dir%.ro}
+	base_resume_string=${resume_string%.ro}
 	# echo "* base_dir: [$base_dir]"
-	if [ "$skipping_mode" = "true" ] && [[ ! "$base_dir" == *"$resume_string" ]]; then
+	if [ "$skipping_mode" = "true" ] && [[ ! "$base_dir" == *"$base_resume_string" ]]; then
 		echo "OK: directory entry [$dir] -- SKIPPING"
 		echo "■"
 		if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then

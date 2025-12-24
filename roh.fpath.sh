@@ -26,7 +26,6 @@ usage() {
 }
 
 #TODO: remove sql dbs on archive
-#TODO: when doing a --resume-at, can't specify a .ro ending
 #TODO: archive, then try a retarget
 #TODO: how does the extract to tmp of zip interact with the --retarget ?!
 #TODO: verify with an interactive mode? so, that it pauses so that you can take care of the situation?

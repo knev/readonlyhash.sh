@@ -66,6 +66,9 @@ run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
 run_test "$ROH_BIN init $fpath_ro" "0" "Archived .roh.git to.* _.roh.git.zip" "true"
 #TMP run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
 
+run_test "$ROH_BIN verify $fpath_ro --resume_at 2002" "1" "$(escape_expected "ERROR: invalid option [--resume_at 2002]")"
+run_test "$ROH_BIN verify $fpath_ro --resume-at 2002.ro" "0" "$(escape_expected "OK: directory entry [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro] -- SKIPPING")" "true"
+
 # archive
 echo
 echo "# archive"
