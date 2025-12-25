@@ -469,6 +469,13 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 echo
 echo "# process_directory()"
 
+run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "WARN: [test/sub-dir copy :slash.ro] is a readonlyhash directory -- SKIPPING.* WARN: [test/sub-directory with spaces.ro] is a readonlyhash directory -- SKIPPING")"
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "OK: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test/file with spaces.txt].* WARN: [test/sub-dir copy :slash.ro] is a readonlyhash directory -- SKIPPING.* WARN: [test/sub-directory with spaces.ro] is a readonlyhash directory -- SKIPPING")"
+
+$GIT_BIN -zC "$TEST" >/dev/null 2>&1
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: [test/sub-dir copy :slash.ro] is a readonlyhash directory -- SKIPPING.* WARN: [test/sub-directory with spaces.ro] is a readonlyhash directory -- SKIPPING")"
+$GIT_BIN -xC "$TEST" >/dev/null 2>&1
+
 touch "$TEST/file with spaces.rslsz"
 run_test "$FPATH_BIN write $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.rslsz\" -- file with restricted extension")"
 

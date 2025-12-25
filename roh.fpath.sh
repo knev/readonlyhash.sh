@@ -606,8 +606,8 @@ process_directory() {
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
-			if [ -d "$entry/.roh.git" ]; then
-				echo " WARN: [$entry] is a read-only directory"
+			if [ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]; then
+				echo " WARN: [$entry] is a readonlyhash directory -- SKIPPING"
 				((WARN_COUNT++))
 				continue
 			fi
