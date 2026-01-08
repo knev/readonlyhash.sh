@@ -606,7 +606,7 @@ process_directory() {
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
-			if [ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]; then
+			if [ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.tar.gz" ]; then
 				echo " WARN: [$entry] is a readonlyhash directory -- SKIPPING"
 				((WARN_COUNT++))
 				continue
@@ -616,7 +616,7 @@ process_directory() {
 			[ $? -ne 0 ] && return 1
 
 		# else ...
-        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
+        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.tar.gz" ]]; then
 			if [ "$cmd" != "delete" ]; then
 				if check_extension "$entry"; then
 					echo "ERROR: [$dir] \"$(basename "$entry")\" -- file with restricted extension"
