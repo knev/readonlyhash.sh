@@ -600,8 +600,7 @@ process_directory() {
 
     for entry in "$dir"/*; do
 		if [ -L "$entry" ]; then
-			echo " WARN: Avoiding symlink [$entry] like the Plague"
-			((WARN_COUNT++))
+			[ "$VERBOSE_MODE" = "true" ] && echo "Avoiding symlink [$entry] like the Plague"
 			continue
 
 		# If the entry is a directory, process it recursively
