@@ -120,9 +120,9 @@ archive_roh() {
 		#archive_name shouldn't end in .zip: tar -cvzf "$dir/$archive_name" -C "$dir" "$ROH_DIR"
 		tar -cvf "$dir/$archive_name" --format=zip -C "$dir" "$ROH_DIR" >/dev/null 2>&1
         if [ $? -eq 0 ]; then
-            echo "Archived [$ROH_DIR] to [$dir/$archive_name]"
+            echo "Archived [$dir/$ROH_DIR] to [$dir/$archive_name]"
         else
-            echo "ERROR: failed to archive [$ROH_DIR] to [$dir/$archive_name]"
+            echo "ERROR: failed to archive [$dir/$ROH_DIR] to [$dir/$archive_name]"
 			echo
             exit 1
         fi
@@ -159,9 +159,9 @@ extract_roh() {
 	if [ -f "$dir/$archive_name" ]; then
 		unzip -q "$dir/$archive_name" -d "$dir"
 		if [ $? -eq 0 ]; then
-		    echo "Extracted [$ROH_DIR] from [$dir/$archive_name]"
+		    echo "Extracted [$dir/$ROH_DIR] from [$dir/$archive_name]"
 		else
-		    echo "ERROR: failed to extract [$ROH_DIR] from [$dir/$archive_name]"
+		    echo "ERROR: failed to extract [$dir/$ROH_DIR] from [$dir/$archive_name]"
 		    echo
 		    exit 1
 		fi
