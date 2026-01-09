@@ -1085,7 +1085,7 @@ hash_maintanence() {
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
 
-	echo "Hash maintanence (sweeping) ..."
+	echo "Hash maintanence ..."
 
 	# Now check for hash files without corresponding files
 	while IFS= read -r roh_hash_fpath; do
@@ -1093,7 +1093,7 @@ hash_maintanence() {
 
 		# if the fpath is a directory AND empty, remove it on delete|write
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "recover" ] || [ "$cmd" = "sweep" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "sweep" ]; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
@@ -1113,7 +1113,7 @@ hash_maintanence() {
 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on delete|write
 		if ! stat "$fpath" >/dev/null 2>&1; then
 			local stored=$(stored_hash "$roh_hash_fpath")
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "write" ] || [ "$cmd" = "sweep" ]; then
+			if [ "$cmd" = "delete" ] || [ "$cmd" = "sweep" ]; then
 				if ! rm "$roh_hash_fpath"; then
 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 					((ERROR_COUNT++))
@@ -1170,7 +1170,7 @@ hash_maintanence() {
 	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
 	
 	# This will fail if git is being used
-	if [ "$cmd" = "delete" ] || [ "$cmd" = "show" ] || [ "$visibility_mode" = "show" ]; then
+	if [ "$cmd" = "delete" ] || [ "$cmd" = "sweep" ] || [ "$cmd" = "show" ] || [ "$visibility_mode" = "show" ]; then
 		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
 			if ! rmdir "$ROH_DIR"; then
