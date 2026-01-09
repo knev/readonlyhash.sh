@@ -1025,7 +1025,7 @@ recover_hash() {
 					if [ -f "$found_roh_hash_fpath" ]; then
 						found_stored=$(stored_hash "$found_roh_hash_fpath")
 						if [ "$computed_hash" != "$found_stored" ]; then
-							echo "  ERROR:    ... matching filename found [$found_fpath] -- hash mismatch: ..."
+							echo "  ERROR:    ... matching FILENAME found [$found_fpath] -- hash mismatch: ..."
 							echo "                ... computed [$computed_hash]: [$found_fpath]"
 							echo "                ...   stored [$found_stored]: [$found_roh_hash_fpath]"
 							((ERROR_COUNT++))
@@ -1038,7 +1038,7 @@ recover_hash() {
  						echo "         ... duplicate FOUND [$found_fpath]"
  						found_file="true"
  					else
- 						echo "            ... matching filename found [$found_fpath] -- hash mismatch: ..."
+ 						echo "            ... matching FILENAME found [$found_fpath] -- hash mismatch: ..."
 						echo "                ... computed [$computed_hash]: [$found_fpath]"
 						echo "                ...   stored [$stored]: [$absolute_roh_hash_fpath]"
  					fi
