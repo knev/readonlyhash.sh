@@ -196,7 +196,7 @@ CREATE INDEX IF NOT EXISTS idx_filename ON hashes(filename);
 
 EOF
 
-    echo "db: [$db] -- initialized"
+    echo "DB_SQL: [$db] -- initialized"
 }
 
 roh_sqlite3_db_insert() {
@@ -829,6 +829,10 @@ else
 fi
 # echo "Using DB_SQL [${DB_SQL[*]}]"
 
+if [ "$index_mode" = "true" ]; then
+	roh_sqlite3_db_init "$DB_SQL" 
+fi
+
 if [ "$cmd" = "recover" ] || [ "$index_mode" = "true" ]; then
 	if  [ -f "$DB_SQL" ]; then
 		echo "Using DB_SQL [$DB_SQL]"
@@ -1184,6 +1188,17 @@ hash_maintanence() {
 		fi
 	fi
 
+	if [ "$cmd" = "delete" ]; then
+		if [ -f "$DB_SQL" ]; then
+			if rm "$DB_SQL"; then
+				echo "Removing DB_SQL [$DB_SQL]"
+			else
+				echo "ERROR: Failed to delete [$DB_SQL]"
+				((ERROR_COUNT++))
+			fi
+		fi
+	fi
+
 	if [ "$x_roh_hash" = "false" ]; then
 		echo "WARN: hashes not exclusively hidden in [$ROH_DIR]"
 		((WARN_COUNT++))
@@ -1224,10 +1239,6 @@ fi
 if [ "$cmd" != "index" ] && [ "$cmd" != "sweep" ]; then
 	run_directory_process "$cmd" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn" "$index_mode"
 	[ $? -ne 0 ] && echo && exit 1
-fi
-
-if [ "$index_mode" = "true" ]; then
-	roh_sqlite3_db_init "$DB_SQL" 
 fi
 
 hash_maintanence "$cmd" # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn" "$index_mode"
