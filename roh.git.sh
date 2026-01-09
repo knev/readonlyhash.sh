@@ -100,8 +100,7 @@ archive_roh() {
     local dir="$1"
     local force_mode="$2"
 
-    local archive_name="_$ROH_DIR.tar.gz"
-    local roh_path="$dir/$ROH_DIR"
+    local archive_name="_$ROH_DIR.zip"
     
 	# If force_mode is true, remove existing archive before creating a new one
 	if [ -f "$dir/$archive_name" ]; then
@@ -115,11 +114,9 @@ archive_roh() {
 		fi
 	fi
         
-     if [ -d "$roh_path" ]; then
-		# zip -r "$archive_name" "$roh_path"
-		#archive_name shouldn't end in .zip: tar -cvzf "$dir/$archive_name" -C "$dir" "$ROH_DIR"
-		#tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" >/dev/null 2>&1
-		tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" && zip -qm "$dir/$archive_name".zip "$dir/$archive_name"
+     if [ -d "$dir/$ROH_DIR" ]; then
+		#tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 # tar.gz
+		tar -cvf "$dir/$ROH_DIR.tar" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 && zip -qm "$dir/$archive_name" "$dir/$ROH_DIR.tar"
         if [ $? -eq 0 ]; then
             echo "Archived [$dir/$ROH_DIR] to [$dir/$archive_name]"
         else
@@ -143,10 +140,9 @@ extract_roh() {
     local dir="$1"
     local force_mode="$2"
 
-    local archive_name="_$ROH_DIR.tar.gz"
-    local roh_path="$dir/$ROH_DIR"
+    local archive_name="_$ROH_DIR.zip"
     
-	if [ -d "$roh_path" ]; then
+	if [ -d "$dir/$ROH_DIR" ]; then
 		if [ "$force_mode" = "true" ]; then
 			rm -rf "$dir/$ROH_DIR"
 			echo "Removed [$dir/$ROH_DIR]"
@@ -158,8 +154,9 @@ extract_roh() {
 	fi
 
 	if [ -f "$dir/$archive_name" ]; then
+		# tar -xzvf "$dir/$archive_name" -C "$dir" >/dev/null 2>&1 # tar.gz
 		# unzip -q "$dir/$archive_name" -d "$dir"
-		tar -xzvf "$dir/$archive_name" -C "$dir" >/dev/null 2>&1
+		unzip -q "$dir/$archive_name" && tar -xf "$dir/$ROH_DIR.tar" -C "$dir" && rm -f "$dir/$ROH_DIR.tar" "$dir/$archive_name"
 		if [ $? -eq 0 ]; then
 		    echo "Extracted [$dir/$ROH_DIR] from [$dir/$archive_name]"
 		else
