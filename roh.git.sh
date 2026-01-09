@@ -118,7 +118,8 @@ archive_roh() {
      if [ -d "$roh_path" ]; then
 		# zip -r "$archive_name" "$roh_path"
 		#archive_name shouldn't end in .zip: tar -cvzf "$dir/$archive_name" -C "$dir" "$ROH_DIR"
-		tar -cvzf "$dir/$archive_name" -C "$dir" "$ROH_DIR" >/dev/null 2>&1
+		#tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" >/dev/null 2>&1
+		tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" && zip -qm "$dir/$archive_name".zip "$dir/$archive_name"
         if [ $? -eq 0 ]; then
             echo "Archived [$dir/$ROH_DIR] to [$dir/$archive_name]"
         else
