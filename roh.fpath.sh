@@ -27,6 +27,10 @@ usage() {
 	echo
 }
 
+#TODO: instead of --hash, just use -- with an empty ROOT?!
+#TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
+#TODO: copy tar.gz, not just unarchived .roh dirs
+#TODO: permissions: git created as user account, access as different user or root
 #TODO: remove sql dbs on archive
 #TODO: archive, then try a retarget
 #TODO: how does the extract to tmp of zip interact with the --retarget ?!
@@ -42,6 +46,7 @@ usage() {
 #TODO: rm -rf .roh.git.rslsc
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 #TODO: if two hashes files exist for the same file, recover could reomve the wrong one using the computed hash
+#TODO: (nice to have) if a directory has all "no hash found"s, and not a single found, the print "new directory" instead of listing all files
 
 
 # List of file extensions to avoid, comma separated
@@ -892,14 +897,12 @@ fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-# Function to recover hash files
 recover_hash() {
     local db="$1"
     local fpath="$2"
     local roh_hash_fpath="$3"
     local stored="$4"
 	
-    # Get basename and absolute paths
     local fpath_fn=$(basename "$fpath")
     # local absolute_fpath=$(readlink -f "$fpath")
     local absolute_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
@@ -1047,7 +1050,8 @@ recover_hash() {
 	fi
 
 	# else
-	echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- NOOP!"
+	# echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- NOOP!"
+	echo "      ■: -- NOOP!"
 }
 
 run_directory_process() {
@@ -1130,13 +1134,13 @@ hash_maintanence() {
 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 				[ $? -ne 0 ] && return 1
 			elif [ "$index_mode" = "true" ]; then
-				echo "WARN: -- [$stored]: [$roh_hash_fpath]"
-				echo "                                                                             [$fpath] -- NO corresponding file"
+				echo "WARN: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
+				echo "                                                      NO corresponding file: [$fpath]"
 				((WARN_COUNT++))
 			else
-				echo "ERROR: -- [$stored]: [$roh_hash_fpath]"
+				echo "ERROR: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
-				echo "                                                                              [$fpath] -- NO corresponding file"
+				echo "                                                       NO corresponding file: [$fpath]"
 				((ERROR_COUNT++))
 			fi
 
