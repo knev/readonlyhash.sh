@@ -1156,18 +1156,22 @@ hash_maintanence() {
 	# exclude "$ROH_DIR/.git" using --prune, return only files
 	# sort, because we want lower directories removed first, so upper directories can be empty and removed
 	# 	done < <(find "$ROH_DIR" -path "$ROH_DIR/.*" -prune -o -type f -name "*" -print)
+
 	# List all files that DO NOT start with a dot; that includes going into subdirectories and listing files 
 	# there that do not start with a dot. The only place in the directory structure where dot files can be
 	# expected is in the start directory where .gitignore .git (the entire directory) and .DS_store 
 	# should be skipped along with any other dot files or directories.
 	# 	done < <(find "$ROH_DIR" -path "$ROH_DIR/.*" -prune -o -print | sort -r)
-	done < <(find "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
+
+	# done < <(find "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
 	# 	-path "*/.git/*" -prune: This specifically prunes .git directories and their contents. 
 	# 	It ensures that .git and everything inside it at any level within .roh.git is skipped.
 	#	-o -not -name ".*": Then, it prints files that don't start with a dot.
 	# Or, if you want to list both files and directories but differentiate them:
 	# find "test/.roh.git" -path "*/.git/*" -prune -o \( -type f -not -name ".*" -print \) -o \( -type d -not -name ".*" -print \)
 	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
+
+	done < <(find "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" -path "*/.git/*" -prune -o -type d -name "*.ro" -prune -o -not -name ".*" -print | sort -r)
 	
 	# This will fail if git is being used
 	if [ "$cmd" = "delete" ] || [ "$cmd" = "sweep" ] || [ "$cmd" = "show" ] || [ "$visibility_mode" = "show" ]; then
