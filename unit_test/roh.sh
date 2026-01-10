@@ -7,9 +7,9 @@ FPATH_BIN="./roh.fpath.sh"
 chmod +x $FPATH_BIN
 GIT_BIN="./roh.git.sh"
 chmod +x $GIT_BIN
-fpath="Fotos.loop.txt"
-fpath_ro="Fotos~ro.loop.txt"
-fpath_ro_ro="Fotos~ro~ro.loop.txt"
+fpath="Fotos.roh.txt"
+fpath_ro="Fotos~ro.roh.txt"
+fpath_ro_ro="Fotos~ro~ro.roh.txt"
 TARGET="_target~"
 
 HASH="sha256"
@@ -39,8 +39,8 @@ $FPATH_BIN write --hash Fotos\ \[space\]/2003/2003-11-29\ Digital\ Reality/* >/d
 run_test "$ROH_BIN init --directory Fotos\ \[space\]/2003" "0" "ERROR" "true"
 rm -rf "Fotos [space]/2003.ro/$ROH_DIR"
 #mv "Fotos [space]/2003.ro" "Fotos [space]/2003"
-run_test "ls -al Fotos\ \[space\]/2003~ro.loop.txt" "0" "$(escape_expected "Fotos [space]/2003~ro.loop.txt" "0")"
-rm "Fotos [space]/2003~ro.loop.txt"
+run_test "ls -al Fotos\ \[space\]/2003~ro.roh.txt" "0" "$(escape_expected "Fotos [space]/2003~ro.roh.txt" "0")"
+rm "Fotos [space]/2003~ro.roh.txt"
 
 echo "$PWD/Fotos/2003" > "$fpath"
 run_test "$ROH_BIN init $fpath" "1" "$(escape_expected "ERROR: Directory [$PWD/Fotos/2003] does not exist.")"
@@ -55,11 +55,11 @@ rm "$fpath"
 run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
 run_test "$GIT_BIN -C $PWD/2002.ro status" "0" "nothing to commit, working tree clean"
 
-echo "$PWD/1999" > "Fake.loop.txt"
-cat "$fpath_ro" >> "Fake.loop.txt"
-run_test "$ROH_BIN init Fake.loop.txt --resume-at Fotos\ \[space\]/1999" "0" "$(escape_expected "OK: directory entry [$PWD/1999] -- SKIPPING")"
-rm "Fake.loop.txt"
-rm "Fake~ro.loop.txt"
+echo "$PWD/1999" > "Fake.roh.txt"
+cat "$fpath_ro" >> "Fake.roh.txt"
+run_test "$ROH_BIN init Fake.roh.txt --resume-at Fotos\ \[space\]/1999" "0" "$(escape_expected "OK: directory entry [$PWD/1999] -- SKIPPING")"
+rm "Fake.roh.txt"
+rm "Fake~ro.roh.txt"
 
 run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
 #TMP run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
@@ -67,6 +67,7 @@ run_test "$ROH_BIN init $fpath_ro" "0" "Archived .roh.git to.* _.roh.git.zip" "t
 #TMP run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
 
 run_test "$ROH_BIN verify $fpath_ro --resume_at 2002" "1" "$(escape_expected "ERROR: invalid option [--resume_at 2002]")"
+run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "OK: directory entry [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro] -- SKIPPING")" "true"
 run_test "$ROH_BIN verify $fpath_ro --resume-at 2002.ro" "0" "$(escape_expected "OK: directory entry [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro] -- SKIPPING")" "true"
 
 # archive
@@ -74,7 +75,7 @@ echo
 echo "# archive"
 
 $FPATH_BIN show "$PWD"/2002.ro >/dev/null 2>&1
-run_test "$ROH_BIN archive $fpath_ro" "1" "$(escape_expected "WARN: hashes not exclusively hidden in [$PWD/2002.ro/.roh.git].*ERROR: local repo [$PWD/2002.ro/.roh.git] not clean")"
+run_test "$ROH_BIN archive $fpath_ro" "1" "$(escape_expected "ERROR: local repo [$PWD/2002.ro/.roh.git] not clean")"
 
 $FPATH_BIN hide "$PWD"/2002.ro >/dev/null 2>&1
 run_test "$ROH_BIN archive $fpath_ro" "0" "$(escape_expected "SKIP: directory [$PWD/Fotos [space]/1999.ro] -- [$PWD/Fotos [space]/1999.ro/_.roh.git.zip] exists.*Archived [.roh.git] to [$PWD/2002.ro/_.roh.git.zip].*Removed [$PWD/2002.ro/.roh.git]")"

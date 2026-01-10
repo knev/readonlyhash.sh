@@ -16,7 +16,7 @@ usage() {
 	echo "      copy            ..."
     echo "Options:"
 	echo "      --resume-at     ..."
-	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .loop.txt"
+	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .roh.txt"
 	echo "      --rebase        ..."
     echo "  -v, --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
@@ -123,7 +123,7 @@ done
 # capture all remaining arguments after the options have been processed
 shift $((OPTIND-1))
 file_path="$1"
-LOOP_TXT_RO="${file_path%.loop.txt}~ro.loop.txt"
+LOOP_TXT_RO="${file_path%.roh.txt}~ro.roh.txt"
 
 shift
 skipping_mode="false"
@@ -424,8 +424,8 @@ if [ "$directory_mode" = "true" ]; then
 	echo
 	exit 0
 # Check if the file ends with .ro.txt
-elif [[ ! "$file_path" =~ \.loop\.txt$ ]]; then
-    echo "ERROR: No file path argument ending with '.loop.txt' found."
+elif [[ ! "$file_path" =~ \.roh\.txt$ ]]; then
+    echo "ERROR: No file path argument ending with '.roh.txt' found."
 	usage
     exit 1
 fi
