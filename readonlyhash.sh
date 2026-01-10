@@ -393,6 +393,8 @@ copy_to_target() {
 	# parent_dir="blammy/cheeze"
 	# echo "ECHO ${parent_dir}/${dir#*${parent_dir}/}"
 
+	mkdir -p "$dir_rebased"
+
 	if [ -d "$dir_rebased/.roh.git" ]; then
 		echo "Error: Directory [$dir_rebased/.roh.git] already exists"
 		exit 1
