@@ -22,7 +22,7 @@ run_test "$FPATH_BIN write sweep --verbose --" "1" "$(escape_expected "ERROR: ex
 run_test "$FPATH_BIN sweep --verbose -- alkjasdflk asflkjasff" "0" "$(escape_expected "WARN: [alkjasdflk] not a file -- SKIPPING.*WARN: [asflkjasff] not a file -- SKIPPING")"
 run_test "$FPATH_BIN write sweep KJHJGJK" "1" "$(escape_expected "ERROR: Directory [KJHJGJK] does not exist")"
 run_test "$FPATH_BIN write sweep --verbose . --" "1" "$(escape_expected "ERROR: expected argument after \"--\"")"
-run_test "$FPATH_BIN write sweep --verbose . -- alkjasdflk asflkjasff" "1" "$(escape_expected "PATHSPEC (ROOT) set to [alkjasdflk].*ERROR: can't find directory [./alkjasdflk] for processing")"
+run_test "$FPATH_BIN write sweep --verbose . -- alkjasdflk asflkjasff" "1" "$(escape_expected "ERROR: can't find directory [./alkjasdflk] for processing")"
 run_test "$FPATH_BIN write sweep --verbose KJHJGJK" "1" "$(escape_expected "ERROR: Directory [KJHJGJK] does not exist")"
 run_test "$FPATH_BIN --verbose ." "1" "$(escape_expected "ERROR: invalid command combination []")"
 run_test "$FPATH_BIN wn --verbose" "1" "$(escape_expected "ERROR: invalid command [wn]")"

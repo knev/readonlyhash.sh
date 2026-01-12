@@ -862,7 +862,7 @@ else
 			exit 1	
 		fi
 		shift # this will fail if there are not enough args
-		echo "* PATHSPEC (ROOT) set to [$PATHSPEC]"
+		# echo "* PATHSPEC (ROOT) set to [$PATHSPEC]"
 	fi
 fi
 
