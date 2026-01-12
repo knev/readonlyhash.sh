@@ -1,23 +1,28 @@
 #!/bin/bash
 
+#set -x
+
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|write [--force] [--show]|<show|hide> [--force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC>"
-    echo "       $(basename "$0") <write|verify --hash> <PATH/GLOBSPEC>"
+    echo "Usage: $(basename "$0") <COMMAND|<write|show|hide> [--force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
+    echo "       $(basename "$0") <write|verify> -- <PATH/GLOBSPEC>"
     echo "       $(basename "$0") <query [--db PATH] <HASH> --loop-txt"
     echo "Commands:"
-	echo "      verify     Verify computed hashes against stored hashes"
-    echo "      write      Write SHA256 hashes for files into .roh directory"
-	echo "		write+index ..."
-    echo "      delete     Delete hash files for specified files"
-    echo "      hide       Move hash files from file's directory to .roh"
-    echo "      show       Move hash files from .roh to file's directory"
-	echo "      query      ..."
-    echo "      recover    Operates on the hashes, trying to match to corresponding files"
-	echo "      sweep      Execute the hash maintanence only"
+	echo "      v|verify     Verify computed hashes against stored hashes"
+    echo "      w|write      Write SHA256 hashes for files into .roh directory"
+	echo "      i|index      Index all the hash files in a DB file (sqlite3 required)"
+	echo "      write index ..."
+    echo "      d|delete     Delete hash files for specified files"
+    echo "      h|hide       Move hash files from file's directory to .roh"
+    echo "      s|show       Move hash files from .roh to file's directory"
+	echo "      write show ..."
+	echo "      write hide ..."
+	echo "      q|query      ..."
+    echo "      r|recover    Operates on the hashes, trying to match to corresponding files"
+	echo "      e|sweep      Execute the hash maintanence only"
+	echo "      write sweep ..."
 	echo
 	echo "Options:"
-	echo "      --hash     Generate a hash of a single file(s)"
 	echo "      --roh-dir  Specify the readonly hash path"
     echo "      --force    Force operation even if hash files do not match"
 	echo "      --no-warn  ..."
@@ -27,17 +32,16 @@ usage() {
 	echo
 }
 
+#TODO: doing a verify on a zip doesn't give an error!?
 #TODO: instead of --hash, just use -- with an empty ROOT?!
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
-#TODO: copy tar.gz, not just unarchived .roh dirs
+#TODO: roh copy zip, not just unarchived .roh dirs
 #TODO: permissions: git created as user account, access as different user or root
 #TODO: remove sql dbs on archive
+#TODO: prune all index hashes that point to files that no longer exist
 #TODO: archive, then try a retarget
 #TODO: how does the extract to tmp of zip interact with the --retarget ?!
 #TODO: verify with an interactive mode? so, that it pauses so that you can take care of the situation?
-
-#TODO: if there is a .roh.git in a subdir, then refuse certain ops: write, because a new hash will be written top level instead of using the .roh.git subdir hash
-
 #TODO: delete ROH_DIR after archive?! or just have a delete command?!
 #TODO: update readme
 #TODO: ? write parts in C++ or rust to improve performance
@@ -256,7 +260,6 @@ verify_hash() {
     local dir="$1"
     local fpath="$2"
 	local no_warn="$3"
-	local index_mode="$4"
 
 	# local hash_fname="$(basename "$fpath").$HASH"
 	# local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
@@ -326,13 +329,12 @@ write_hash() {
     local fpath="$2"
 	local visibility_mode="$3"
     local force_mode="$4"
-    local index_mode="$5"
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
 
-	if [ "$index_mode" = "true" ]; then
+	if contains "index"; then
 		local absolute_fpath=$(readlink -f "$fpath")
 		local escaped_fpath=${absolute_fpath//\'/\'\'}
 
@@ -578,13 +580,11 @@ manage_hash_visibility() {
 
 # Function to process directory contents recursively
 process_directory() {
-    local cmd="$1"
-    local dir="$2"
+    local dir="$1"
 	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-	local visibility_mode="$3"
-    local force_mode="$4"
-	local no_warn="$5"
-	local index_mode="$6"
+	local visibility_mode="$2"
+    local force_mode="$3"
+	local no_warn="$4"
 
 	# ?! do we care about empty directories
 	#
@@ -616,38 +616,30 @@ process_directory() {
 				continue
 			fi
 
-			process_directory "$cmd" "$entry" "$visibility_mode" "$force_mode" "$index_mode"
+			process_directory "$entry" "$visibility_mode" "$force_mode"
 			[ $? -ne 0 ] && return 1
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.tar.gz" ]]; then
-			if [ "$cmd" != "delete" ]; then
+			if ! contains "delete"; then
 				if check_extension "$entry"; then
 					echo "ERROR: [$dir] \"$(basename "$entry")\" -- file with restricted extension"
 					((ERROR_COUNT++))
 					continue;
 				fi
-				case "$cmd" in
-				    "verify")
-				        verify_hash "$dir" "$entry" "$no_warn" "$index_mode"
-						[ $? -ne 0 ] && return 1
-				        ;;
-				    "write")
-				        write_hash "$dir" "$entry" "$visibility_mode" "$force_mode" "$index_mode"
-						[ $? -ne 0 ] && return 1
-				        ;;
-				    "hide")
-				        manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
-						[ $? -ne 0 ] && return 1
-				        ;;
-				    "show")
-				        manage_hash_visibility "$dir" "$entry" "show" "$force_mode"
-						[ $? -ne 0 ] && return 1
-				        ;;
-				    *)
-				        # No action for other cases, if needed
-				        ;;
-				esac
+				if contains "verify"; then
+					verify_hash "$dir" "$entry" "$no_warn"
+					[ $? -ne 0 ] && return 1
+				elif contains "write"; then
+					write_hash "$dir" "$entry" "$visibility_mode" "$force_mode"
+					[ $? -ne 0 ] && return 1
+				elif [ ${#commands[@]} -eq 1 ] && contains "hide"; then
+					manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
+					[ $? -ne 0 ] && return 1
+				elif [ ${#commands[@]} -eq 1 ] && contains "show"; then 
+					manage_hash_visibility "$dir" "$entry" "show" "$force_mode"
+					[ $? -ne 0 ] && return 1
+				fi
 			else
 				delete_hash "$dir" "$entry"
             fi
@@ -674,61 +666,101 @@ fi
 
 QUERY_HASH="0000000000000000000000000000000000000000000000000000000000000000"
 
-cmd="_INVALID_"
-index_mode="false"
+# ----
 
-# Parse command
-case "$1" in
-    verify) 
-        ;;
-    write) 
-        ;;
-    write+index) 
-		index_mode="true"
-        ;;
-    delete) 
-        ;;
-    hide) 
-        ;;
-    show) 
-        ;;
-	index)
-		index_mode="true"
-		;;
-	query)
-#       query_hash="${@:$((OPTIND+1)):1}"
-		;;
-    recover) 
-        ;;
-    sweep) 
-        ;;
-    -h)
+# Compatible with bash 3.2+ (macOS default) and bash 4+
+
+# List of valid full commands
+valid_long="verify write index delete hide show query recover sweep"
+
+# Short to long mapping (using case statement instead of assoc array)
+get_long() {
+    case "$1" in
+        v) echo "verify" ;;
+        w) echo "write" ;;
+        i) echo "index" ;;
+        d) echo "delete" ;;
+        h) echo "hide" ;;
+        s) echo "show" ;;
+        q) echo "query" ;;
+        r) echo "recover" ;;
+        e) echo "sweep" ;;
+        *) echo "" ;;  # empty = invalid
+    esac
+}
+
+commands=()  # normal array is fine even in 3.2
+
+contains() {
+    local needle="$1"
+    local item
+    for item in "${commands[@]}"; do
+        [[ "$item" == "$needle" ]] && return 0
+    done
+    return 1
+}
+
+i=1
+while [ $i -le $# ]; do
+    arg=$(eval echo "\$$i")
+
+    # Stop on any switch-like argument
+    case "$arg" in
+        -*) break ;;
+    esac
+
+    # 1. Try full word match
+    if echo "$valid_long" | grep -qw "$arg"; then
+        commands+=("$arg")
+        i=$((i+1))
+        continue
+    fi
+
+    # 2. Try short letters (consecutive, no separators)
+    if echo "$arg" | grep -qE '^[vwidhsqre]+$'; then
+        invalid=0
+        for ((j=0; j<${#arg}; j++)); do
+            c="${arg:$j:1}"
+            long=$(get_long "$c")
+            if [ -n "$long" ]; then
+                commands+=("$long")
+            else
+                echo "ERROR: unknown short operation '$c' in '$arg'" >&2
+                invalid=1
+                break
+            fi
+        done
+        if [ $invalid -eq 0 ]; then
+            i=$((i+1))
+            continue
+        fi
+    fi
+
+	if [ ${#commands[@]} -eq 0 ]; then
+		# If we get here → error
+		echo "ERROR: invalid command [$arg]" >&2
+		# echo "Allowed full: verify write index delete hide show query recover sweep" >&2
+		# echo "     short:  v      w     i      d      h    s    q     r      e" >&2
+		# echo "Shorts can be concatenated like: vwidhsqre" >&2
 		usage
-        exit 0
-        ;;
-    --help)
-		usage
-        exit 0
-        ;;
-    *)
-        echo "ERROR: unknown command: [$1]"
-		usage
-        exit 1
-        ;;
-esac
-if [ "$1" = "write+index" ]; then
-	cmd="write"
-else
-	cmd="$1"
-fi
-shift
+		exit 1
+	fi
+	break
+done
+# echo "Parsed commands (${#commands[@]}):"
+# for cmd in "${commands[@]}"; do
+#     echo "  - $cmd"
+# done
+
+# Reset positional parameters to remaining arguments only
+shift $((i-1))   # now $1 is the first -something argument
+
+# -----
 
 # Parse command line options
 roh_dir_mode="false"
 roh_dir="_INVALID_"
 db=""
-hash_mode="false"
-visibility_mode="none"
 force_mode="false"
 no_warn="false"
 while getopts "h-:" opt; do
@@ -740,9 +772,6 @@ while getopts "h-:" opt; do
       ;;	  
     -)
       case "${OPTARG}" in
-        hash)
-          hash_mode="true"
-          ;;
         roh-dir)
 		  roh_dir_mode="true"
           roh_dir="${!OPTIND}"
@@ -752,8 +781,6 @@ while getopts "h-:" opt; do
           db="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
-        show)
-          visibility_mode="show"
           ;;
         force)
           force_mode="true"
@@ -788,29 +815,89 @@ while getopts "h-:" opt; do
   esac
 done
 
-# capture all remaining arguments after the options have been processed
-shift $((OPTIND-1))
-# Bash's parameter expansion feature, specifically the ${parameter:-default_value} syntax
-ROOT="${1:-.}"
-# echo "* ROOT [$ROOT]"
+# echo "[$@]"
 
-# Check for -- <PATH>
-if [ "$2" = "--" ] && [ $# -eq 3 ]; then
-    PATHSPEC="$3"
-    shift 2    # Remove -- and PATHSPEC from $@
-	echo "* PATHSPEC set to [$PATHSPEC]"
-elif [ $# -ne 1 ] && [ "$hash_mode" = "false" ]; then
-	echo "ERROR: unexpected argument [$@]" >&2
+globspec_mode="false"
+PATHSPEC=""
+
+# is "--" the very first parameter after all the switches (no ROOT)
+prev=$((OPTIND-1))
+if [[ $OPTIND -ge 2 && ${!prev} == "--" ]]; then
+	# capture all remaining arguments after the options have been processed
+	shift $((OPTIND-1))
+
+	if [ $# -eq 0 ]; then 
+		echo "ERROR: expected argument after \"--\"" >&2
+		usage
+		exit 1	
+	fi
+
+	globspec_mode="true"
+else
+	# capture all remaining arguments after the options have been processed
+	shift $((OPTIND-1))
+
+	# Bash's parameter expansion feature, specifically the ${parameter:-default_value} syntax
+	# ROOT="${1:-.}"
+	ROOT=$1
+	if [ -z "$ROOT" ]; then 
+		echo "ERROR: NO valid ROOT specified [$ROOT]" >&2
+		usage
+		exit 1	
+	fi
+	# echo "* ROOT [$ROOT]"
+	if ! contains "query" && [ ! -d "$ROOT" ]; then
+		echo "ERROR: Directory [$ROOT] does not exist"
+		echo
+		exit 1
+	fi
+	shift
+
+	if [ "$1" = "--" ]; then
+		shift
+		PATHSPEC="$1"
+		if [ -z "$PATHSPEC" ]; then
+			echo "ERROR: expected argument after \"--\"" >&2
+			usage
+			exit 1	
+		fi
+		shift # this will fail if there are not enough args
+		echo "* PATHSPEC (ROOT) set to [$PATHSPEC]"
+	fi
+fi
+
+# echo "[$@]"
+
+visibility_mode="none"
+
+if [ ${#commands[@]} -eq 2 ]; then
+	if [ "$globspec_mode" = "true" ] || ! contains "write"; then 
+		echo "ERROR: invalid command combination [${commands[@]}]" >&2
+		usage
+		exit 1	
+	fi
+
+	if contains "index" || contains "sweep"; then
+		:
+	elif contains "show"; then
+		visibility_mode="show"
+	elif contains "hide"; then
+		visibility_mode="hide"
+	else
+		echo "ERROR: invalid command combination [${commands[@]}]" >&2
+		usage
+		exit 1	
+	fi
+elif [ ${#commands[@]} -eq 1 ]; then
+	:
+else
+	echo "ERROR: invalid command combination [${commands[@]}]" >&2
 	usage
 	exit 1	
-else
-    PATHSPEC=""
-	# leave $@ pointing to ROOT
 fi
-# echo "* PATHSPEC set to [$PATHSPEC]"
 
 # Check for force_mode usage
-if [ "$force_mode" = "true" ] && [ "$cmd" != "write" ] && [ "$cmd" != "show" ] && [ "$cmd" != "hide" ]; then
+if [ "$force_mode" = "true" ] && ! contains "write" && ! contains "show" && ! contains "hide"; then
     echo "ERROR: --force can only be used with: write|show|hide" >&2
     usage
     exit 1
@@ -832,13 +919,13 @@ else
 	#IFS=':' read -r -a DB_SQL <<< "$db"  # Assign colon-separated paths to DB_SQL array
 	DB_SQL="$db"
 fi
-# echo "Using DB_SQL [${DB_SQL[*]}]"
+# echo "* DB_SQL [${DB_SQL[*]}]"
 
-if [ "$index_mode" = "true" ]; then
+if contains "index"; then
 	roh_sqlite3_db_init "$DB_SQL" 
 fi
 
-if [ "$cmd" = "recover" ] || [ "$index_mode" = "true" ]; then
+if contains "recover" || contains "index"; then
 	if  [ -f "$DB_SQL" ]; then
 		echo "Using DB_SQL [$DB_SQL]"
 	else
@@ -847,7 +934,7 @@ if [ "$cmd" = "recover" ] || [ "$index_mode" = "true" ]; then
 	fi
 fi
 
-if [ "$hash_mode" = "true" ]; then
+if [ "$globspec_mode" = "true" ]; then
 	# echo "* $@"
 	for fpath in "$@"; do
 		if ! [ -f "$fpath" ]; then
@@ -862,7 +949,7 @@ if [ "$hash_mode" = "true" ]; then
 		dir_hash_fpath="$fpath.$HASH"
 		# echo "* dir_hash_fpath: [$dir_hash_fpath]"
 
-		if [ "$cmd" = "write" ]; then
+		if contains "write"; then
 			if echo "$computed_hash" > "$dir_hash_fpath" 2>/dev/null; then
 				echo "  OK: [$computed_hash]: \"$(basename "$fpath")\""
 			else
@@ -870,7 +957,7 @@ if [ "$hash_mode" = "true" ]; then
 				((ERROR_COUNT++))
 			fi
 		
-		elif [ "$cmd" = "verify" ]; then
+		elif contains "verify"; then
 			stored=$(stored_hash "$dir_hash_fpath")
         
 			if [ "$computed_hash" = "$stored" ]; then
@@ -1055,19 +1142,17 @@ recover_hash() {
 }
 
 run_directory_process() {
-	local cmd="$1"
-    local dir="$2"
+    local dir="$1"
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-	local visibility_mode="$3"
-    local force_mode="$4"
-	local no_warn="$5"
-	local index_mode="$6"
+	local visibility_mode="$2"
+    local force_mode="$3"
+	local no_warn="$4"
 
-	if [ "$cmd" = "hide" ] || ( [ "$cmd" = "write" ] && [ "$visibility_mode" != "show" ] ); then
+	if contains "hide" || ( contains "write" && [ "$visibility_mode" != "show" ] ); then
 		if [ ! -d "$ROH_DIR" ]; then
 			mkdir "$ROH_DIR"
 		fi
-	elif [ "$cmd" = "recover" ] || [ "$cmd" = "show" ]; then
+	elif contains "recover" || contains "show"; then
 		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
 			echo "ERROR: [$ROOT] -- missing or inacccessible [$ROH_DIR]. Aborting." >&2
 			return 1
@@ -1082,13 +1167,11 @@ run_directory_process() {
 
 
 hash_maintanence() {
-	local cmd="$1"
 #    local dir="$2"
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 #	local visibility_mode="$3"
 #   local force_mode="$4"
 #	local no_warn="$5"
-#	local index_mode="$6"
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
@@ -1101,7 +1184,7 @@ hash_maintanence() {
 
 		# if the fpath is a directory AND empty, remove it on delete|write
 		if [ -d "$roh_hash_fpath" ]; then
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "sweep" ]; then
+			if contains "delete" || contains "sweep"; then
 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
 					if ! rmdir "$roh_hash_fpath"; then
@@ -1121,19 +1204,19 @@ hash_maintanence() {
 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on delete|write
 		if ! stat "$fpath" >/dev/null 2>&1; then
 			local stored=$(stored_hash "$roh_hash_fpath")
-			if [ "$cmd" = "delete" ] || [ "$cmd" = "sweep" ]; then
+			if contains "delete" || contains "sweep"; then
 				if ! rm "$roh_hash_fpath"; then
 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 					((ERROR_COUNT++))
 				else
 					echo "OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
 				fi
-			elif [ "$cmd" = "recover" ]; then
+			elif contains "recover"; then
 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 				echo "RECOVER: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 				[ $? -ne 0 ] && return 1
-			elif [ "$index_mode" = "true" ]; then
+			elif contains "index"; then
 				echo "WARN: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 				echo "                                                      NO corresponding file: [$fpath]"
 				((WARN_COUNT++))
@@ -1144,7 +1227,7 @@ hash_maintanence() {
 				((ERROR_COUNT++))
 			fi
 
-		elif [ "$index_mode" = "true" ]; then
+		elif contains "index"; then
 			local stored=$(stored_hash "$roh_hash_fpath")
 
 			local absolute_fpath=$(readlink -f "$fpath")
@@ -1182,7 +1265,7 @@ hash_maintanence() {
 	done < <(find "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" -path "*/.git/*" -prune -o -type d -name "*.ro" -prune -o -not -name ".*" -print | sort -r)
 	
 	# This will fail if git is being used
-	if [ "$cmd" = "delete" ] || [ "$cmd" = "sweep" ] || [ "$cmd" = "show" ] || [ "$visibility_mode" = "show" ]; then
+	if contains "delete" || contains "sweep" || contains "show"; then
 		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
 			if ! rmdir "$ROH_DIR"; then
@@ -1192,7 +1275,7 @@ hash_maintanence() {
 		fi
 	fi
 
-	if [ "$cmd" = "delete" ]; then
+	if contains "delete"; then
 		if [ -f "$DB_SQL" ]; then
 			if rm "$DB_SQL"; then
 				echo "Removing DB_SQL [$DB_SQL]"
@@ -1213,7 +1296,7 @@ hash_maintanence() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-if [ "$cmd" = "query" ]; then
+if contains "query"; then
     QUERY_HASH="$ROOT"
     echo "query hash: [$QUERY_HASH]"
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$QUERY_HASH")
@@ -1233,19 +1316,15 @@ if [ "$cmd" = "query" ]; then
     exit 0
 fi
 
-if [ ! -d "$ROOT" ]; then
-    echo "ERROR: Directory [$ROOT] does not exist"
-	echo
-    exit 1
-fi
-
 # append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
-if [ "$cmd" != "index" ] && [ "$cmd" != "sweep" ]; then
-	run_directory_process "$cmd" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn" "$index_mode"
+if [ ${#commands[@]} -eq 1 ] && contains "index" && contains "sweep"; then
+	:
+else
+	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi
 
-hash_maintanence "$cmd" # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn" "$index_mode"
+hash_maintanence # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
 [ $? -ne 0 ] && echo && exit 1
 
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
