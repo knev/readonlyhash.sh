@@ -317,7 +317,7 @@ verify_hash() {
 	fi
 	
 	if [ "$no_warn" != "true" ]; then
-		echo "WARN: -- [$computed_hash]: [$fpath] -- NO hash found"
+		echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
 		((WARN_COUNT++))
 	fi
 	return 0
