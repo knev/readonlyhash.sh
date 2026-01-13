@@ -803,7 +803,6 @@ while getopts "h-:" opt; do
           db="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
-          ;;
         force)
           force_mode="true"
           ;;
