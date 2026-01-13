@@ -242,36 +242,43 @@ verify_directory() {
 
 	local archive_name="_.roh.git.zip"
 	if [ -f "$dir/$archive_name" ]; then
-		tmp_dir=$(mktemp -d)
+		echo "ERROR: found archived ROH_DIR [$dir/$archive_name] at [$dir]"
+		echo
+		exit 1
 
-		unzip -q "$dir/$archive_name" -d "$tmp_dir"
-		if [ $? -eq 0 ]; then
-		    echo "Extracted [$tmp_dir] from [$dir/$archive_name]"
-		else
-		    echo "ERROR: failed to extract [$tmp_dir] from [$dir/$archive_name]"
-		    echo
-		    exit 1
-		fi
-
-		ROH_DIR="$tmp_dir/.roh.git"
-
-		$FPATH_BIN verify --roh-dir "$ROH_DIR" "$dir"
-		if [ $? -ne 0 ]; then
-	        echo "ERROR: [$FPATH_BIN verify --roh-dir] failed for directory: [$dir]"
-			echo
-			exit 1
-		fi		
-		git_status=$($GIT_BIN -C "$tmp_dir" status)
-		echo "$git_status"
-		if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-			echo
-	        echo "ERROR: local repo [$ROH_DIR] not clean"
-			echo
-			exit 1
-		fi
-
-		rm -r "$tmp_dir"
-		echo "Removed [$tmp_dir]"
+# 		tmp_dir=$(mktemp -d)
+# 		echo "tmp_dir [$tmp_dir]"
+# 
+# 		#TODO: should use roh.git with a --ROH_DIR flag perhaps?
+# 		unzip -jq "$dir/$archive_name" -d "$tmp_dir" && tar -xf "$tmp_dir/.roh.git.tar" -C "$tmp_dir" && rm -f "$tmp_dir/.roh.git.tar"
+# 		if [ $? -eq 0 ]; then
+# 		    echo "Extracted [$tmp_dir] from [$dir/$archive_name]"
+# 		else
+# 		    echo "ERROR: failed to extract [$tmp_dir] from [$dir/$archive_name]"
+# 		    echo
+# 		    exit 1
+# 		fi
+# 
+# 		ROH_DIR="$tmp_dir/.roh.git"
+# 
+# 		$FPATH_BIN verify --roh-dir "$ROH_DIR" "$dir"
+# 		# $FPATH_BIN verify "$dir"
+# 		if [ $? -ne 0 ]; then
+# 	        echo "ERROR: [$FPATH_BIN verify --roh-dir] failed for directory: [$dir]"
+# 			echo
+# 			exit 1
+# 		fi		
+# 		git_status=$($GIT_BIN -C "$tmp_dir" status)
+# 		echo "$git_status"
+# 		if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+# 			echo
+# 	        echo "ERROR: local repo [$ROH_DIR] not clean"
+# 			echo
+# 			exit 1
+# 		fi
+# 
+# 		rm -r "$tmp_dir"
+# 		echo "Removed [$tmp_dir]"
 
 	else
 		ROH_DIR="$dir/.roh.git"

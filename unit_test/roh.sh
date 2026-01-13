@@ -95,8 +95,8 @@ run_test "ls -al $PWD/2002.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/2002.r
 echo
 echo "# verify/extract"
 
-run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
-run_test "$ROH_BIN verify $fpath_ro" "0" "$(escape_expected "On branch master.*nothing to commit, working tree clean.*Removed [/var/folders/.*/tmp.*].*On branch master.*nothing to commit, working tree clean.*Removed [/var/folders/.*/tmp.*]")"
+# run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
+# run_test "$ROH_BIN verify $fpath_ro" "0" "$(escape_expected "On branch master.*nothing to commit, working tree clean.*Removed [/var/folders/.*/tmp.*].*On branch master.*nothing to commit, working tree clean.*Removed [/var/folders/.*/tmp.*]")"
 
 run_test "$ROH_BIN extract $fpath_ro" "0" "ERROR" "true"
 run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
