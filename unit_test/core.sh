@@ -266,6 +266,14 @@ mv "$TMP/.roh.git" "$TEST"
 rmdir "$TMP"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
+cp "$TEST/.roh.git/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.sha256" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/."
+rm -rf "$TEST/.roh.git/$SUBDIR_WITH_SPACES/$SUBSUBDIR"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/sub-directory with spaces/sub-sub-directory] -- NEW DIRECTORY!?")" "true"
+
+rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH" 
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/sub-directory with spaces/sub-sub-directory] -- NEW DIRECTORY!?")"
+$FPATH_BIN write "$TEST" >/dev/null 2>&1
+
 # verify_hash, process_directory()
 rm -v "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: -- [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]: [$TEST/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].* NO corresponding file: [$TEST/sub-directory with spaces/sub-sub-directory/jkl.txt]")"

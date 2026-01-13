@@ -616,6 +616,22 @@ process_directory() {
 				continue
 			fi
 
+			if contains "verify"; then
+				local sub_dir="$(remove_top_dir "$ROOT" "$entry")"
+				local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+				# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
+
+				if [ ! -d "$roh_hash_path" ]; then
+					hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
+					if [ -z "$hash_found" ]; then
+						echo "WARN: -- [$entry] -- NEW DIRECTORY!?"
+						((WARN_COUNT++))
+						continue
+					fi
+				fi
+
+			fi
+
 			process_directory "$entry" "$visibility_mode" "$force_mode"
 			[ $? -ne 0 ] && return 1
 
