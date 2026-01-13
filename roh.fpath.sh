@@ -604,7 +604,7 @@ process_directory() {
 	fi
 
 	if [ -f "$dir/_.roh.git.zip" ]; then
-		echo "ERROR: found archived ROH_DIR at [$dir]"
+		echo "ERROR: found archived ROH_DIR [$dir/_.roh.git.zip] at [$dir]"
 		((ERROR_COUNT++))
 		return 0
 	fi

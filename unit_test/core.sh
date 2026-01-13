@@ -275,7 +275,7 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/sub-di
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 $GIT_BIN -zC "$TEST" >/dev/null 2>&1
-run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: found archived ROH_DIR at [test]")"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: found archived ROH_DIR [test/_.roh.git.zip] at [test]")"
 $GIT_BIN -xC "$TEST" >/dev/null 2>&1
 
 # verify_hash, process_directory()
