@@ -36,7 +36,7 @@ rm "$fpath_ro" >/dev/null 2>&1
 echo
 echo "# init"
 
-$FPATH_BIN write --hash Fotos\ \[space\]/2003/2003-11-29\ Digital\ Reality/* >/dev/null 2>&1
+$FPATH_BIN write -- Fotos\ \[space\]/2003/2003-11-29\ Digital\ Reality/* >/dev/null 2>&1
 run_test "$ROH_BIN init --directory Fotos\ \[space\]/2003" "0" "ERROR" "true"
 rm -rf "Fotos [space]/2003.ro/$ROH_DIR"
 #mv "Fotos [space]/2003.ro" "Fotos [space]/2003"

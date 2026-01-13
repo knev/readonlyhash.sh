@@ -32,7 +32,6 @@ usage() {
 	echo
 }
 
-#TODO: instead of --hash, just use -- with an empty ROOT?!
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: roh copy zip, not just unarchived .roh dirs
 #TODO: permissions: git created as user account, access as different user or root
