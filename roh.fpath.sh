@@ -32,7 +32,6 @@ usage() {
 	echo
 }
 
-#TODO: doing a verify on a zip doesn't give an error!?
 #TODO: instead of --hash, just use -- with an empty ROOT?!
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: roh copy zip, not just unarchived .roh dirs
@@ -600,7 +599,14 @@ process_directory() {
 		: # echo "Processing directory: [$dir]"
 	else
 		echo "ERROR: can't find directory [$dir] for processing"
-		return 1
+		((ERROR_COUNT++))
+		return 0
+	fi
+
+	if [ -f "$dir/_.roh.git.zip" ]; then
+		echo "ERROR: found archived ROH_DIR at [$dir]"
+		((ERROR_COUNT++))
+		return 0
 	fi
 
     for entry in "$dir"/*; do
@@ -610,7 +616,7 @@ process_directory() {
 
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
-			if [ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.tar.gz" ]; then
+			if [ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]; then
 				echo " WARN: [$entry] is a readonlyhash directory -- SKIPPING"
 				((WARN_COUNT++))
 				continue
@@ -636,7 +642,7 @@ process_directory() {
 			[ $? -ne 0 ] && return 1
 
 		# else ...
-        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.tar.gz" ]]; then
+        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
 			if ! contains "delete"; then
 				if check_extension "$entry"; then
 					echo "ERROR: [$dir] \"$(basename "$entry")\" -- file with restricted extension"
