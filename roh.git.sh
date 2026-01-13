@@ -156,7 +156,7 @@ extract_roh() {
 	if [ -f "$dir/$archive_name" ]; then
 		# tar -xzvf "$dir/$archive_name" -C "$dir" >/dev/null 2>&1 # tar.gz
 		# unzip -q "$dir/$archive_name" -d "$dir"
-		unzip -q "$dir/$archive_name" && tar -xf "$dir/$ROH_DIR.tar" -C "$dir" && rm -f "$dir/$ROH_DIR.tar" "$dir/$archive_name"
+		unzip -jq "$dir/$archive_name" -d "$dir" && tar -xf "$dir/$ROH_DIR.tar" -C "$dir" && rm -f "$dir/$ROH_DIR.tar" "$dir/$archive_name"
 		if [ $? -eq 0 ]; then
 		    echo "Extracted [$dir/$ROH_DIR] from [$dir/$archive_name]"
 		else
