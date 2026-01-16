@@ -87,6 +87,11 @@ while getopts "dh-:" opt; do
 		  directory_mode="true"
 		  ;;
         rebase)
+		  if [ "$cmd" != "copy" ] && [ "$cmd" != "verify" ]; then
+			echo "ERROR: invalid use of --rebase"
+		  	usage
+			exit 1
+		  fi
 		  rebase_mode="true"
           rebase_string="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
