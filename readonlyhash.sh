@@ -211,13 +211,7 @@ init_directory() {
 	local dir="$1"
 
 	ROH_DIR="$dir/.roh.git"
-
- 	$FPATH_BIN write "$dir"
- 	if [ $? -ne 0 ]; then
-        echo "ERROR: [$FPATH_BIN write] failed for directory: [$dir]"
- 		echo
- 		exit 1
- 	fi		
+	mkdir -p "$ROH_DIR"
 
 	if [ ! -d "$ROH_DIR/.git" ]; then
  		$GIT_BIN -C "$dir" init

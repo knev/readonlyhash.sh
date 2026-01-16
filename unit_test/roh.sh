@@ -65,10 +65,12 @@ run_test "$ROH_BIN init Fake.roh.txt --resume-at Fotos\ \[space\]/1999" "0" "$(e
 rm "Fake.roh.txt"
 rm "Fake~ro.roh.txt"
 
+$FPATH_BIN write "Fotos [space]/1999.ro" >/dev/null 2>&1
+$FPATH_BIN write "2002.ro" >/dev/null 2>&1
 run_test "$ROH_BIN init $fpath_ro" "0" "Initialized empty Git repository" "true"
-#TMP run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
+run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
 run_test "$ROH_BIN init $fpath_ro" "0" "Archived .roh.git to.* _.roh.git.zip" "true"
-#TMP run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
+run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
 
 run_test "$ROH_BIN verify $fpath_ro --resume_at 2002" "1" "$(escape_expected "ERROR: invalid option [--resume_at 2002]")"
 run_test "$ROH_BIN verify $fpath_ro --resume-at 2002" "0" "$(escape_expected "OK: directory entry [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro] -- SKIPPING")" "true"
@@ -78,7 +80,7 @@ run_test "$ROH_BIN verify $fpath_ro --resume-at 2002.ro" "0" "$(escape_expected 
 echo
 echo "# archive"
 
-$FPATH_BIN show "$PWD"/2002.ro >/dev/null 2>&1
+$FPATH_BIN show "$PWD"/2002.ro #>/dev/null 2>&1
 run_test "$ROH_BIN archive $fpath_ro" "1" "$(escape_expected "ERROR: local repo [$PWD/2002.ro/.roh.git] not clean")"
 
 $FPATH_BIN hide "$PWD"/2002.ro >/dev/null 2>&1
