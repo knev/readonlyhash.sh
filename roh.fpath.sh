@@ -1171,7 +1171,7 @@ run_directory_process() {
 		if [ ! -d "$ROH_DIR" ]; then
 			mkdir "$ROH_DIR"
 		fi
-	elif contains "recover" || contains "show"; then
+ 	elif contains "recover" || ( contains "show" && ! contains "write" ); then
 		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
 			echo "ERROR: [$ROOT] -- missing or inacccessible [$ROH_DIR]. Aborting." >&2
 			return 1
