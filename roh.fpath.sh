@@ -33,7 +33,6 @@ usage() {
 }
 
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
-#TODO: roh copy zip, not just unarchived .roh dirs
 #TODO: permissions: git created as user account, access as different user or root
 #TODO: remove sql dbs on archive
 #TODO: prune all index hashes that point to files that no longer exist
