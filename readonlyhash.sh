@@ -1,9 +1,9 @@
 #!/bin/bash
 
-FPATH_BIN="./roh.fpath.sh"
-#FPATH_BIN="roh.fpath"
-GIT_BIN="./roh.git.sh"
-#GIT_BIN="roh.git"
+#FPATH_BIN="./roh.fpath.sh"
+FPATH_BIN="roh.fpath"
+#GIT_BIN="./roh.git.sh"
+GIT_BIN="roh.git"
 HASH="sha256"
 
 usage() {
