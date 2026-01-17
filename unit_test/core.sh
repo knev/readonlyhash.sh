@@ -274,6 +274,11 @@ rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/sub-directory with spaces/sub-sub-directory] -- NEW DIRECTORY!?")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
+mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR-empty"
+run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK:.*sub-sub-directory-empty.*-- written")" "true"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/sub-directory with spaces/sub-sub-directory-empty] -- NEW DIRECTORY!?")" "true"
+rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR-empty"
+
 $GIT_BIN -zC "$TEST" >/dev/null 2>&1
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: found archived ROH_DIR [test/_.roh.git.zip] at [test]")"
 $GIT_BIN -xC "$TEST" >/dev/null 2>&1

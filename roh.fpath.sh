@@ -626,11 +626,15 @@ process_directory() {
 				# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
 
 				if [ ! -d "$roh_hash_path" ]; then
-					hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
-					if [ -z "$hash_found" ]; then
-						echo "WARN: -- [$entry] -- NEW DIRECTORY!?"
-						((WARN_COUNT++))
-						continue
+					if [[ -z "$(ls -A -- "$entry")" ]]; then
+					    : # echo "Directory '$entry' is empty (including hidden files)"
+					else
+						hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
+						if [ -z "$hash_found" ]; then
+							echo "WARN: -- [$entry] -- NEW DIRECTORY!?"
+							((WARN_COUNT++))
+							continue
+						fi
 					fi
 				fi
 
