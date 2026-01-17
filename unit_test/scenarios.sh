@@ -2,7 +2,7 @@
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 echo "#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
-echo "# unit_test: requirements.sh"
+echo "# unit_test: scenarios.sh"
 
 rm -rf "$TEST.ro"
 TEST="test.ro"
@@ -47,7 +47,7 @@ $GIT_BIN add *.sha256 >/dev/null 2>&1
 $GIT_BIN commit -m "File Added" >/dev/null 2>&1
 echo "four" > "four.txt"
 # roh will report files that don't have a corresponding hash file
-run_test "$ROH_SCRIPT verify" "0" "$(escape_expected "WARN: -- [ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]: [./four.txt] -- NO hash found")"
+run_test "$ROH_SCRIPT verify ." "0" "$(escape_expected "WARN: -- [ab929fcd5594037960792ea0b98caf5fdaf6b60645e4ef248c28db74260f393e]: [./four.txt] -- NO hash found")"
 
 $ROH_SCRIPT write >/dev/null 2>&1
 # git will show hashes that are untracked

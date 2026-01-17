@@ -8,7 +8,7 @@ HASH="sha256"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|<verify|copy> --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <FPATH> [--resume-at STRING]"
+    echo "Usage: $(basename "$0") <COMMAND|<<verify|copy> --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <FPATH> [--resume-at STRING]"
 	echo "      init            ..."
 	echo "      verify          ..."
 	echo "      archive         ..."

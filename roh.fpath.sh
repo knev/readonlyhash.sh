@@ -32,14 +32,12 @@ usage() {
 	echo
 }
 
+#TODO: option to keep archives after extract
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
-#TODO: remove sql dbs on archive
 #TODO: prune all index hashes that point to files that no longer exist
 #TODO: archive, then try a retarget
 #TODO: how does the extract to tmp of zip interact with the --retarget ?!
-#TODO: verify with an interactive mode? so, that it pauses so that you can take care of the situation?
-#TODO: delete ROH_DIR after archive?! or just have a delete command?!
 #TODO: update readme
 #TODO: ? write parts in C++ or rust to improve performance
 #TODO: should probably add a delete on the ROH level to delete the hashes and .git
