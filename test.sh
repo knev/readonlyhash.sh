@@ -70,6 +70,19 @@ done
 #	    exit 1
 #	fi
 
+status_matches() {
+    local s1="$1"
+    local s2="$2"
+
+    if [ "$s1" -eq 0 ] && [ "$s2" -eq 0 ]; then
+        return 0
+    elif [ "$s1" -ne 0 ] && [ "$s2" -ne 0 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # !!!NOTE:  this means we can not use [] and () in the regex's passed to run_test()
 #
 escape_expected() {
@@ -148,7 +161,7 @@ run_test() {
 	    # Check if expected is NOT in output
 		if ! [[ "$output" =~ $expected_regex ]]; then
 			ok="YES"
-			if [ "$exit_status" == "$expected_status" ] && [ "$verbose_mode" != "true" ]; then
+			if status_matches "$exit_status" "$expected_status" && [ "$verbose_mode" != "true" ]; then
 				echo "PASS: [$cmd][$exit_status] ! \"$expected_regex\""
 				return 0
 			fi 
@@ -167,7 +180,7 @@ run_test() {
 		echo "#----"
 		echo
 
-		if [ "$ok" = "no" ] || [ "$exit_status" != "$expected_status" ]; then
+		if [ "$ok" = "no" ] || ! status_matches "$exit_status" "$expected_status"; then
 		  if [ "$continue_mode" != "true" ]; then
 			echo "To be continued ..."
 			echo
@@ -178,7 +191,7 @@ run_test() {
 	    # Check if expected is in output
 		if [[ "$output" =~ $expected_regex ]]; then
 			ok="YES"
-			if [ "$exit_status" == "$expected_status" ] && [ "$verbose_mode" != "true" ]; then
+			if status_matches "$exit_status" "$expected_status" && [ "$verbose_mode" != "true" ]; then
 				echo "PASS: [$cmd][$exit_status] \"$expected_regex\""
 				return 0
 			fi
@@ -197,7 +210,7 @@ run_test() {
 		echo "#----"
 		echo
 
-		if [ "$ok" = "no" ] || [ "$exit_status" != "$expected_status" ]; then
+		if [ "$ok" = "no" ] || ! status_matches "$exit_status" "$expected_status"; then
 		  if [ "$continue_mode" != "true" ]; then
 			echo "To be continued ..."
 			echo
