@@ -1210,30 +1210,26 @@ process_hash_repo()
 		# if the fpath is a directory AND empty, remove it on delete|sweep
         elif [ -d "$roh_hash_fpath" ]; then
 
-# 			if contains "verify"; then
-# 				local sub_dir="$(remove_top_dir "$ROOT" "$entry")"
-# 				local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-# 				# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
-# 
-# 				if [ ! -d "$roh_hash_path" ]; then
-# 					if [[ -z "$(ls -A -- "$entry")" ]]; then
-# 					    : # echo "Directory '$entry' is empty (including hidden files)"
-# 					else
-# 						hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
-# 						if [ -z "$hash_found" ]; then
-# 							echo "WARN: -- [$entry] -- NEW DIRECTORY!?"
-# 							((WARN_COUNT++))
-# 							continue
-# 						fi
-# 					fi
-# 				fi
-# 
-# 			fi
-
+			# save to local variable, because $roh_hash_fpath gets trash during recursion
 			local recursive_dir="$roh_hash_fpath"
 
 			#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
+			#if [[ -z "$(ls -A -- "$entry")" ]]; then
+			# echo "Directory '$entry' is empty (including hidden files)"
 			if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
+
+	 			if contains "verify"; then
+					local dir_fpath="$(hash_fpath_to_fpath "$recursive_dir")"
+					# echo "   * fpath DIRECTORY: [$dir_fpath]"
+	 
+	 				if [ ! -d "$dir_fpath" ]; then
+						echo "WARN: -- [$recursive_dir] -- orphaned hash DIRECTORY!"
+						((WARN_COUNT++))
+						continue
+	 				fi
+	 
+	 			fi
+
 				process_hash_repo "$recursive_dir" "$visibility_mode" "$force_mode"
 				[ $? -ne 0 ] && return 1
 			fi
@@ -1315,95 +1311,8 @@ hash_maintanence() {
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
 
 	echo "Hash maintanence ..."
-
 	process_hash_repo "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" 
 
-
-	# Now check for hash files without corresponding files
-# 	while IFS= read -r roh_hash_fpath; do
-# 		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
-# 
-# 		# if the fpath is a directory AND empty, remove it on delete|sweep
-# 		if [ -d "$roh_hash_fpath" ]; then
-# 			if contains "delete" || contains "sweep"; then
-# 				#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
-# 				if [ -z "$(find "$roh_hash_fpath" -mindepth 1 -print -quit)" ]; then
-# 					if ! rmdir "$roh_hash_fpath"; then
-# 						echo "ERROR: Failed to remove directory [$roh_hash_fpath]"
-# 						((ERROR_COUNT++))
-# 					else
-# 						[ "$VERBOSE_MODE" = "true" ] && echo "OK: orphaned hash directory [$roh_hash_fpath] -- removed"
-# 					fi
-# 				fi
-# 			fi
-# 			continue;
-# 		fi
-# 
-# 		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
-# 		# echo "   * fpath: [$fpath]"
-# 
-# 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on delete|write
-# 		if ! stat "$fpath" >/dev/null 2>&1; then
-# 			local stored=$(stored_hash "$roh_hash_fpath")
-# 			if contains "delete" || contains "sweep"; then
-# 				if ! rm "$roh_hash_fpath"; then
-# 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
-# 					((ERROR_COUNT++))
-# 				else
-# 					echo "OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
-# 				fi
-# 			elif contains "recover"; then
-# 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-# 				echo "RECOVER: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
-# 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-# 				[ $? -ne 0 ] && return 1
-# 			elif contains "index"; then
-# 				echo "WARN: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
-# 				echo "                                                      NO corresponding file: [$fpath]"
-# 				((WARN_COUNT++))
-# 			else
-# 				echo "ERROR: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
-# 				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
-# 				echo "                                                       NO corresponding file: [$fpath]"
-# 				((ERROR_COUNT++))
-# 			fi
-# 
-# 		elif contains "index"; then
-# 			local stored=$(stored_hash "$roh_hash_fpath")
-# 
-# 			local absolute_fpath=$(readlink -f "$fpath")
-# 			local escaped_fpath=${absolute_fpath//\'/\'\'}
-# 
-# 			# echo "   * fpath: [$roh_hash_fpath][$stored] [$absolute_fpath]"
-# 
-# 			local fpath_exists=$(sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = '$escaped_fpath';")
-# 			if [ "$fpath_exists" -eq 0 ]; then
-# 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-# 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
-# 			else
-# 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
-# 			fi
-# 		fi
-# 
-# 	# exclude "$ROH_DIR/.git" using --prune, return only files
-# 	# sort, because we want lower directories removed first, so upper directories can be empty and removed
-# 	# 	done < <(find "$ROH_DIR" -path "$ROH_DIR/.*" -prune -o -type f -name "*" -print)
-# 
-# 	# List all files that DO NOT start with a dot; that includes going into subdirectories and listing files 
-# 	# there that do not start with a dot. The only place in the directory structure where dot files can be
-# 	# expected is in the start directory where .gitignore .git (the entire directory) and .DS_store 
-# 	# should be skipped along with any other dot files or directories.
-# 	# 	done < <(find "$ROH_DIR" -path "$ROH_DIR/.*" -prune -o -print | sort -r)
-# 
-# 	# done < <(find "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" -path "*/.git/*" -prune -o -not -name ".*" -print | sort -r)
-# 	# 	-path "*/.git/*" -prune: This specifically prunes .git directories and their contents. 
-# 	# 	It ensures that .git and everything inside it at any level within .roh.git is skipped.
-# 	#	-o -not -name ".*": Then, it prints files that don't start with a dot.
-# 	# Or, if you want to list both files and directories but differentiate them:
-# 	# find "test/.roh.git" -path "*/.git/*" -prune -o \( -type f -not -name ".*" -print \) -o \( -type d -not -name ".*" -print \)
-# 	# This last command will print both non-dot files and directories but in separate -print actions, allowing you to see clearly which are files and which are directories in the output.
-# 
-# 	done < <(find "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" -path "*/.git/*" -prune -o -type d -name "*.ro" -prune -o -not -name ".*" -print | sort -r)
 
 	# This will fail if git is being used
 	if contains "delete" || contains "sweep" || contains "show"; then

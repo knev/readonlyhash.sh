@@ -242,8 +242,15 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [349cac0f5df
 run_test "$FPATH_BIN verify --no-warn $TEST" "0" "$(escape_expected "WARN: -- [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- NEW!?")" "true"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
+mkdir "$TEST/orphaned_hashes"
+echo "YHB" > "$TEST/orphaned_hashes/yhb.txt"
+$FPATH_BIN write "$TEST" >/dev/null 2>&1
+rm -rf "$TEST/orphaned_hashes"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/.roh.git/orphaned_hashes] -- orphaned hash DIRECTORY!")"
+$FPATH_BIN sweep "$TEST" >/dev/null 2>&1
+
 mkdir "$ROH_DIR/this_is_a_directory.sha256"
-#RESTORE ME run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "$ROH_DIR/this_is_a_directory.sha256")" "true"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "$ROH_DIR/this_is_a_directory.sha256")" "true"
 # rmdir "$ROH_DIR/this_is_a_directory.sha256" # gets removed automagically now (on delete and write)
 run_test "ls -al $ROH_DIR" "0" "this_is_a_directory.sha256"
 run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "OK: orphaned hash directory [test/.roh.git/this_is_a_directory.sha256] -- removed")"
