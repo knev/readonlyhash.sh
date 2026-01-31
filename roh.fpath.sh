@@ -319,11 +319,28 @@ verify_hash() {
 		#	echo "[$found_fpath:$found_roh_hash_fpath]"
 		# done <<< "$list_roh_hash_fpaths"
 		if [ -n "$list_roh_hash_fpaths" ]; then
-			# [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath] -- HASH found in INDEX"
-			if [ "$no_warn" != "true" ]; then
-				echo "WARN: -- [$computed_hash]: [$fpath] -- HASH found in INDEX"
-				((WARN_COUNT++))
-			fi
+			write_hash "$dir" "$fpath" "hide" "false"
+
+			# ----
+			# index file
+
+ 			local stored=$(stored_hash "$roh_hash_fpath")
+ 
+ 			local absolute_fpath=$(readlink -f "$fpath")
+ 			local escaped_fpath=${absolute_fpath//\'/\'\'}
+ 
+ 			# echo "   * fpath: [$roh_hash_fpath][$stored] [$absolute_fpath]"
+ 
+ 			local fpath_exists=$(sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = '$escaped_fpath';")
+ 			if [ "$fpath_exists" -eq 0 ]; then
+ 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+ 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
+ 			else
+ 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
+ 			fi
+
+			# ----
+
 			return 0
 		else
 			echo "ERROR: -- [$computed_hash]: [$fpath] -- NEW!?"
@@ -668,7 +685,7 @@ process_directory() {
 					((ERROR_COUNT++))
 					continue;
 				fi
-				if contains "verify"; then
+				if contains "verify" || contains "recover"; then
 					verify_hash "$dir" "$entry" "$no_warn"
 					[ $? -ne 0 ] && return 1
 				elif contains "write"; then
