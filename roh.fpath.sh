@@ -1291,8 +1291,9 @@ process_hash_repo()
 	 				echo "                                                       NO corresponding file: [$fpath]"
 	 				((ERROR_COUNT++))
 	 			fi
-	 
-	 		elif contains "index"; then
+			fi
+
+	 		if contains "index"; then
 	 			local stored=$(stored_hash "$roh_hash_fpath")
 	 
 	 			local absolute_fpath=$(readlink -f "$fpath")
