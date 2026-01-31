@@ -1055,7 +1055,7 @@ recover_hash() {
 				IFS=$'\r' read -r found_fpath found_roh_hash_fpath <<< "$found"
 				# echo "[$found_fpath] [$found_roh_hash_fpath]"
 
-				# same fpath
+				# same hash fpath
 				if [ "$found_roh_hash_fpath" = "$absolute_roh_hash_fpath" ]; then
 					if [ -f "$found_roh_hash_fpath" ]; then
 						continue
@@ -1109,7 +1109,7 @@ recover_hash() {
 	# else
 	# no matching hash found, file identical file names
 
-	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
+	echo "  ERROR:    ... no NOT orphaned hash in IDX [$fpath] -- file DELETED !?"
 	((ERROR_COUNT++))
 
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fpath_fn")
