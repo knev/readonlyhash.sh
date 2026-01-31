@@ -312,8 +312,25 @@ verify_hash() {
 			return 0
 		fi 
 	fi
-	
-	if [ "$no_warn" != "true" ]; then
+
+	if contains "recover"; then
+		list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$computed_hash")
+		# while IFS=$'\r' read -r found_fpath found_roh_hash_fpath; do
+		#	echo "[$found_fpath:$found_roh_hash_fpath]"
+		# done <<< "$list_roh_hash_fpaths"
+		if [ -n "$list_roh_hash_fpaths" ]; then
+			# [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath] -- HASH found in INDEX"
+			if [ "$no_warn" != "true" ]; then
+				echo "WARN: -- [$computed_hash]: [$fpath] -- HASH found in INDEX"
+				((WARN_COUNT++))
+			fi
+			return 0
+		else
+			echo "ERROR: -- [$computed_hash]: [$fpath] -- NEW!?"
+			((ERROR_COUNT++))
+		fi
+
+	elif [ "$no_warn" != "true" ]; then
 		echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
 		((WARN_COUNT++))
 	fi
