@@ -1369,8 +1369,13 @@ if contains "query"; then
     QUERY_HASH="$ROOT"
     echo "query hash: [$QUERY_HASH]"
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$QUERY_HASH")
+	[ -z "$list_roh_hash_fpaths" ] && echo "  --"
 	while IFS=$'\r' read -r fpath roh_hash_fpath; do
-		[ -n "$fpath" ] && echo "[$fpath:$roh_hash_fpath]"
+		#[ -n "$fpath" ] && echo "[$fpath:$roh_hash_fpath]"
+		if [ -n "$roh_hash_fpath" ]; then
+			echo "OK: --      hash path [$roh_hash_fpath]"
+			echo "       absolute fpath [$fpath]"
+		fi
 	done <<< "$list_roh_hash_fpaths"
 #    # Loop through DB_SQL array
 #    for db_path in "${DB_SQL[@]}"; do
