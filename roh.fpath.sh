@@ -1046,6 +1046,8 @@ recover_hash() {
     local fpath="$2"
     local roh_hash_fpath="$3"
     local stored="$4"
+
+	[ "$VERBOSE_MODE" = "true" ] && echo "RECOVER: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 	
     local fpath_fn=$(basename "$fpath")
     # local absolute_fpath=$(readlink -f "$fpath")
@@ -1089,7 +1091,7 @@ recover_hash() {
 					if [ "$computed_hash" = "$stored" ]; then
 						((found_file++))
 						if [ "$found_file" -lt 3 ]; then
-							echo "            ... [$found_fpath] -- duplicate FOUND"
+							[ "$VERBOSE_MODE" = "true" ] && echo "            ... [$found_fpath] -- duplicate FOUND"
 						fi
 					else
 						echo "  ERROR:    ... [$found_fpath] -- hash mismatch: ..."
@@ -1099,7 +1101,7 @@ recover_hash() {
 					fi
 				else
 					# we found another orphaned hash, assume the rest of the loop will take care of it
-					echo "            ... [$found_fpath] -- indexed, but missing"
+					[ "$VERBOSE_MODE" = "true" ] && echo "            ... [$found_fpath] -- indexed, but missing"
 				fi
 
 			fi
@@ -1113,7 +1115,7 @@ recover_hash() {
 				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 				((ERROR_COUNT++))
 			else
-				echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
+				[ "$VERBOSE_MODE" = "true" ] && echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
 			fi			
 			return
 		# else
@@ -1296,7 +1298,6 @@ process_hash_repo()
 	 				fi
 	 			elif contains "recover"; then
 	 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-	 				echo "RECOVER: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 	 				[ $? -ne 0 ] && return 1
  	 			elif contains "index"; then

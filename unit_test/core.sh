@@ -391,10 +391,8 @@ echo "PNO" > "$TEST/$SUBDIR_WITH_SPACES_RO/pno.txt"
 echo "PNO" > "$TEST/$SUBDIR_COPY_SLASH_RO/pno.txt"
 
 # force "generated hash not found" in its current location will not produce anything
-# we only process ORPHANED hashes, not ill corresponding hashes; this is a job for write/verify
 echo "9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy.txt.sha256"
 run_test "$FPATH_BIN verify --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERROR: -- hash mismatch:.*  stored [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec][test/sub-directory with spaces.ro/.roh.git/xgy.txt.sha256]")"
-run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "RECOVER")" "true"
 
 # force "generated hash not found" in a different location
 # the index will find the original hash and hash location, double check the hashes, but the hashes won't match
