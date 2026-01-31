@@ -1282,10 +1282,9 @@ process_hash_repo()
 	 				echo "RECOVER: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 	 				[ $? -ne 0 ] && return 1
-	 			elif contains "index"; then
-	 				echo "WARN: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
-	 				echo "                                                      NO corresponding file: [$fpath]"
-	 				((WARN_COUNT++))
+ 	 			elif contains "index"; then
+ 	 				[ "$VERBOSE_MODE" = "true" ] && echo "OK: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
+ 	 				[ "$VERBOSE_MODE" = "true" ] && echo "                                                      NO corresponding file: [$fpath]"
 	 			else
 	 				echo "ERROR: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 	 				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
