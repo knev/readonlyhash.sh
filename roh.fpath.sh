@@ -1300,7 +1300,7 @@ process_hash_repo()
 	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 	 				[ $? -ne 0 ] && return 1
  	 			elif contains "index"; then
- 	 				[ "$VERBOSE_MODE" = "true" ] && echo "OK: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
+ 	 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
  	 				[ "$VERBOSE_MODE" = "true" ] && echo "                                                      NO corresponding file: [$fpath]"
 	 			else
 	 				echo "ERROR: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
