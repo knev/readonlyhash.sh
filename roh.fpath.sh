@@ -657,7 +657,7 @@ process_directory() {
 
 			fi
 
-			process_directory "$entry" "$visibility_mode" "$force_mode"
+			process_directory "$entry" "$visibility_mode" "$force_mode" "$no_warn"
 			[ $? -ne 0 ] && return 1
 
 		# else ...
