@@ -1126,7 +1126,7 @@ recover_hash() {
 	# else
 	# no matching hash found, file identical file names
 
-	echo "  ERROR:    ... no NOT orphaned hash in IDX [$fpath] -- file DELETED !?"
+	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
 	((ERROR_COUNT++))
 
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fpath_fn")
@@ -1346,7 +1346,6 @@ hash_maintanence() {
 
 	echo "Hash maintanence ..."
 	process_hash_repo "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" 
-
 
 	# This will fail if git is being used
 	if contains "delete" || contains "sweep" || contains "show"; then
