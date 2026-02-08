@@ -26,7 +26,7 @@ run_test "$FPATH_BIN write sweep --verbose . -- alkjasdflk asflkjasff" "1" "$(es
 run_test "$FPATH_BIN write sweep --verbose KJHJGJK" "1" "$(escape_expected "ERROR: Directory [KJHJGJK] does not exist")"
 run_test "$FPATH_BIN --verbose ." "1" "$(escape_expected "ERROR: invalid command combination []")"
 run_test "$FPATH_BIN wn --verbose" "1" "$(escape_expected "ERROR: invalid command [wn]")"
-run_test "$FPATH_BIN write recover ." "1" "$(escape_expected "ERROR: invalid command combination [write recover]")"
+run_test "$FPATH_BIN write recover ." "1" "$(escape_expected "ERROR: invalid double command combination [write recover]")"
 run_test "$FPATH_BIN vwidhsqre ." "1" "$(escape_expected "ERROR: invalid command combination [verify write index delete hide show query recover sweep]")"
 # echo "ERROR: unknown short operation '$c' in '$arg'" >&2 # should never happen unless the code is defined wrong
 
@@ -230,7 +230,7 @@ mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: hashes not exclusively hidden in [$ROH_DIR]")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
+run_test "$FPATH_BIN verify index --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
 echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.$HASH"

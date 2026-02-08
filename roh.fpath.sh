@@ -13,6 +13,7 @@ usage() {
 	echo "      v|verify     Verify computed hashes against stored hashes"
     echo "      w|write      Write SHA256 hashes for files into .roh directory"
 	echo "      i|index      Index all the hash files in a DB file (sqlite3 required)"
+	echo "      verify index ..."
 	echo "      write index ..."
     echo "      d|delete     Delete hash files for specified files"
     echo "      h|hide       Move hash files from file's directory to .roh"
@@ -928,20 +929,23 @@ fi
 visibility_mode="none"
 
 if [ ${#commands[@]} -eq 2 ]; then
-	if [ "$globspec_mode" = "true" ] || ! contains "write"; then 
-		echo "ERROR: invalid command combination [${commands[@]}]" >&2
+	if [ "$globspec_mode" = "true" ]; then 
+		echo "ERROR: invalid globspec command combination [${commands[@]}]" >&2
 		usage
 		exit 1	
 	fi
 
-	if contains "index" || contains "sweep"; then
+
+	if contains "verify" && contains "index"; then
 		:
-	elif contains "show"; then
+	elif contains "write" && ( contains "index" || contains "sweep" ); then
+		:
+	elif contains "write" && contains "show"; then
 		visibility_mode="show"
-	elif contains "hide"; then
+	elif contains "write" && contains "hide"; then
 		visibility_mode="hide"
 	else
-		echo "ERROR: invalid command combination [${commands[@]}]" >&2
+		echo "ERROR: invalid double command combination [${commands[@]}]" >&2
 		usage
 		exit 1	
 	fi
