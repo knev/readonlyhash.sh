@@ -8,7 +8,7 @@ HASH="sha256"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|<<verify|copy> --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <FPATH> [--resume-at STRING]"
+    echo "Usage: $(basename "$0") <COMMAND|<<verify|copy> --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <FPATH/FN.roh.txt> [--resume-at STRING]"
 	echo "      init            ..."
 	echo "      verify          ..."
 	echo "      archive         ..."
@@ -20,6 +20,10 @@ usage() {
 	echo "      --rebase        ..."
     echo "  -v, --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
+	echo 
+	echo
+	echo "Other operations: "
+	echo "      while IFS= read -r line; do ... \"\$line\"; done < FILENAME.roh.txt"
     echo
 }
 
