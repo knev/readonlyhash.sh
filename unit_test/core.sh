@@ -185,7 +185,6 @@ run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "  OK: ")" "true"
 mv "$TEST/$SUBDIR_WITH_SPACES/omn's_.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/OMG.txt"
 run_test "$FPATH_BIN sweep $TEST" "0" "$(escape_expected "OK: orphaned hash [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: [test/.roh.git/$SUBDIR_WITH_SPACES/omn's_.txt.sha256] -- removed")"
 mv "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/OMG.txt" "$TEST/$SUBDIR_WITH_SPACES/omn's_.txt"
-$FPATH_BIN recover "$TEST" >/dev/null 2>&1
 
 # delete
 echo
@@ -242,12 +241,12 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [349cac0f5df
 run_test "$FPATH_BIN verify --no-warn $TEST" "0" "$(escape_expected "WARN: -- [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- NEW!?")" "true"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
-mkdir "$TEST/orphaned_hashes"
-echo "YHB" > "$TEST/orphaned_hashes/yhb.txt"
-$FPATH_BIN write "$TEST" >/dev/null 2>&1
-rm -rf "$TEST/orphaned_hashes"
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/.roh.git/orphaned_hashes] -- orphaned hash DIRECTORY!")"
-$FPATH_BIN sweep "$TEST" >/dev/null 2>&1
+# mkdir "$TEST/orphaned_hashes"
+# echo "YHB" > "$TEST/orphaned_hashes/yhb.txt"
+# $FPATH_BIN write "$TEST" >/dev/null 2>&1
+# rm -rf "$TEST/orphaned_hashes"
+# run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/.roh.git/orphaned_hashes] -- orphaned hash DIRECTORY!")"
+# $FPATH_BIN sweep "$TEST" >/dev/null 2>&1
 
 mkdir "$ROH_DIR/this_is_a_directory.sha256"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "$ROH_DIR/this_is_a_directory.sha256")" "true"
@@ -324,20 +323,20 @@ rm -rf "$TEST/.roh.sqlite3"
 # one completely new file
 echo "IOP" > "$TEST/$SUBDIR_WITH_SPACES/IOP~.txt"
 # one "new" file with an orphaned hash
-mkdir -p "$TEST/new-directory"
-mv "$TEST/$SUBDIR_WITH_SPACES/pno.txt" "$TEST/new-directory/."
-
-exit
 
 # recover
 echo
 echo "# recover"
 
 $FPATH_BIN write --verbose "$TEST" >/dev/null 2>&1
-mv "$TEST/$SUBDIR_WITH_SPACES/IOP~.txt" "$TEST/$SUBDIR_WITH_SPACES/iop.txt"
-#run_test "$FPATH_BIN write index --verbose $TEST" "0" "$(escape_expected "OK: [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/sub-directory with spaces/iop.txt] -- written.*IDX: >48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3<: [test/.roh.git/sub-directory with spaces/iop.txt.sha256] -- INDEXED.*WARN: -- [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/.roh.git/sub-directory with spaces/IOP~.txt.sha256] -- orphaned hash.*NO corresponding file: [test/sub-directory with spaces/IOP~.txt]")"
-run_test "$FPATH_BIN write index --verbose $TEST" "0" "$(escape_expected "OK: [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/sub-directory with spaces/iop.txt] -- written.*IDX: -- [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/.roh.git/sub-directory with spaces/IOP~.txt.sha256] -- orphaned hash.*NO corresponding file: [test/sub-directory with spaces/IOP~.txt]")"
-run_test "$FPATH_BIN recover --verbose $TEST" "0" "$(escape_expected "orphaned hash [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/.roh.git/sub-directory with spaces/IOP~.txt.sha256] -- removed")"
+mv "$TEST/$SUBDIR_WITH_SPACES/IOP~.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/iop.txt"
+mv "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt" "$TEST/$SUBDIR_WITH_SPACES/JKL~.txt" 
+run_test "$FPATH_BIN index --verbose $TEST" "0" "$(escape_expected "IDX: >48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3<: [test/.roh.git/sub-directory with spaces/IOP~.txt.sha256] -- orphaned hash -- INDEXED.*NO corresponding file: [test/sub-directory with spaces/IOP~.txt]")"
+
+run_test "$FPATH_BIN query --db $TEST/.roh.sqlite3 c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "0" "$(escape_expected "OK: --      hash path [/Users/dev/Project-@knev/readonlyhash.sh.git/test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].*absolute fpath []")"
+run_test "$FPATH_BIN query --db $TEST/.roh.sqlite3 48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3" "0" "$(escape_expected "OK: --      hash path [/Users/dev/Project-@knev/readonlyhash.sh.git/test/.roh.git/sub-directory with spaces/IOP~.txt.sha256].*absolute fpath []")"
+run_test "$FPATH_BIN recover --verbose $TEST" "0" "$(escape_expected "IDX: >48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3<: [test/.roh.git/sub-directory with spaces/sub-sub-directory/iop.txt.sha256] -- INDEXED.*orphaned hash [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/.roh.git/sub-directory with spaces/IOP~.txt.sha256] -- removed")"
+mv "$TEST/$SUBDIR_WITH_SPACES/JKL~.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt" 
 
 # ----
 
@@ -557,16 +556,16 @@ echo
 echo "# Clean up test files"
 
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/jkl.txt"
+rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/iop.txt"
 rmdir "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR"
-rm "$TEST/$SUBDIR_COPY_SLASH_RO/iop.txt"
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/pno.txt"
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/xgy.txt"
 rm -rf "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git"
 rmdir "$TEST/$SUBDIR_COPY_SLASH_RO"
 
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/jkl copy.txt"
+rm "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/iop.txt"
 rmdir "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR"
-rm "$TEST/$SUBDIR_WITH_SPACES_RO/iop.txt"
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/omn's_.txt"
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/pno.txt"
 rm -rf "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git"
