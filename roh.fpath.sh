@@ -215,18 +215,18 @@ roh_sqlite3_db_insert() {
     local stored="$4"
 	
     # Escape single quotes for SQLite
-    local fpath_fn=$(basename "$fpath")
-    local escaped_fpath_fn=${fpath_fn//\'/\'\'}
+    local fn=$(basename "$fpath")
+    local escaped_fn=${fn//\'/\'\'}
 
     local absolute_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
     local escaped_roh_hash_fpath=${absolute_roh_hash_fpath//\'/\'\'}
 
     local absolute_fpath=$(readlink -f "$fpath")
 	if [ -z "$absolute_fpath" ]; then
-		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fpath_fn', NULL, '$escaped_roh_hash_fpath');"
+		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fn', NULL, '$escaped_roh_hash_fpath');"
 	else
 		local escaped_fpath=${absolute_fpath//\'/\'\'}
-		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fpath_fn', '$escaped_fpath', '$escaped_roh_hash_fpath');"
+		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fn', '$escaped_fpath', '$escaped_roh_hash_fpath');"
 	fi
 }
 
@@ -243,11 +243,13 @@ roh_sqlite3_db_find_hash() {
 roh_sqlite3_db_find_fn() {
     local db_path="$1"
     local fn="$2"
+
     if [ ! -f "$db_path" ]; then
 		return 1
 	fi
 
-	sqlite3 "$db_path" "SELECT IFNULL(fpath, '') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$fn';"
+    local escaped_fn=${fn//\'/\'\'}
+	sqlite3 "$db_path" "SELECT IFNULL(fpath, '') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$escaped_fn';"
 }
 
 roh_sqlite3_db_find_fpath() {
