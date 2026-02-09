@@ -347,7 +347,7 @@ echo "rxn" > "$TEST/$SUBDIR_WITH_SPACES/rxn.txt"
 # db doesn't exist at $TEST/sub-dir\ copy\ :slash/.roh.sqlite3
 run_test "$FPATH_BIN recover --verbose \"$TEST/$SUBDIR_WITH_SPACES\"" "1" "$(escape_expected "ERROR: database file [test/$SUBDIR_WITH_SPACES/.roh.sqlite3] not found")"
 
-echo "XGY" > "$TEST/$SUBDIR_WITH_SPACES/xgy.txt"
+echo "XGY" > "$TEST/$SUBDIR_WITH_SPACES/xgy'.txt"
 $FPATH_BIN write --verbose "$TEST/$SUBDIR_WITH_SPACES" >/dev/null 2>&1
 $FPATH_BIN write --verbose "$TEST/sub-dir copy :slash" >/dev/null 2>&1
 mv "$TEST/$SUBDIR_WITH_SPACES" "$TEST/$SUBDIR_WITH_SPACES_RO"
@@ -390,34 +390,34 @@ echo "PNO" > "$TEST/$SUBDIR_WITH_SPACES_RO/pno.txt"
 echo "PNO" > "$TEST/$SUBDIR_COPY_SLASH_RO/pno.txt"
 
 # force "generated hash not found" in its current location will not produce anything
-echo "9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy.txt.sha256"
-run_test "$FPATH_BIN verify --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERROR: -- hash mismatch:.*  stored [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec][test/sub-directory with spaces.ro/.roh.git/xgy.txt.sha256]")"
+echo "9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256"
+run_test "$FPATH_BIN verify --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERROR: -- hash mismatch:.*  stored [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec][test/sub-directory with spaces.ro/.roh.git/xgy'.txt.sha256]")"
 
 # force "generated hash not found" in a different location
 # the index will find the original hash and hash location, double check the hashes, but the hashes won't match
-mv "$TEST/$SUBDIR_WITH_SPACES_RO/xgy.txt" "$TEST/$SUBDIR_COPY_SLASH_RO/xgy.txt"
-run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERROR:    ... hash mismatch:.* indexed [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [$PWD/test/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy.txt.sha256].* stored [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec]: [$PWD/test/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy.txt.sha256]")"
-echo "4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy.txt.sha256"
+mv "$TEST/$SUBDIR_WITH_SPACES_RO/xgy'.txt" "$TEST/$SUBDIR_COPY_SLASH_RO/xgy'.txt"
+run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERROR:    ... hash mismatch:.* indexed [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [$PWD/test/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256].* stored [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec]: [$PWD/test/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256]")"
+echo "4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256"
 
 # change two location AND alter one of the file
-echo "_XGY_" > "$TEST/$SUBDIR_COPY_SLASH_RO/xgy.txt"
-echo "_XGY_" > "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy.txt"
-run_test "$FPATH_BIN write index --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "0" "$(escape_expected "OK: [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec]: [test/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy.txt] -- written.*IDX: >9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec<: [test/$SUBDIR_COPY_SLASH_RO/.roh.git/$SUBSUBDIR/xgy.txt.sha256] -- INDEXED")"
+echo "_XGY_" > "$TEST/$SUBDIR_COPY_SLASH_RO/xgy'.txt"
+echo "_XGY_" > "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt"
+run_test "$FPATH_BIN write index --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "0" "$(escape_expected "OK: [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec]: [test/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt] -- written.*IDX: >9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec<: [test/$SUBDIR_COPY_SLASH_RO/.roh.git/$SUBSUBDIR/xgy'.txt.sha256] -- INDEXED")"
 
-run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "matching FILENAME found [$PWD/test/$SUBDIR_COPY_SLASH_RO/xgy.txt] -- hash mismatch:.* computed [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec].* stored [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]")"
+run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "matching FILENAME found [$PWD/test/$SUBDIR_COPY_SLASH_RO/xgy'.txt] -- hash mismatch:.*stored [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793].* computed [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec]")"
 #run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "matching FILENAME found [$PWD/test/$SUBDIR_COPY_SLASH_RO/xgy.txt] -- hash mismatch:.* computed [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec].* stored [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793].* matching FILENAME found [$PWD/test/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy.txt] -- hash mismatch:.* computed [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec].* stored [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]")"
 
 # this should not produce anythign, because from the perspective of this recover it is a just a new file
 run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "0" "$(escape_expected "RECOVER")" "true"
 
 # remove an indexed file that matches filename
-rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy.txt"
-run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[xgy.txt]: [$PWD/test/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy.txt] -- indexed, but missing")"
+rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt"
+run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[$PWD/test/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt] -- indexed, but missing")"
 
 # make the fpath/hash combo found at a diff location be mismatched 
-echo "adfb713b694a25d45e07a4f781c4ff71bb20aa21c34d210d0563ad3951a5c843" > "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git/xgy.txt.sha256"
-run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "... matching FILENAME found [$PWD/test/$SUBDIR_COPY_SLASH_RO/xgy.txt] -- hash mismatch:.*computed [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec].*stored [adfb713b694a25d45e07a4f781c4ff71bb20aa21c34d210d0563ad3951a5c843]")"
-echo "9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec" > "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git/xgy.txt.sha256"
+echo "adfb713b694a25d45e07a4f781c4ff71bb20aa21c34d210d0563ad3951a5c843" > "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git/xgy'.txt.sha256"
+run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "... matching FILENAME found [$PWD/test/$SUBDIR_COPY_SLASH_RO/xgy'.txt] -- hash mismatch:.*stored [adfb713b694a25d45e07a4f781c4ff71bb20aa21c34d210d0563ad3951a5c843].*computed [9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec]")"
+echo "9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec" > "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git/xgy'.txt.sha256"
 $FPATH_BIN sweep --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
 $FPATH_BIN sweep --verbose "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
  
@@ -559,7 +559,7 @@ rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/jkl.txt"
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/iop.txt"
 rmdir "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR"
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/pno.txt"
-rm "$TEST/$SUBDIR_COPY_SLASH_RO/xgy.txt"
+rm "$TEST/$SUBDIR_COPY_SLASH_RO/xgy'.txt"
 rm -rf "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git"
 rmdir "$TEST/$SUBDIR_COPY_SLASH_RO"
 

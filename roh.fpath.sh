@@ -173,6 +173,14 @@ hash_fpath_to_fpath() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
+hex_encode() {
+	printf '%s' "$1" | xxd -p | tr -d '\n'
+}
+
+hex_decode() {
+	printf '%s' "$1" | xxd -r -p
+}
+
 roh_sqlite3_db_init() {
     local db="$1"
 
@@ -216,17 +224,17 @@ roh_sqlite3_db_insert() {
 	
     # Escape single quotes for SQLite
     local fn=$(basename "$fpath")
-    local escaped_fn=${fn//\'/\'\'}
+    local enc_fn=$(hex_encode "$fn")
 
-    local absolute_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
-    local escaped_roh_hash_fpath=${absolute_roh_hash_fpath//\'/\'\'}
+    local abs_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
+    local enc_abs_roh_hash_fpath=$(hex_encode "$abs_roh_hash_fpath")
 
-    local absolute_fpath=$(readlink -f "$fpath")
-	if [ -z "$absolute_fpath" ]; then
-		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fn', NULL, '$escaped_roh_hash_fpath');"
+    local abs_fpath=$(readlink -f "$fpath")
+	if [ -z "$abs_fpath" ]; then
+		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', NULL, '$enc_abs_roh_hash_fpath');"
 	else
-		local escaped_fpath=${absolute_fpath//\'/\'\'}
-		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$escaped_fn', '$escaped_fpath', '$escaped_roh_hash_fpath');"
+		local enc_abs_fpath=$(hex_encode "$abs_fpath")
+		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', '$enc_abs_fpath', '$enc_abs_roh_hash_fpath');"
 	fi
 }
 
@@ -238,6 +246,7 @@ roh_sqlite3_db_find_hash() {
 	fi
 
 	sqlite3 "$db_path" "SELECT IFNULL(fpath, '') || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath'
 }
 
 roh_sqlite3_db_find_fn() {
@@ -248,20 +257,21 @@ roh_sqlite3_db_find_fn() {
 		return 1
 	fi
 
-    local escaped_fn=${fn//\'/\'\'}
-	sqlite3 "$db_path" "SELECT IFNULL(fpath, '') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$escaped_fn';"
+    local enc_fn=$(hex_encode "$fn")
+	sqlite3 "$db_path" "SELECT IFNULL(fpath, '') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$enc_fn';"
+	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath' \r '$stored'
 }
 
 roh_sqlite3_db_find_fpath() {
     local db_path="$1"
 	local fpath="$2"
 
-	local absolute_fpath=$(readlink -f "$fpath")
-	if [ -z "$absolute_fpath" ]; then
+	local abs_fpath=$(readlink -f "$fpath")
+	if [ -z "$abs_fpath" ]; then
 		sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = NULL;"
 	else
-		local escaped_fpath=${absolute_fpath//\'/\'\'}
-		sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = '$escaped_fpath';"	
+		local enc_abs_fpath=$(hex_encode "$abs_fpath")
+		sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = '$enc_abs_fpath';"	
 	fi
 }
 
@@ -269,12 +279,13 @@ roh_sqlite3_db_get_1fpath_hash() {
     local db_path="$1"
 	local fpath="$2"
 	
-	local absolute_fpath=$(readlink -f "$fpath")
-	if [ -z "$absolute_fpath" ]; then
+	local abs_fpath=$(readlink -f "$fpath")
+	if [ -z "$abs_fpath" ]; then
 		return "0000000000000000000000000000000000000000000000000000000000000000";
 	else
-		local escaped_fpath=${absolute_fpath//\'/\'\'}
-		sqlite3 "$DB_SQL" "SELECT hash FROM hashes WHERE fpath = '$escaped_fpath';"
+		local enc_abs_fpath=$(hex_encode "$abs_fpath")
+		sqlite3 "$DB_SQL" "SELECT hash FROM hashes WHERE fpath = '$enc_abs_fpath';"
+		# '$stored'
 	fi
 }
 
@@ -390,7 +401,6 @@ write_hash() {
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
 
 	if contains "index"; then
-
 		local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath")
 		if [ "$fpath_exists" -eq 0 ]; then
 			:
@@ -1075,14 +1085,14 @@ recover_hash() {
 
 	[ "$VERBOSE_MODE" = "true" ] && echo "RECOVER: [$stored]: [$roh_hash_fpath] -- orphaned hash"
 	
-    local fpath_fn=$(basename "$fpath")
-    # local absolute_fpath=$(readlink -f "$fpath")
-    local absolute_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
+    local fn=$(basename "$fpath")
+    local enc_fn=$(hex_encode "$fn")
 
-    # Escape single quotes for SQLite
-    local escaped_fpath_fn=${fpath_fn//\'/\'\'}
-    # local escaped_fpath=${absolute_fpath//\'/\'\'}
-    local escaped_roh_hash_fpath=${absolute_roh_hash_fpath//\'/\'\'}
+    local abs_fpath=$(readlink -f "$fpath")
+    local enc_abs_fpath=$(hex_encode "$abs_fpath")
+
+    local abs_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
+    local enc_abs_roh_hash_fpath=$(hex_encode "$abs_roh_hash_fpath")
 
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$stored")
 	[ $? -ne 0 ] && return 1
@@ -1092,17 +1102,18 @@ recover_hash() {
 		# echo "$list_roh_hash_fpaths"
 		# echo "...]"
 
-		local found_file=0
+		local files_found=0
 	
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
 	        if [ -n "$found" ]; then
-				IFS=$'\r' read -r found_fpath found_roh_hash_fpath <<< "$found"
-				# echo "[$found_fpath] [$found_roh_hash_fpath]"
+				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath <<< "$found"
+				# echo "[$found_enc_abs_fpath] [$found_enc_abs_roh_hash_fpath]"
 
 				# same hash fpath
-				if [ "$found_roh_hash_fpath" = "$absolute_roh_hash_fpath" ]; then
-					if [ -f "$found_roh_hash_fpath" ]; then
+				if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
+					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+					if [ -f "$found_abs_roh_hash_fpath" ]; then
 						continue
 					else
 						echo "this should not happen, because we are processing orphans that exist"
@@ -1111,31 +1122,33 @@ recover_hash() {
 					fi
 				fi
 
+				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+
 				# diff fpath
-				if [ -f "$found_fpath" ]; then
-					computed_hash=$(generate_hash "$found_fpath")
+				if [ -f "$found_abs_fpath" ]; then
+					computed_hash=$(generate_hash "$found_abs_fpath")
 					if [ "$computed_hash" = "$stored" ]; then
-						((found_file++))
-						if [ "$found_file" -lt 3 ]; then
-							[ "$VERBOSE_MODE" = "true" ] && echo "            ... [$found_fpath] -- duplicate FOUND"
+						((files_found++))
+						if [ "$files_found" -lt 3 ]; then
+							[ "$VERBOSE_MODE" = "true" ] && echo "            ... [$found_abs_fpath] -- duplicate FOUND"
 						fi
 					else
-						echo "  ERROR:    ... [$found_fpath] -- hash mismatch: ..."
+						echo "  ERROR:    ... [$found_abs_fpath] -- hash mismatch: ..."
 						echo "                ... computed [$computed_hash]"
 						echo "                ...   stored [$stored]"
 						((ERROR_COUNT++))
 					fi
 				else
 					# we found another orphaned hash, assume the rest of the loop will take care of it
-					[ "$VERBOSE_MODE" = "true" ] && echo "            ... [$found_fpath] -- indexed, but missing"
+					[ "$VERBOSE_MODE" = "true" ] && echo "            ... [$found_abs_fpath] -- indexed, but missing"
 				fi
 
 			fi
 	    done <<< "$list_roh_hash_fpaths"
 
-		if [ "$found_file" -ne 0 ]; then
-			if [ "$found_file" -gt 2 ]; then
-				echo "            ... $((found_file - 2)) more ..."
+		if [ "$files_found" -ne 0 ]; then
+			if [ "$files_found" -gt 2 ]; then
+				echo "            ... $((files_found - 2)) more ..."
 			fi
 			if ! rm "$roh_hash_fpath"; then
 				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
@@ -1161,7 +1174,7 @@ recover_hash() {
 	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
 	((ERROR_COUNT++))
 
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fpath_fn")
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn")
 	[ $? -ne 0 ] && return 1
 	if [ -n "$list_roh_hash_fpaths" ]; then
 
@@ -1169,22 +1182,21 @@ recover_hash() {
 		# echo "$list_roh_hash_fpaths"
 		# echo "...]"
 
-		local found_file="false"
-	
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
 			if [ -n "$found" ]; then
-				IFS=$'\r' read -r found_fpath found_roh_hash_fpath found_hash <<< "$found"
-				# echo "[$found_fpath] [$found_roh_hash_fpath]"
+				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
+				# echo "[$found_enc_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
 
 				# same fpath
-				if [ "$found_roh_hash_fpath" = "$absolute_roh_hash_fpath" ]; then
+				if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
 					# echo "found_hash: $found_hash:$stored"
-					if [ -f "$found_roh_hash_fpath" ]; then
+					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+					if [ -f "$found_abs_roh_hash_fpath" ]; then
 						if [ "$found_hash" != "$stored" ]; then
 							echo "  ERROR:    ... hash mismatch: ..."
-							echo "                ... indexed [$found_hash]: [$found_roh_hash_fpath]"
-							echo "                ...  stored [$stored]: [$absolute_roh_hash_fpath]"
+							echo "                ... indexed [$found_hash]: [$found_abs_roh_hash_fpath]"
+							echo "                ...  stored [$stored]: [$abs_roh_hash_fpath]"
 							((ERROR_COUNT++))
 						fi								
 						continue
@@ -1195,31 +1207,33 @@ recover_hash() {
 					fi
 				fi
 
+				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+
 				# diff fpath
-				if [ -f "$found_fpath" ]; then
- 					computed_hash=$(generate_hash "$found_fpath")
-					if [ -f "$found_roh_hash_fpath" ]; then
-						found_stored=$(stored_hash "$found_roh_hash_fpath")
-						if [ "$computed_hash" != "$found_stored" ]; then
-							echo "  ERROR:    ... matching FILENAME found [$found_fpath] -- hash mismatch: ..."
-							echo "                ... computed [$computed_hash]: [$found_fpath]"
-							echo "                ...   stored [$found_stored]: [$found_roh_hash_fpath]"
+				if [ -f "$found_abs_fpath" ]; then
+ 					found_computed_hash=$(generate_hash "$found_abs_fpath")
+					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+					if [ -f "$found_abs_roh_hash_fpath" ]; then
+						found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
+						if [ "$found_computed_hash" != "$found_stored" ]; then
+							echo "  ERROR:    ... matching FILENAME found [$found_abs_fpath] -- hash mismatch: ..."
+							echo "                ...   stored [$found_stored]: [$found_abs_roh_hash_fpath]"
+							echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
 							((ERROR_COUNT++))
 							continue
 						fi
 					fi
-					# echo "computed_hash: $computed_hash:$stored"
- 					if [ "$computed_hash" = "$stored" ]; then
+					# echo "computed_hash: $found_computed_hash:$stored"
+ 					if [ "$found_computed_hash" = "$stored" ]; then
 						# the indexed and found file at a different location was indexed with a wrong/outdated hash
- 						echo "         ... duplicate FOUND [$found_fpath]"
- 						found_file="true"
+ 						echo "         ... duplicate FOUND [$found_abs_fpath]"
  					else
- 						echo "            ... matching FILENAME found [$found_fpath] -- hash mismatch: ..."
-						echo "                ... computed [$computed_hash]: [$found_fpath]"
-						echo "                ...   stored [$stored]: [$absolute_roh_hash_fpath]"
+ 						echo "            ... matching FILENAME found [$found_abs_fpath] -- hash mismatch: ..."
+						echo "                ...   stored [$stored]: [$abs_roh_hash_fpath]"
+						echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
  					fi
 				else
-					echo "            ... [$fpath_fn]: [$found_fpath] -- indexed, but missing"
+					echo "            ... [$found_abs_fpath] -- indexed, but missing"
 				fi
 			fi
 	    done <<< "$list_roh_hash_fpaths"
@@ -1417,11 +1431,13 @@ if contains "query"; then
     echo "query hash: [$QUERY_HASH]"
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$QUERY_HASH")
 	[ -z "$list_roh_hash_fpaths" ] && echo "  --"
-	while IFS=$'\r' read -r fpath roh_hash_fpath; do
-		#[ -n "$fpath" ] && echo "[$fpath:$roh_hash_fpath]"
-		if [ -n "$roh_hash_fpath" ]; then
-			echo "OK: --      hash path [$roh_hash_fpath]"
-			echo "       absolute fpath [$fpath]"
+	while IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath; do
+		#[ -n "$found_enc_abs_fpath" ] && echo "[$fpath:$roh_hash_fpath]"
+		if [ -n "$found_enc_abs_roh_hash_fpath" ]; then
+			found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+			found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+			echo "OK: --      hash path [$found_abs_roh_hash_fpath]"
+			echo "       absolute fpath [$found_abs_fpath]"
 		fi
 	done <<< "$list_roh_hash_fpaths"
 #    # Loop through DB_SQL array
