@@ -369,9 +369,9 @@ verify_hash() {
 			local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath")
  			if [ "$fpath_exists" -eq 0 ]; then
  				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
- 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
+ 				echo " IDX: >$stored<: [$fpath] -- INDEXED"
  			else
- 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
+ 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$fpath] -- already indexed, skipping"
  			fi
 
 			# ----
@@ -1161,9 +1161,6 @@ recover_hash() {
 				fi
 			fi			
 			return
-		# else
-		#	echo "   WARN:    ... file DELETED !? [$fpath]"
-		#	((WARN_COUNT++))
 		fi
 
 	fi
