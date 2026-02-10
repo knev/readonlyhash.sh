@@ -1126,7 +1126,7 @@ recover_hash() {
 
 				# diff fpath
 				if [ -f "$found_abs_fpath" ]; then
-					computed_hash=$(generate_hash "$found_abs_fpath")
+					local computed_hash=$(generate_hash "$found_abs_fpath")
 					if [ "$computed_hash" = "$stored" ]; then
 						((files_found++))
 						if [ "$files_found" -lt 3 ]; then
@@ -1150,15 +1150,15 @@ recover_hash() {
 			if [ "$files_found" -gt 2 ]; then
 				echo "            ... $((files_found - 2)) more ..."
 			fi
-			if ! rm "$roh_hash_fpath"; then
-				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
-				((ERROR_COUNT++))
-			else
+			if rm "$roh_hash_fpath"; then
 				if [ "$VERBOSE_MODE" = "true" ]; then
 					echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
 				else
 					echo "RECOVER: [$stored]: [$roh_hash_fpath] -- orphaned hash removed"
 				fi
+			else
+				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
+				((ERROR_COUNT++))
 			fi			
 			return
 		fi
