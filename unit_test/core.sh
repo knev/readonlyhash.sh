@@ -335,7 +335,7 @@ run_test "$FPATH_BIN index --verbose $TEST" "0" "$(escape_expected "IDX: >48ab83
 
 run_test "$FPATH_BIN query --db $TEST/.roh.sqlite3 c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "0" "$(escape_expected "OK: --      hash path [/Users/dev/Project-@knev/readonlyhash.sh.git/test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].*absolute fpath []")"
 run_test "$FPATH_BIN query --db $TEST/.roh.sqlite3 48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3" "0" "$(escape_expected "OK: --      hash path [/Users/dev/Project-@knev/readonlyhash.sh.git/test/.roh.git/sub-directory with spaces/IOP~.txt.sha256].*absolute fpath []")"
-run_test "$FPATH_BIN recover --verbose $TEST" "0" "$(escape_expected "IDX: >48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3<: [test/.roh.git/sub-directory with spaces/sub-sub-directory/iop.txt.sha256] -- INDEXED.*orphaned hash [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/.roh.git/sub-directory with spaces/IOP~.txt.sha256] -- removed")"
+run_test "$FPATH_BIN recover --verbose $TEST" "0" "$(escape_expected "IDX: >48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3<: [test/sub-directory with spaces/sub-sub-directory/iop.txt] -- INDEXED.*orphaned hash [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/.roh.git/sub-directory with spaces/IOP~.txt.sha256] -- removed")"
 mv "$TEST/$SUBDIR_WITH_SPACES/JKL~.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt" 
 
 # ----
