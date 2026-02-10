@@ -245,7 +245,7 @@ roh_sqlite3_db_find_hash() {
 		return 1
 	fi
 
-	sqlite3 "$db_path" "SELECT IFNULL(fpath, '') || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+	sqlite3 "$db_path" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
 	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath'
 }
 
@@ -258,7 +258,7 @@ roh_sqlite3_db_find_fn() {
 	fi
 
     local enc_fn=$(hex_encode "$fn")
-	sqlite3 "$db_path" "SELECT IFNULL(fpath, '') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$enc_fn';"
+	sqlite3 "$db_path" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$enc_fn';"
 	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath' \r '$stored'
 }
 
