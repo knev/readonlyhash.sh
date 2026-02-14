@@ -378,8 +378,7 @@ verify_hash() {
 
 			return 0
 		else
-			echo "ERROR: -- [$computed_hash]: [$fpath] -- NEW!?"
-			((ERROR_COUNT++))
+			[ "$VERBOSE_MODE" = "true" ] && echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
 		fi
 
 	elif [ "$no_warn" != "true" ]; then
