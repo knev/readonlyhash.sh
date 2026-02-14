@@ -396,8 +396,10 @@ copy_to_target() {
  		echo
  		exit 1
 	fi
+	if [ -d "$dir_rebased".ro ]; then
+		dir_rebased="$dir_rebased.ro"
+	fi
 	# echo "* [$rebase_string] => [$dir_rebased]"
-
 
 	# parent_dir="blammy/cheeze"
 	# echo "ECHO ${parent_dir}/${dir#*${parent_dir}/}"
