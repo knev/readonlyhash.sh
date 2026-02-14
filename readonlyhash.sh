@@ -436,7 +436,7 @@ copy_to_target() {
  		# echo "Renamed [$dir_rebased] to [$dir_rebased_ro]"
 		echo "Renamed [${rebase_target}/${dir_rebased#*${rebase_target}/}] to [${rebase_target}/${dir_rebased_ro#*${rebase_target}/}]"
 	else
-		exit 1
+		echo "[$dir_rebased]"
 	fi
  	echo "$dir_rebased_ro" >> "$LOOP_TXT_RO"
 }
