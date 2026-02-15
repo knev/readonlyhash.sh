@@ -857,6 +857,8 @@ roh_dir_mode="false"
 roh_dir="_INVALID_"
 db=""
 force_mode="false"
+only_files="false"
+only_hashes="false"
 no_warn="false"
 while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
@@ -879,6 +881,12 @@ while getopts "h-:" opt; do
         force)
           force_mode="true"
           ;;
+		only-files)
+		  only_files="true"
+		  ;;
+		only-hashes)
+		  only_hashes="true"
+		  ;;
         no-warn)
           no_warn="true"
           ;;
@@ -1460,13 +1468,13 @@ if contains "query"; then
     exit 0
 fi
 
-if contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
+if contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover" || [ "only_hashes" = "true" ]; then
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
 	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi
 
-if contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
+if contains "verify" || contains "recover" || contains "sweep" || contains "index" || [ "only_files" = "true" ]; then
 	hash_maintanence # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi
