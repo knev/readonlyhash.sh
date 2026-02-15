@@ -8,30 +8,35 @@ usage() {
 	echo
     echo "Usage: $(basename "$0") <COMMAND|<write|show|hide> [--force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
     echo "       $(basename "$0") <write|verify> -- <PATH/GLOBSPEC>"
-    echo "       $(basename "$0") <query [--db PATH] <HASH> --loop-txt"
+    echo "       $(basename "$0") <query [--db PATH] [ROOT] -- <HASH>"
     echo "Commands:"
-	echo "      v|verify     Verify computed hashes against stored hashes"
-    echo "      w|write      Write SHA256 hashes for files into .roh directory"
-	echo "      i|index      Index all the hash files in a DB file (sqlite3 required)"
-	echo "      verify index ..."
-	echo "      write index ..."
-    echo "      d|delete     Delete hash files for specified files"
-    echo "      h|hide       Move hash files from file's directory to .roh"
-    echo "      s|show       Move hash files from .roh to file's directory"
-	echo "      write show ..."
-	echo "      write hide ..."
-	echo "      q|query      ..."
-    echo "      r|recover    Operates on the hashes, trying to match to corresponding files"
-	echo "      e|sweep      Execute the hash maintanence only"
-	echo "      write sweep ..."
+	echo "      v|verify         Verify computed hashes against stored hashes; check for orphaned hashes"
+    echo "      w|write          Write SHA256 hashes for existing files"
+	echo "      i|index          Index hash files in a DB (sqlite3 required), including orphaned hashes"
+	echo "      verify index     ..."
+	echo "      write index      .."
+    echo "      d|delete         Delete hash related to files"
+    echo "      h|hide           Move hash files from the files location to .roh"
+    echo "      s|show           Move hash files from .roh to the file's location"
+	echo "      write show       ."
+	echo "      write hide       ."
+	echo "      q|query          ..."
+	echo "      index query      .."
+    echo "      r|recover        Write/index files with hashes found in the DB; remove orphaned duplicates"
+	echo "      index recover     ..."
+	echo "      e|sweep          Remove all orphaned hashes"
+	echo "      write sweep      ..."
+	echo "      delete sweep     ..."
 	echo
 	echo "Options:"
-	echo "      --roh-dir  Specify the readonly hash path"
-    echo "      --force    Force operation even if hash files do not match"
-	echo "      --no-warn  ..."
-	echo "      --verbose  Verbose operational output"
-	echo "      --db       ..."
-    echo "  -h, --help     Display this help and exit"
+	echo "      --verbose      Verbose operational output"
+    echo "      --force        Force operation even if hash files do not match"
+	echo "      --roh-dir      Specify the readonly hash path"
+	echo "      --db           ..."
+	echo "      --only-files   ..."
+	echo "      --only-hashes  ..."
+	echo "      --no-warn      ..."
+    echo "  -h, --help         Display this help and exit"
 	echo
 }
 
@@ -967,9 +972,9 @@ if [ ${#commands[@]} -eq 2 ]; then
 	fi
 
 
-	if contains "verify" && contains "index"; then
+	if contains "index" && ( contains "query" || contains "recover" || contains "verify" || contains "write"); then
 		:
-	elif contains "write" && ( contains "index" || contains "sweep" ); then
+	elif contains "sweep" && ( contains "write" || contains "delete" ); then
 		:
 	elif contains "write" && contains "show"; then
 		visibility_mode="show"
@@ -1326,34 +1331,40 @@ process_hash_repo()
 			local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
 			# echo "   * fpath: [$fpath]"
 
-	 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on delete|write
+	 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on sweep
 	 		if ! stat "$fpath" >/dev/null 2>&1; then
 	 			local stored=$(stored_hash "$roh_hash_fpath")
-	 			if contains "delete" || contains "sweep"; then
+	 			if contains "sweep"; then
 	 				if ! rm "$roh_hash_fpath"; then
 	 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 	 					((ERROR_COUNT++))
 	 				else
 	 					echo "OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
+						continue;
 	 				fi
-	 			elif contains "recover"; then
-	 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-	 				[ $? -ne 0 ] && return 1
- 	 			elif contains "index"; then
- 	 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- orphaned hash -- INDEXED"
- 	 				[ "$VERBOSE_MODE" = "true" ] && echo "                                                      NO corresponding file: [$fpath]"
-				    # list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$stored")
-    				# if [ -z "$list_roh_hash_fpaths" ]; then 
-					roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-					# fi
-	 			else
+				fi
+				if contains "verify"; then
 	 				echo "ERROR: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
 	 				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
 	 				echo "                                                       NO corresponding file: [$fpath]"
 	 				((ERROR_COUNT++))
 	 			fi
-			
+ 	 			if contains "index"; then
+ 	 				if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
+						echo " IDX: >$stored<: [$roh_hash_fpath] -- orphaned hash -- INDEXED"
+					fi
+ 	 				[ "$VERBOSE_MODE" = "true" ] && echo "                                                      NO corresponding file: [$fpath]"
+				    # list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$stored")
+    				# if [ -z "$list_roh_hash_fpaths" ]; then 
+					roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+					# fi
+				fi
+	 			if contains "recover"; then
+	 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+	 				[ $? -ne 0 ] && return 1
+				fi
+
 			else
 		 		if contains "index"; then
 		 			local stored=$(stored_hash "$roh_hash_fpath")
@@ -1389,7 +1400,7 @@ hash_maintanence() {
 	process_hash_repo "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" 
 
 	# This will fail if git is being used
-	if contains "delete" || contains "sweep" || contains "show"; then
+	if contains "sweep" || contains "show"; then
 		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
 			if ! rmdir "$ROH_DIR"; then
@@ -1401,7 +1412,7 @@ hash_maintanence() {
 		fi
 	fi
 
-	if contains "delete"; then
+	if contains "delete" && contains "sweep"; then
 		if [ -f "$DB_SQL" ]; then
 			if rm "$DB_SQL"; then
 				echo "Removing DB_SQL [$DB_SQL]"
@@ -1449,16 +1460,16 @@ if contains "query"; then
     exit 0
 fi
 
-# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
-if [ ${#commands[@]} -eq 1 ] && contains "index" && contains "sweep"; then
-	:
-else
+if contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
+	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
 	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi
 
-hash_maintanence # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
-[ $? -ne 0 ] && echo && exit 1
+if contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
+	hash_maintanence # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
+	[ $? -ne 0 ] && echo && exit 1
+fi
 
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
 	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
