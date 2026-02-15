@@ -622,18 +622,18 @@ manage_hash_visibility() {
 			mkdir -p "$roh_hash_just_path"
 		fi
         mv "$src_fpath" "$dest_fpath"
-        [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$dest_fpath] -- moved($past_tense)"
+        [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath]: [$dest_fpath] hash file -- moved($past_tense)"
         return 0
 	else
 		if [ -f "$dest_fpath" ]; then
 		# 	local stored=$(stored_hash "$dest_fpath")
 		# 	if [ "$computed_hash" = "$stored" ]; then
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$dest_fpath] already exists($past_tense) -- nothing to move($action), NOOP"
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath]: [$dest_fpath] hash file already exists($past_tense) -- nothing to move($action), NOOP"
 			return 0  # No error
 		# 	fi
 		fi
 
-        echo "ERROR: [$fpath] -- hash file [$src_fpath] -- NOT found, not $past_tense"
+        echo "ERROR: [$fpath]: [$src_fpath] hash file -- NOT found, not $past_tense"
         ((ERROR_COUNT++))
         return 0
     fi
