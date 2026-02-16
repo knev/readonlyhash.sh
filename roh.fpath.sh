@@ -512,11 +512,11 @@ write_hash() {
 		if [ "$visibility_mode" = "show" ]; then
 			# write to $dir_hash_fpath, because it exist, then let visibility handle the move
 			echo "$new_hash" > "$dir_hash_fpath"
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$dir_hash_fpath] -- written"
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$fpath] -- file hash written"
 		else
 			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 			if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-				[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$roh_hash_fpath] -- written"
+				[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$fpath] -- file hash written"
 			else
 				echo "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
 				((ERROR_COUNT++))
