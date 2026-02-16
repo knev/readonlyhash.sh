@@ -1494,14 +1494,17 @@ if contains "query"; then
     exit 0
 fi
 
-if contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover" || [ "only_hashes" = "true" ]; then
+if [ "$only_hashes" = "true" ]; then
+	:
+elif contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
 	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi
 
-if contains "verify" || contains "recover" || contains "sweep" || contains "index" || [ "only_files" = "true" ]; then
-	hash_maintanence # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
+if [ "$only_files" = "true" ]; then
+	:
+elif contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi

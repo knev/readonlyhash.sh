@@ -315,6 +315,7 @@ $FPATH_BIN write index --verbose "$TEST" >/dev/null 2>&1
 # removing the indexed file, should not write a hash (since there is no file) and also not index
 rm "$TEST/file with spaces.txt"
 run_test "$FPATH_BIN write index --verbose $TEST" "0" "$(escape_expected "[test/.roh.git/file with spaces.txt.sha256] -- orphaned hash")"
+run_test "$FPATH_BIN verify --only-hashes --verbose $TEST" "1" "$(escape_expected "[test/.roh.git/file with spaces.txt.sha256] -- orphaned hash")"
 echo "ZYXW" > "$TEST/file with spaces.txt"
 
 $FPATH_BIN delete sweep --verbose "$TEST" >/dev/null 2>&1
