@@ -1403,7 +1403,7 @@ process_hash_repo()
 
 
 hash_maintanence() {
-#    local dir="$2"
+    local dir="$1"
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 #	local visibility_mode="$3"
 #   local force_mode="$4"
@@ -1413,7 +1413,7 @@ hash_maintanence() {
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
 
 	echo "Hash maintanence ..."
-	process_hash_repo "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" 
+	process_hash_repo "$dir"
 
 	# This will fail if git is being used
 	if contains "sweep" || contains "show"; then
@@ -1484,6 +1484,7 @@ fi
 
 if contains "verify" || contains "recover" || contains "sweep" || contains "index" || [ "only_files" = "true" ]; then
 	hash_maintanence # "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
+	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi
 
