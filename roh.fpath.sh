@@ -1486,9 +1486,14 @@ if [ "$globspec_mode" = "true" ]; then
 fi
 
 if contains "index" && ( contains "write" || contains "recover" || contains "query" ); then
+	cmds_copy=("${commands[@]}")
+	commands=("index")
+
 	echo "Indexing ..."
 	hash_maintanence "${ROH_DIR%/}" # "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
+
+	commands=("${cmds_copy[@]/index}")
 fi
 
 if contains "query"; then
