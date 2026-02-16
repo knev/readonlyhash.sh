@@ -1049,54 +1049,6 @@ if contains "recover" || contains "index"; then
 	fi
 fi
 
-if [ "$globspec_mode" = "true" ]; then
-	# echo "* $@"
-	for fpath in "$@"; do
-		if ! [ -f "$fpath" ]; then
-			echo "WARN: [$fpath] not a file -- SKIPPING"
-			((WARN_COUNT++))
-			continue
-		fi
-
-		[[ "${fpath}" = *.sha256 ]] && continue
-
-		computed_hash=$(generate_hash "$fpath")
-		dir_hash_fpath="$fpath.$HASH"
-		# echo "* dir_hash_fpath: [$dir_hash_fpath]"
-
-		if contains "write"; then
-			if echo "$computed_hash" > "$dir_hash_fpath" 2>/dev/null; then
-				echo "  OK: [$computed_hash]: \"$(basename "$fpath")\""
-			else
-				echo "ERROR: can not generate hash for [$fpath]"
-				((ERROR_COUNT++))
-			fi
-		
-		elif contains "verify"; then
-			stored=$(stored_hash "$dir_hash_fpath")
-        
-			if [ "$computed_hash" = "$stored" ]; then
-				echo "  OK: [$fpath] -- hash matches: [$computed_hash]"
-			else
-				echo "ERROR: [$fpath] -- hash mismatch: stored [$stored], computed [$computed_hash]"
-				((ERROR_COUNT++))
-			fi
-		fi
-	done
-	if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
-		echo "Number of ERRORs encountered: [$ERROR_COUNT]"
-		echo "Number of ...       WARNings: [$WARN_COUNT]"
-		echo
-		if [ $ERROR_COUNT -gt 0 ]; then
-			exit 1
-		fi
-		exit 0 # WARNings
-	fi
-
-	echo "Done."
-	exit 0
-fi
-
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 recover_hash() {
@@ -1448,6 +1400,54 @@ hash_maintanence() {
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
+
+if [ "$globspec_mode" = "true" ]; then
+	# echo "* $@"
+	for fpath in "$@"; do
+		if ! [ -f "$fpath" ]; then
+			echo "WARN: [$fpath] not a file -- SKIPPING"
+			((WARN_COUNT++))
+			continue
+		fi
+
+		[[ "${fpath}" = *.sha256 ]] && continue
+
+		computed_hash=$(generate_hash "$fpath")
+		dir_hash_fpath="$fpath.$HASH"
+		# echo "* dir_hash_fpath: [$dir_hash_fpath]"
+
+		if contains "write"; then
+			if echo "$computed_hash" > "$dir_hash_fpath" 2>/dev/null; then
+				echo "  OK: [$computed_hash]: \"$(basename "$fpath")\""
+			else
+				echo "ERROR: can not generate hash for [$fpath]"
+				((ERROR_COUNT++))
+			fi
+		
+		elif contains "verify"; then
+			stored=$(stored_hash "$dir_hash_fpath")
+        
+			if [ "$computed_hash" = "$stored" ]; then
+				echo "  OK: [$fpath] -- hash matches: [$computed_hash]"
+			else
+				echo "ERROR: [$fpath] -- hash mismatch: stored [$stored], computed [$computed_hash]"
+				((ERROR_COUNT++))
+			fi
+		fi
+	done
+	if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
+		echo "Number of ERRORs encountered: [$ERROR_COUNT]"
+		echo "Number of ...       WARNings: [$WARN_COUNT]"
+		echo
+		if [ $ERROR_COUNT -gt 0 ]; then
+			exit 1
+		fi
+		exit 0 # WARNings
+	fi
+
+	echo "Done."
+	exit 0
+fi
 
 if contains "query"; then
     QUERY_HASH="$ROOT"
