@@ -1312,12 +1312,12 @@ process_hash_repo()
 
         elif [ -f "$roh_hash_fpath" ]; then
 
+			local stored=$(stored_hash "$roh_hash_fpath")
 			local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
 			# echo "   * fpath: [$fpath]"
 
 	 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on sweep
 	 		if ! stat "$fpath" >/dev/null 2>&1; then
-	 			local stored=$(stored_hash "$roh_hash_fpath")
 	 			if contains "sweep"; then
 	 				if ! rm "$roh_hash_fpath"; then
 	 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
