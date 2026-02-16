@@ -997,7 +997,7 @@ fi
 visibility_mode="none"
 
 if [ ${#commands[@]} -eq 2 ]; then
-	if [ "$globspec_mode" = "true" ]; then 
+	if [ "$globspec_mode" = "true" ] && ! contains "query"; then 
 		echo "ERROR: invalid globspec command combination [${commands[@]}]" >&2
 		usage
 		exit 1	
@@ -1415,9 +1415,42 @@ hash_maintanence() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
+process_query() {
+    local db="$1"
+	local query_hash="$2"
+
+    echo "query hash: [$query_hash]"
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$query_hash")
+	[ -z "$list_roh_hash_fpaths" ] && echo "  --"
+	while IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath; do
+		#[ -n "$found_enc_abs_fpath" ] && echo "[$fpath:$roh_hash_fpath]"
+		if [ -n "$found_enc_abs_roh_hash_fpath" ]; then
+			found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+			found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+			echo "OK: --      hash path [$found_abs_roh_hash_fpath]"
+			echo "       absolute fpath [$found_abs_fpath]"
+		fi
+	done <<< "$list_roh_hash_fpaths"
+#    # Loop through DB_SQL array
+#    for db_path in "${DB_SQL[@]}"; do
+#		echo "db: [$db_path]"
+#        list_roh_hash_fpaths=$(roh_sqlite3_db_search "$db_path" "$QUERY_HASH")
+#        # Only print non-empty paths
+#        while IFS= read -r fpath; do
+#            [ -n "$fpath" ] && echo "[$fpath]"
+#        done <<< "$list_roh_hash_fpaths"
+#    done
+}
+
 if [ "$globspec_mode" = "true" ]; then
 	# echo "* $@"
 	for fpath in "$@"; do
+		if contains "query"; then
+			QUERY_HASH="$fpath"
+			process_query "$DB_SQL" "$QUERY_HASH"
+			continue
+		fi
+
 		if ! [ -f "$fpath" ]; then
 			echo "WARN: [$fpath] not a file -- SKIPPING"
 			((WARN_COUNT++))
@@ -1454,28 +1487,9 @@ if [ "$globspec_mode" = "true" ]; then
 fi
 
 if contains "query"; then
-    QUERY_HASH="$ROOT"
-    echo "query hash: [$QUERY_HASH]"
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$QUERY_HASH")
-	[ -z "$list_roh_hash_fpaths" ] && echo "  --"
-	while IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath; do
-		#[ -n "$found_enc_abs_fpath" ] && echo "[$fpath:$roh_hash_fpath]"
-		if [ -n "$found_enc_abs_roh_hash_fpath" ]; then
-			found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-			found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
-			echo "OK: --      hash path [$found_abs_roh_hash_fpath]"
-			echo "       absolute fpath [$found_abs_fpath]"
-		fi
-	done <<< "$list_roh_hash_fpaths"
-#    # Loop through DB_SQL array
-#    for db_path in "${DB_SQL[@]}"; do
-#		echo "db: [$db_path]"
-#        list_roh_hash_fpaths=$(roh_sqlite3_db_search "$db_path" "$QUERY_HASH")
-#        # Only print non-empty paths
-#        while IFS= read -r fpath; do
-#            [ -n "$fpath" ] && echo "[$fpath]"
-#        done <<< "$list_roh_hash_fpaths"
-#    done
+    QUERY_HASH="$PATHSPEC"
+	process_query "$DB_SQL" "$QUERY_HASH"
+
     echo "Done."
     exit 0
 fi
