@@ -244,44 +244,46 @@ roh_sqlite3_db_insert() {
 }
 
 roh_sqlite3_db_find_hash() {
-    local db_path="$1"
+    local db="$1"
     local stored="$2"
-    if [ ! -f "$db_path" ]; then
+
+    if [ ! -f "$db" ]; then
 		return 1
 	fi
 
-	sqlite3 "$db_path" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+	sqlite3 "$db" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
 	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath'
 }
 
 roh_sqlite3_db_find_fn() {
-    local db_path="$1"
+    local db="$1"
     local fn="$2"
 
-    if [ ! -f "$db_path" ]; then
+    if [ ! -f "$db" ]; then
 		return 1
 	fi
 
     local enc_fn=$(hex_encode "$fn")
-	sqlite3 "$db_path" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$enc_fn';"
+	sqlite3 "$db" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$enc_fn';"
 	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath' \r '$stored'
 }
 
 roh_sqlite3_db_find_fpath() {
-    local db_path="$1"
+    local db="$1"
 	local fpath="$2"
+	local stored="$3"
 
 	local abs_fpath=$(readlink -f "$fpath")
 	if [ -z "$abs_fpath" ]; then
-		sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = NULL;"
+		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE hash = '$stored';"
 	else
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
-		sqlite3 "$DB_SQL" "SELECT COUNT(*) FROM hashes WHERE fpath = '$enc_abs_fpath';"	
+		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE fpath = '$enc_abs_fpath';"	
 	fi
 }
 
 roh_sqlite3_db_get_1fpath_hash() {
-    local db_path="$1"
+    local db="$1"
 	local fpath="$2"
 	
 	local abs_fpath=$(readlink -f "$fpath")
@@ -289,7 +291,7 @@ roh_sqlite3_db_get_1fpath_hash() {
 		return "0000000000000000000000000000000000000000000000000000000000000000";
 	else
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
-		sqlite3 "$DB_SQL" "SELECT hash FROM hashes WHERE fpath = '$enc_abs_fpath';"
+		sqlite3 "$db" "SELECT hash FROM hashes WHERE fpath = '$enc_abs_fpath';"
 		# '$stored'
 	fi
 }
