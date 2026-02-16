@@ -506,18 +506,24 @@ write_hash() {
 
 	# exist-R=F         , exist-D=F
 	if ! [ -f "$dir_hash_fpath" ] && ! [ -f "$roh_hash_fpath" ]; then
-
 		# write to R
 		local new_hash=$(generate_hash "$fpath")
-		local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 	
-		if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$fpath] -- written"
+		if [ "$visibility_mode" = "show" ]; then
+			# write to $dir_hash_fpath, because it exist, then let visibility handle the move
+			echo "$new_hash" > "$dir_hash_fpath"
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$dir_hash_fpath] -- written"
 		else
-			echo "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
-			((ERROR_COUNT++))
-			return 0  # Signal that an error occurred
+			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+			if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
+				[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$roh_hash_fpath] -- written"
+			else
+				echo "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
+				((ERROR_COUNT++))
+				return 0  # Signal that an error occurred
+			fi
 		fi
+		return 0
 	fi
 
 	# exist-R=F         , exist-D=T (eq-D=T) // sh= T, nop
@@ -1417,32 +1423,22 @@ if [ "$globspec_mode" = "true" ]; then
 			((WARN_COUNT++))
 			continue
 		fi
-
+		
 		[[ "${fpath}" = *.sha256 ]] && continue
+	
+		dir=$(dirname -- "$fpath")
+		entry="$fpath"
 
-		computed_hash=$(generate_hash "$fpath")
-		dir_hash_fpath="$fpath.$HASH"
-		# echo "* dir_hash_fpath: [$dir_hash_fpath]"
+		VERBOSE_MODE="true" 
 
 		if contains "write"; then
-			if echo "$computed_hash" > "$dir_hash_fpath" 2>/dev/null; then
-				echo "  OK: [$computed_hash]: \"$(basename "$fpath")\""
-			else
-				echo "ERROR: can not generate hash for [$fpath]"
-				((ERROR_COUNT++))
-			fi
-		
-		elif contains "verify"; then
-			stored=$(stored_hash "$dir_hash_fpath")
-        
-			if [ "$computed_hash" = "$stored" ]; then
-				echo "  OK: [$fpath] -- hash matches: [$computed_hash]"
-			else
-				echo "ERROR: [$fpath] -- hash mismatch: stored [$stored], computed [$computed_hash]"
-				((ERROR_COUNT++))
-			fi
+			write_hash "$dir" "$entry" "show" "$force_mode"
+		fi
+		if contains "verify"; then
+			verify_hash "$dir" "$entry" "$no_warn"
 		fi
 	done
+
 	if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
 		echo "Number of ERRORs encountered: [$ERROR_COUNT]"
 		echo "Number of ...       WARNings: [$WARN_COUNT]"
