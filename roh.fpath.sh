@@ -634,9 +634,17 @@ manage_hash_visibility() {
 
 		if [ "$action" = "hide" ]; then
 			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-			mkdir -p "$roh_hash_just_path"
+			if ! mkdir -p "$roh_hash_just_path" 2>/dev/null; then
+				echo "ERROR: [$fpath] -- failed to make (hash) directory [$roh_hash_just_path]"
+				((ERROR_COUNT++))
+				return 0
+			fi
 		fi
-        mv "$src_fpath" "$dest_fpath"
+		if ! mv -- "$src_fpath" "$dest_fpath" 2>/dev/null; then
+			echo "ERROR: [$fpath]: [$src_fpath] to [$dest_fpath] -- failed to move hash file"
+			((ERROR_COUNT++))
+			return 0
+		fi
         [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath]: [$dest_fpath] hash file -- moved($past_tense)"
         return 0
 	else

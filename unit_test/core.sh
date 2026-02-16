@@ -58,7 +58,10 @@ SUBDIR_WITH_SPACES="sub-directory with spaces"
 SUBSUBDIR="sub-sub-directory"
 SUBDIR_COPY_SLASH_RO="sub-dir copy :slash".ro 
 SUBDIR_WITH_SPACES_RO="$SUBDIR_WITH_SPACES".ro
-rm -rf "$TEST"
+if [ -d $TEST ]; then 
+	chmod -R 777 $TEST
+	rm -rf "$TEST"
+fi
 
 mkdir -p "$TEST"
 echo "DS_Store" > "$TEST/.DS_Store"
