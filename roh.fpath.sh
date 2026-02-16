@@ -1334,14 +1334,16 @@ process_hash_repo()
 	 				((ERROR_COUNT++))
 	 			fi
  	 			if contains "index"; then
-				    # list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$DB_SQL" "$stored")
-    				# if [ -z "$list_roh_hash_fpaths" ]; then 
-					roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-					# fi
- 	 				if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
-						echo " IDX: >$stored<: [$roh_hash_fpath] -- orphaned hash -- INDEXED"
-					fi
- 	 				[ "$VERBOSE_MODE" = "true" ] && echo "                                                      NO corresponding file: [$fpath]"
+   			        local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "$stored")
+   			        if [ "$fpath_exists" -eq 0 ]; then
+						roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+						if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
+							echo " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
+						fi
+						[ "$VERBOSE_MODE" = "true" ] && echo "                                                      NO corresponding file: [$fpath]"
+   			        else
+   			             [ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
+   			        fi
 				fi
 	 			if contains "recover"; then
 	 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
