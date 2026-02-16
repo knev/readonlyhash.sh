@@ -532,11 +532,11 @@ write_hash() {
 
 	if [ "$visibility_mode" = "show" ] && [ -f "$roh_hash_fpath" ]; then
 		# move R->D: show
-		manage_hash_visibility "$dir" "$entry" "show" "$force_mode"
+		manage_hash_visibility "$dir" "$fpath" "show" "$force_mode"
 
 	elif [ "$visibility_mode" != "show" ] && [ -f "$dir_hash_fpath" ]; then
 		# move D->R: hide
-		manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
+		manage_hash_visibility "$dir" "$fpath" "hide" "$force_mode"
 	
 	# else
 	#	echo "  OK: [$computed_hash]: [$dir] \"$(basename "$fpath")\""
@@ -570,6 +570,8 @@ write_hash() {
 	# 		return 0  
 	# 	fi
 	# fi
+
+	return 0
 }
 
 # Function to delete hash files
