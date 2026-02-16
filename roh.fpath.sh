@@ -1378,7 +1378,6 @@ hash_maintanence() {
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
 
-	echo "Hash maintanence ..."
 	process_hash_repo "$dir"
 
 	# This will fail if git is being used
@@ -1486,6 +1485,12 @@ if [ "$globspec_mode" = "true" ]; then
 	exit 0
 fi
 
+if contains "index" && ( contains "write" || contains "recover" || contains "query" ); then
+	echo "Indexing ..."
+	hash_maintanence "${ROH_DIR%/}" # "$visibility_mode" "$force_mode" "$no_warn"
+	[ $? -ne 0 ] && echo && exit 1
+fi
+
 if contains "query"; then
     QUERY_HASH="$PATHSPEC"
 	process_query "$DB_SQL" "$QUERY_HASH"
@@ -1498,6 +1503,7 @@ if [ "$only_hashes" = "true" ]; then
 	:
 elif contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
+	echo "Processing files ..."
 	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi
@@ -1505,6 +1511,7 @@ fi
 if [ "$only_files" = "true" ]; then
 	:
 elif contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
+	echo "Hash maintanence ..."
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode" "$no_warn"
 	[ $? -ne 0 ] && echo && exit 1
 fi
