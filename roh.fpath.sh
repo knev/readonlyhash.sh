@@ -1240,7 +1240,9 @@ recover_hash() {
 
 	# else
 	# echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- NOOP!"
-	echo "      ■: -- NOOP!"
+	[ "$VERBOSE_MODE" = "true" ] && echo "      ■: -- NOOP!"
+
+	return 0
 }
 
 run_directory_process() {
