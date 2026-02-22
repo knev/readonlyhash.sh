@@ -40,6 +40,22 @@ usage() {
 	echo
 }
 
+#    ERROR: [91ed090f1ea5d08a92ecfe5c1ac2fec83c79ac5e36ab29f05bf222d0b64a572b] -- NOT in IDX [2022-03-20/o1oc/TorrentSync/Familyshare/Fotos/2015.ro/2015-10-16_17.35.33_IMG_0259.JPG] -- file DELETED !?
+#             ... matching FILENAME found [/home/Fractal/2022-03-20/o1oc/TorrentSync/Familyshare/Fotos/2015.ro/2015-10-07 to 22 Viggo/2015-10-16_17.35.33_IMG_0259.JPG] -- hash mismatch: ...
+#                 ...   stored [91ed090f1ea5d08a92ecfe5c1ac2fec83c79ac5e36ab29f05bf222d0b64a572b]: [/home/Fractal/.roh.git/2015-10-16_17.35.33_IMG_0259.JPG.sha256]
+#                 ... computed [96488bb3bec234c669abb41fc6c8e9946f082dd8244c9bc9b4e27425cfc06d47]: [/home/Fractal/2022-03-20/o1oc/TorrentSync/Familyshare/Fotos/2015.ro/2015-10-07 to 22 Viggo/2015-10-16_17.35.33_IMG_0259.JPG]
+
+# unit test each return 1
+# --export
+# output one line per orphan, not two
+# NEW should still be shown on recover
+# do we need the --rebase switch? isn't alway required?
+# on rebase, use the rebase string to rename output .roh.txt file
+# hash not in IDX... which hash? no NOOP
+# --force verify stops immediately on error
+# while do heading 
+# dont' index a shown directory
+
 #TODO: option to keep archives after extract
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
@@ -52,8 +68,6 @@ usage() {
 #TODO: when using --roh-dir, perhaps the output paths should show that the roh-dir is different than the file location.
 #TODO: rm -rf .roh.git.rslsc
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
-#TODO: if two hashes files exist for the same file, recover could reomve the wrong one using the computed hash
-#TODO: (nice to have) if a directory has all "no hash found"s, and not a single found, the print "new directory" instead of listing all files
 
 
 # List of file extensions to avoid, comma separated
