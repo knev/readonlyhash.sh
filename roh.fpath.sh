@@ -1297,7 +1297,7 @@ process_hash_repo()
 			#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 			#if [[ -z "$(ls -A -- "$entry")" ]]; then
 			# echo "Directory '$entry' is empty (including hidden files)"
-			if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
+#			if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 
 #	 			if contains "verify"; then
 #					local dir_fpath="$(hash_fpath_to_fpath "$recursive_dir")"
@@ -1313,7 +1313,7 @@ process_hash_repo()
 
 				process_hash_repo "$recursive_dir" "$visibility_mode" "$force_mode"
 				[ $? -ne 0 ] && return 1
-			fi
+#			fi
 
 			if [ -z "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 				if contains "delete" || contains "sweep"; then
