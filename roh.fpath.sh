@@ -6,7 +6,7 @@ shopt -s nullglob
 
 usage() {
 	echo
-	echo "Usage: $(basename "$0") <COMMAND|<write|show|hide> [--force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
+	echo "Usage: $(basename "$0") <COMMAND|[<write|show|hide> --force]|[verify --export]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
 	echo "       $(basename "$0") <write|verify> -- <PATH/GLOBSPEC>"
 	echo "       $(basename "$0") <query [--db PATH] [ROOT] -- <HASH>"
 	echo "Commands:"
@@ -35,6 +35,7 @@ usage() {
 	echo "      --db           ..."
 	echo "      --only-files   ..."
 	echo "      --only-hashes  ..."
+	echo "      --export       ..."
 	echo "  -h, --help         Display this help and exit"
 	echo
 }
@@ -45,7 +46,6 @@ usage() {
 #                 ... computed [96488bb3bec234c669abb41fc6c8e9946f082dd8244c9bc9b4e27425cfc06d47]: [/home/Fractal/2022-03-20/o1oc/TorrentSync/Familyshare/Fotos/2015.ro/2015-10-07 to 22 Viggo/2015-10-16_17.35.33_IMG_0259.JPG]
 
 # unit test each return 1
-# --export
 # output one line per orphan, not two
 # NEW should still be shown on recover
 # do we need the --rebase switch? isn't alway required?
@@ -77,12 +77,16 @@ PATHSPEC="_INVALID_"
 ROH_DIR="_INVALID_"
 DB_SQL="_INVALID_"
 
+EXPORT_FN_NEW="_INVALID_"
+EXPORT_FN_DELETED="_INVALID_"
+
 HASH="sha256"
 
 ERROR_COUNT=0
 WARN_COUNT=0
 
 VERBOSE_MODE="false"
+EXPORT_MODE="false"
 
 # Function to check if a file's extension is in the list to avoid
 check_extension() {
@@ -403,6 +407,7 @@ verify_hash() {
 	else
 		echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
 		((WARN_COUNT++))
+		[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_NEW"
 	fi
 	return 0
 }
@@ -921,6 +926,9 @@ while getopts "h-:" opt; do
 		only-hashes)
 		  only_hashes="true"
 		  ;;
+		export)
+		  EXPORT_MODE="true"
+		  ;;
 		verbose)
 		  VERBOSE_MODE="true"
 		  ;;
@@ -1048,6 +1056,8 @@ else
 	ROH_DIR="$ROOT/.roh.git"
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
+EXPORT_FN_NEW="$ROH_DIR/../.roh.new-files.txt"
+EXPORT_FN_DELETED="$ROH_DIR/../.roh.deleted-files.txt"
 
 if [ -z "$db" ]; then
     DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array
@@ -1340,6 +1350,7 @@ process_hash_repo()
 	 				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
 	 				echo "                                                       NO corresponding file: [$fpath]"
 	 				((ERROR_COUNT++))
+					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
 	 			fi
  	 			if contains "index"; then
    			        local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "$stored")
@@ -1520,6 +1531,7 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 	echo "Processing files ..."
 	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo && exit 1
+	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_NEW]"
 fi
 
 if [ "$only_files" = "true" ]; then
@@ -1528,6 +1540,7 @@ elif contains "verify" || contains "recover" || contains "sweep" || contains "in
 	echo "Hash maintanence ..."
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo && exit 1
+	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_DELETED]"
 fi
 
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
