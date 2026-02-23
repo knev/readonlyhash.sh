@@ -35,7 +35,6 @@ usage() {
 	echo "      --db           ..."
 	echo "      --only-files   ..."
 	echo "      --only-hashes  ..."
-	echo "      --no-warn      ..."
 	echo "  -h, --help         Display this help and exit"
 	echo
 }
@@ -317,7 +316,6 @@ x_roh_hash="true" # exclusively roh hashes
 verify_hash() {
     local dir="$1"
     local fpath="$2"
-	local no_warn="$3"
 
 	# local hash_fname="$(basename "$fpath").$HASH"
 	# local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
@@ -402,7 +400,7 @@ verify_hash() {
 			[ "$VERBOSE_MODE" = "true" ] && echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
 		fi
 
-	elif [ "$no_warn" != "true" ]; then
+	else
 		echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
 		((WARN_COUNT++))
 	fi
@@ -690,7 +688,6 @@ process_directory() {
 	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local visibility_mode="$2"
     local force_mode="$3"
-	local no_warn="$4"
 
 	# ?! do we care about empty directories
 	#
@@ -749,7 +746,7 @@ process_directory() {
 
 			fi
 
-			process_directory "$entry" "$visibility_mode" "$force_mode" "$no_warn"
+			process_directory "$entry" "$visibility_mode" "$force_mode"
 			[ $? -ne 0 ] && return 1
 
 		# else ...
@@ -761,7 +758,7 @@ process_directory() {
 					continue;
 				fi
 				if contains "verify" || contains "recover"; then
-					verify_hash "$dir" "$entry" "$no_warn"
+					verify_hash "$dir" "$entry"
 					[ $? -ne 0 ] && return 1
 				elif contains "write"; then
 					write_hash "$dir" "$entry" "$visibility_mode" "$force_mode"
@@ -897,7 +894,6 @@ db=""
 force_mode="false"
 only_files="false"
 only_hashes="false"
-no_warn="false"
 while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
@@ -925,9 +921,6 @@ while getopts "h-:" opt; do
 		only-hashes)
 		  only_hashes="true"
 		  ;;
-        no-warn)
-          no_warn="true"
-          ;;
 		verbose)
 		  VERBOSE_MODE="true"
 		  ;;
@@ -1250,7 +1243,6 @@ run_directory_process() {
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local visibility_mode="$2"
     local force_mode="$3"
-	local no_warn="$4"
 
 	if contains "hide" || ( contains "write" && [ "$visibility_mode" != "show" ] ); then
 		if [ ! -d "$ROH_DIR" ]; then
@@ -1391,7 +1383,6 @@ hash_maintanence() {
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 #	local visibility_mode="$3"
 #   local force_mode="$4"
-#	local no_warn="$5"
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
@@ -1485,7 +1476,7 @@ if [ "$globspec_mode" = "true" ]; then
 			write_hash "$dir" "$entry" "show" "$force_mode"
 		fi
 		if contains "verify"; then
-			verify_hash "$dir" "$entry" "$no_warn"
+			verify_hash "$dir" "$entry" 
 		fi
 	done
 
@@ -1508,7 +1499,7 @@ if contains "index" && ( contains "write" || contains "recover" || contains "que
 	commands=("index")
 
 	echo "Indexing ..."
-	hash_maintanence "${ROH_DIR%/}" # "$visibility_mode" "$force_mode" "$no_warn"
+	hash_maintanence "${ROH_DIR%/}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo && exit 1
 
 	commands=("${cmds_copy[@]/index}")
@@ -1527,7 +1518,7 @@ if [ "$only_hashes" = "true" ]; then
 elif contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
 	echo "Processing files ..."
-	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode" "$no_warn"
+	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo && exit 1
 fi
 
@@ -1535,7 +1526,7 @@ if [ "$only_files" = "true" ]; then
 	:
 elif contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
 	echo "Hash maintanence ..."
-	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode" "$no_warn"
+	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo && exit 1
 fi
 
