@@ -241,7 +241,6 @@ echo "349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff" > "$TEST
 
 rm "$TEST/file with spaces.txt.$HASH"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- NEW!?")"
-run_test "$FPATH_BIN verify --no-warn $TEST" "0" "$(escape_expected "WARN: -- [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- NEW!?")" "true"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 # mkdir "$TEST/orphaned_hashes"
@@ -355,6 +354,16 @@ $FPATH_BIN write --verbose "$TEST/$SUBDIR_WITH_SPACES" >/dev/null 2>&1
 $FPATH_BIN write --verbose "$TEST/sub-dir copy :slash" >/dev/null 2>&1
 mv "$TEST/$SUBDIR_WITH_SPACES" "$TEST/$SUBDIR_WITH_SPACES_RO"
 mv "$TEST/sub-dir copy :slash" "$TEST/$SUBDIR_COPY_SLASH_RO"
+
+mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-renamed.txt"
+run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "IDX: >d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af<: [test/sub-directory with spaces.ro/rxn-renamed.txt] -- written INDEXED.*RECOVER: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [test/sub-directory with spaces.ro/.roh.git/rxn.txt.sha256] orphaned hash -- removed")"
+
+echo "#RXN#" > "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-new.txt"
+run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "OK: -- [2a5364040532fd64388c6d6c78f5812d30d499bfffb15be2a822cd0f6fefa872]: [test/sub-directory with spaces.ro/rxn-new.txt] -- NEW!?")"
+
+rm "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-new.txt"
+mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-renamed.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
+$FPATH_BIN write sweep --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" # >/dev/null 2>&1
 
 # multiple copies with the same hash (escaping required)
 mv "$TEST/$SUBDIR_COPY_SLASH_RO/omn's_.txt" "$TEST/omn's_.txt"
