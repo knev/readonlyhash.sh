@@ -1173,7 +1173,11 @@ recover_hash() {
 	# else
 	# no matching hash found, file identical file names
 
-	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
+	if [ "$VERBOSE_MODE" = "true" ]; then
+	   	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
+	else
+		echo "  ERROR: [$stored] -- NOT in IDX [$fpath] -- file DELETED !?"
+	fi
 	((ERROR_COUNT++))
 
 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn")
@@ -1218,7 +1222,7 @@ recover_hash() {
 					if [ -f "$found_abs_roh_hash_fpath" ]; then
 						found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
 						if [ "$found_computed_hash" != "$found_stored" ]; then
-							echo "  ERROR:    ... matching FILENAME found [$found_abs_fpath] -- hash mismatch: ..."
+							echo "  ERROR:    ... hash mismatch -- matching FILENAME found ..."
 							echo "                ...   stored [$found_stored]: [$found_abs_roh_hash_fpath]"
 							echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
 							((ERROR_COUNT++))
@@ -1347,8 +1351,8 @@ process_hash_repo()
 				fi
 				if contains "verify"; then
 	 				echo "ERROR: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
-	 				#    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
-	 				echo "                                                       NO corresponding file: [$fpath]"
+	 				#                                    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
+	 				[ "$VERBOSE_MODE" = "true" ] && echo "                                                       NO corresponding file: [$fpath]"
 	 				((ERROR_COUNT++))
 					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
 	 			fi
@@ -1359,9 +1363,9 @@ process_hash_repo()
 						if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
 							echo " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
 						fi
-						[ "$VERBOSE_MODE" = "true" ] && echo "                                                      NO corresponding file: [$fpath]"
+						[ "$VERBOSE_MODE" = "true" ] && echo "                                                   NO corresponding file: [$fpath]"
    			        else
-   			             [ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
+						[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
    			        fi
 				fi
 	 			if contains "recover"; then
