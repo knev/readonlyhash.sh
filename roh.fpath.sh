@@ -1685,7 +1685,7 @@ if [ "$globspec_mode" = "true" ]; then
 	exit 0
 fi
 
-if contains "index" && ( contains "write" || contains "recover" || contains "query" ); then
+if contains "index" && ( contains "recover" || contains "query" ); then
 	cmds_copy=("${commands[@]}")
 	commands=("index")
 
