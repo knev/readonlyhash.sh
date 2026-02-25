@@ -379,6 +379,7 @@ run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(esca
 echo "rxn" > "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
 rm -rf "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.sqlite3"
 run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "... hash mismatch -- FILENAME matches -- [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/rxn.txt]")"
+rm -rf "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.sqlite3"
 
 # multiple copies with the same hash (escaping required)
 mv "$TEST/$SUBDIR_COPY_SLASH_RO/omn's_.txt" "$TEST/omn's_.txt"
@@ -449,8 +450,13 @@ $FPATH_BIN sweep --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
 $FPATH_BIN sweep --verbose "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
  
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
+run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "... [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/rxn.txt] -- indexed, but missing")"
+rm "$TEST/.roh.sqlite3"
+$FPATH_BIN index --verbose --db $TEST/.roh.sqlite3 "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
+
 run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERROR:    ... hash not in IDX [test/$SUBDIR_WITH_SPACES_RO/rxn.txt] -- file DELETED !?.* ■: -- NOOP!")"
 rm "test/$SUBDIR_WITH_SPACES_RO/.roh.git/rxn.txt.sha256"
+rm "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/rxn.txt"
 
 rm "$TEST/omn's_.txt"
 rm "$TEST/omn''s_.txt"

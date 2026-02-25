@@ -370,9 +370,9 @@ recover_file() {
 	    while IFS= read -r found; do
 			if [ -n "$found" ]; then
 				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
-				# echo "[$found_hash] [$found_enc_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
 
 				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+				# echo "[$found_hash] [$found_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
 
 				# diff fpath
 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
@@ -404,8 +404,7 @@ recover_file() {
 #  					fi
 
 				else
-					echo "ERROR"
-					return 1
+					[ "$VERBOSE_MODE" = "true" ] && echo "       ... [$found_abs_fpath] -- indexed, but missing"
 				fi
 
 			fi
