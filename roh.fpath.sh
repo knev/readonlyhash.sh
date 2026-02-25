@@ -292,7 +292,7 @@ roh_sqlite3_db_find_fpath() {
 
 	local abs_fpath=$(readlink -f "$fpath")
 	if [ -z "$abs_fpath" ]; then
-		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE hash = '$stored' AND fpath = NULL;"
+		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE hash = '$stored' AND fpath IS NULL;"
 	else
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
 		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE fpath = '$enc_abs_fpath';"	
