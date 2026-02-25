@@ -1430,8 +1430,8 @@ process_hash_repo()
 					# echo "   * fpath DIRECTORY: [$dir_fpath]"
 	 
 	 				if [ ! -d "$dir_fpath" ]; then
-						echo "WARN: -- [$recursive_dir] -- orphaned hash DIRECTORY!"
-						((WARN_COUNT++))
+						echo "ERROR: -- [$recursive_dir] -- orphaned hash DIRECTORY!"
+						((ERROR_COUNT++))
 						continue
 	 				fi
 	 
