@@ -358,12 +358,27 @@ mv "$TEST/sub-dir copy :slash" "$TEST/$SUBDIR_COPY_SLASH_RO"
 mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-renamed.txt"
 run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "IDX: >d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af<: [test/sub-directory with spaces.ro/rxn-renamed.txt] -- written INDEXED.*RECOVER: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [test/sub-directory with spaces.ro/.roh.git/rxn.txt.sha256] orphaned hash -- removed")"
 
+# $ ./roh.fpath.sh query "test/sub-directory with spaces.ro" -- d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af
+# query hash: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]
+# OK: --      hash path [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/.roh.git/rxn.txt.sha256]
+#        absolute fpath []
+# OK: --      hash path [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/.roh.git/rxn-renamed.txt.sha256]
+#        absolute fpath [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/rxn-renamed.txt]
+
 echo "#RXN#" > "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-new.txt"
 run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "OK: -- [2a5364040532fd64388c6d6c78f5812d30d499bfffb15be2a822cd0f6fefa872]: [test/sub-directory with spaces.ro/rxn-new.txt] -- NEW!?")"
 
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-new.txt"
 mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-renamed.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
-$FPATH_BIN write sweep --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" # >/dev/null 2>&1
+$FPATH_BIN write sweep --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
+
+mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/rxn.txt"
+echo "#RXN#" > "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/rxn.txt"
+run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "... hash mismatch -- FILENAME matches -- [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/.roh.git/rxn.txt.sha256] orphaned hash.*ERROR: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af] -- hash not in IDX [test/sub-directory with spaces.ro/rxn.txt] -- file DELETED !")"
+
+echo "rxn" > "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
+rm -rf "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.sqlite3"
+run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "... hash mismatch -- FILENAME matches -- [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/rxn.txt]")"
 
 # multiple copies with the same hash (escaping required)
 mv "$TEST/$SUBDIR_COPY_SLASH_RO/omn's_.txt" "$TEST/omn's_.txt"
