@@ -1563,7 +1563,11 @@ process_query() {
 	local query_hash="$2"
 
     echo "query hash: [$query_hash]"
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$query_hash")
+	if ! list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$query_hash"); then
+		echo "ERROR: failed to query db [$db]"
+		return 1
+	fi
+
 	[ -z "$list_roh_hash_fpaths" ] && echo "  --"
 	while IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath; do
 		#[ -n "$found_enc_abs_fpath" ] && echo "[$fpath:$roh_hash_fpath]"
@@ -1642,7 +1646,9 @@ fi
 
 if contains "query"; then
     QUERY_HASH="$PATHSPEC"
-	process_query "$DB_SQL" "$QUERY_HASH"
+	if ! process_query "$DB_SQL" "$QUERY_HASH"; then
+		echo && exit 1
+	fi
 
     echo "Done."
     exit 0
