@@ -852,7 +852,7 @@ process_directory() {
 				continue
 			fi
 
-			if contains "verify"; then
+			if contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
 				local sub_dir="$(remove_top_dir "$ROOT" "$entry")"
 				local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 				# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
@@ -1424,23 +1424,23 @@ process_hash_repo()
 			#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
 			#if [[ -z "$(ls -A -- "$entry")" ]]; then
 			# echo "Directory '$entry' is empty (including hidden files)"
-#			if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
+			if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 
-#	 			if contains "verify"; then
-#					local dir_fpath="$(hash_fpath_to_fpath "$recursive_dir")"
-#					# echo "   * fpath DIRECTORY: [$dir_fpath]"
-#	 
-#	 				if [ ! -d "$dir_fpath" ]; then
-#						echo "WARN: -- [$recursive_dir] -- orphaned hash DIRECTORY!"
-#						((WARN_COUNT++))
-#						continue
-#	 				fi
-#	 
-#	 			fi
+	 			if contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
+					local dir_fpath="$(hash_fpath_to_fpath "$recursive_dir")"
+					# echo "   * fpath DIRECTORY: [$dir_fpath]"
+	 
+	 				if [ ! -d "$dir_fpath" ]; then
+						echo "WARN: -- [$recursive_dir] -- orphaned hash DIRECTORY!"
+						((WARN_COUNT++))
+						continue
+	 				fi
+	 
+	 			fi
 
 				process_hash_repo "$recursive_dir" "$visibility_mode" "$force_mode"
 				[ $? -ne 0 ] && return 1
-#			fi
+			fi
 
 			if [ -z "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 				if contains "delete" || contains "sweep"; then
