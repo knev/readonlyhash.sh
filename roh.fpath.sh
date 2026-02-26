@@ -377,10 +377,10 @@ recover_file() {
 				# diff fpath
 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
  					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-					echo "       ... hash mismatch -- FILENAME matches -- [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
+					echo "       [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash -- hash mismatch -- FILENAME matches"
 
 				elif [ -f "$found_abs_fpath" ]; then
-					echo "       ... hash mismatch -- FILENAME matches -- [$found_hash]: [$found_abs_fpath]"
+					echo "       [$found_hash]: [$found_abs_fpath] -- hash mismatch -- FILENAME matches"
 #  					found_computed_hash=$(generate_hash "$found_abs_fpath")
 # 					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
 # 					if [ -f "$found_abs_roh_hash_fpath" ]; then
