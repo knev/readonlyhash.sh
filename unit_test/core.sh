@@ -454,6 +454,17 @@ run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_W
 echo "9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec" > "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git/xgy'.txt.sha256"
 $FPATH_BIN sweep --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
 $FPATH_BIN sweep --verbose "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
+
+# make sure empty hash dirs are removed during recover
+mv "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/iop.txt" "$TEST/$SUBDIR_COPY_SLASH_RO/."
+mv "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/jkl.txt" "$TEST/$SUBDIR_COPY_SLASH_RO/."
+$FPATH_BIN index recover "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
+run_test "ls -al \"$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git/$SUBSUBDIR\"" "1" "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git/$SUBSUBDIR.?: No such file or directory"
+mv "$TEST/$SUBDIR_COPY_SLASH_RO/iop.txt" "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/."
+mv "$TEST/$SUBDIR_COPY_SLASH_RO/jkl.txt" "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/."
+rm "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.sqlite3"
+$FPATH_BIN index recover "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
+rm "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.sqlite3"
  
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
 run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "... [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/rxn.txt] -- indexed, but missing")"

@@ -1294,7 +1294,7 @@ recover_hash() {
 				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 				((ERROR_COUNT++))
 			fi			
-			return
+			return 0
 		fi
 
 	fi
@@ -1451,7 +1451,7 @@ process_hash_repo()
 			fi
 
 			if [ -z "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
-				if contains "delete" || contains "sweep"; then
+				if contains "delete" || contains "sweep" || contains "recover"; then
 					if ! rmdir "$recursive_dir"; then
 						echo "ERROR: Failed to remove directory [$recursive_dir]"
 						((ERROR_COUNT++))
