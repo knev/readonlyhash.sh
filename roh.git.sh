@@ -7,6 +7,7 @@ usage() {
 	echo "  -x             Extract the roh_git storage"
 	echo "  -C             Specify the working directory"
     echo "      --force    Force operation"	
+    echo "      --version  Display the version and exit"
     echo "  -h, --help     Display this help and exit"
 	echo
 	echo "Examples:"
@@ -43,6 +44,11 @@ while getopts ":zxC:h-:" opt; do
 		force)
           force_mode="true"
           ;;
+	    version)
+	      echo "$(basename "$0") version: $VERSION"
+		  echo
+	      exit 0
+	      ;;		
         help)
           usage
           exit 0

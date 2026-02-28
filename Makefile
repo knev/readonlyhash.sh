@@ -27,6 +27,7 @@ nothing:
 install:
 	@echo "VERSION: $(VERSION)"
 	@mkdir -p ~/bin
+#
 	@cp -v ./${ROH}.sh ~/bin/${ROH} # this will get clobbered !
 	@echo "#!/bin/bash" > ~/bin/${ROH}
 	@echo "" >> ~/bin/${ROH}
@@ -34,10 +35,20 @@ install:
 	@tail -n +2 ./${ROH}.sh >> ~/bin/${ROH}
 	@chmod +x ~/bin/${ROH}
 #	
-	@cp -v ./${ROH_FPATH}.sh ~/bin/${ROH_FPATH}
+	@cp -v ./${ROH_FPATH}.sh ~/bin/${ROH_FPATH} # this will get clobbered !
+	@echo "#!/bin/bash" > ~/bin/${ROH_FPATH}
+	@echo "" >> ~/bin/${ROH_FPATH}
+	@echo "VERSION=\"$(VERSION)\"" >> ~/bin/${ROH_FPATH}
+	@tail -n +2 ./${ROH_FPATH}.sh >> ~/bin/${ROH_FPATH}
 	@chmod +x ~/bin/${ROH_FPATH}
-	@cp -v ./${ROH_GIT}.sh ~/bin/${ROH_GIT}
+#
+	@cp -v ./${ROH_GIT}.sh ~/bin/${ROH_GIT} # this will get clobbered !
+	@echo "#!/bin/bash" > ~/bin/${ROH_GIT}
+	@echo "" >> ~/bin/${ROH_GIT}
+	@echo "VERSION=\"$(VERSION)\"" >> ~/bin/${ROH_GIT}
+	@tail -n +2 ./${ROH_GIT}.sh >> ~/bin/${ROH_GIT}
 	@chmod +x ~/bin/${ROH_GIT}
+#
 	@echo "Done."
 	@echo
 

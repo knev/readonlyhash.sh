@@ -36,6 +36,7 @@ usage() {
 	echo "      --only-files   ..."
 	echo "      --only-hashes  ..."
 	echo "      --export       ..."
+    echo "      --version      Display the version and exit"
 	echo "  -h, --help         Display this help and exit"
 	echo
 }
@@ -1056,6 +1057,11 @@ while getopts "h-:" opt; do
 		verbose)
 		  VERBOSE_MODE="true"
 		  ;;
+	    version)
+	      echo "$(basename "$0") version: $VERSION"
+		  echo
+	      exit 0
+	      ;;
         help)
           usage
           exit 0

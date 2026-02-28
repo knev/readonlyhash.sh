@@ -18,7 +18,7 @@ usage() {
 	echo "      --resume-at     ..."
 	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .roh.txt"
 	echo "      --rebase        ..."
-    echo "  -v, --version       Display the version and exit"
+    echo "      --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
 	echo 
 	echo
@@ -48,18 +48,15 @@ case "$1" in
 	    ;;
 #    delete) 
 #        ;;
-    -v)
-		echo "$(basename "$0") version: $VERSION"
-        exit 0
-        ;;
+	--version)
+	    echo "$(basename "$0") version: $VERSION"
+		echo
+	    exit 0
+	    ;;
     -h)
 		usage
         exit 0
         ;;
-	--version)
-	    echo "$(basename "$0") version: $VERSION"
-	    exit 0
-	    ;;
     --help)
 		usage
         exit 0
