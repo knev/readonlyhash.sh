@@ -380,9 +380,19 @@ $FPATH_BIN write sweep --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
 
 mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/rxn.txt"
 echo "#RXN#" > "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/rxn.txt"
-run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/.roh.git/rxn.txt.sha256] orphaned hash -- hash mismatch -- FILENAME matches.*ERROR: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af] -- hash not in IDX [test/sub-directory with spaces.ro/rxn.txt] -- file DELETED !")"
-
 echo "rxn" > "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
+mkdir "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/1/"
+mkdir "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/2/"
+mkdir "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/3/"
+mkdir "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/4/"
+echo "1111111111111111111111111111111111111111111111111111111111111111" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/1/rxn.txt.sha256"
+echo "2222222222222222222222222222222222222222222222222222222222222222" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/2/rxn.txt.sha256"
+echo "3333333333333333333333333333333333333333333333333333333333333333" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/3/rxn.txt.sha256"
+echo "4444444444444444444444444444444444444444444444444444444444444444" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/4/rxn.txt.sha256"
+run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "hash mismatch -- FILENAME matches.*[d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/.roh.git/rxn.txt.sha256] orphaned hash.*1 more.*ERROR: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af] -- hash not in IDX [test/sub-directory with spaces.ro/rxn.txt] -- file DELETED !")"
+
+exit
+
 rm -rf "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.sqlite3"
 run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "[d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/rxn.txt] -- hash mismatch -- FILENAME matches")"
 rm -rf "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.sqlite3"

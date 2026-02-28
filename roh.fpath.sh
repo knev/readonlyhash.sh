@@ -366,25 +366,33 @@ recover_file() {
 		# echo "$list_roh_hash_fpaths"
 		# echo "...]"
 
+		echo "WARN: [$computed_hash]: [$fpath] -- NEW!?"
+		echo "       ... hash mismatch -- FILENAME matches ..."
+		((WARN_COUNT++))
+
+		local files_found=0
+
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
 			if [ -n "$found" ]; then
 				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
+
+				((files_found++))
 
 				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
 				# echo "[$found_hash] [$found_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
 
 				# diff fpath
 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
- 					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-					echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
-					echo "         [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash -- hash mismatch -- FILENAME matches"
-					((WARN_COUNT++))
+					if [ "$files_found" -lt 3 ]; then
+						local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+						echo "           ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
+					fi
 
 				elif [ -f "$found_abs_fpath" ]; then
-					echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
-					echo "         [$found_hash]: [$found_abs_fpath] -- hash mismatch -- FILENAME matches"
-					((WARN_COUNT++))
+					if [ "$files_found" -lt 3 ]; then
+						echo "           ... [$found_hash]: [$found_abs_fpath]"
+					fi
 #  					found_computed_hash=$(generate_hash "$found_abs_fpath")
 # 					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
 # 					if [ -f "$found_abs_roh_hash_fpath" ]; then
@@ -408,13 +416,16 @@ recover_file() {
 #  					fi
 
 				else
-					[ "$VERBOSE_MODE" = "true" ] && echo "OK: [$computed_hash]: [$fpath] -- NEW!?"
-					[ "$VERBOSE_MODE" = "true" ] && echo "    ... [$found_abs_fpath] -- indexed, but missing"
+					[ "$VERBOSE_MODE" = "true" ] && echo "           ... [$found_abs_fpath] -- indexed, but missing"
+				fi
+
+				if [ "$files_found" -gt 2 ]; then
+					echo "               ... $((files_found - 2)) more ..."
+					break;
 				fi
 
 			fi
 	    done <<< "$list_roh_hash_fpaths"
-
 
 	else
 		echo "OK: [$computed_hash]: [$fpath] -- NEW!?"
@@ -1322,6 +1333,9 @@ recover_hash() {
 		# echo "* Found in file(s): [ ..."
 		# echo "$list_roh_hash_fpaths"
 		# echo "...]"
+
+		#TODO: indexed, but missing 4 times
+		local files_found=0
 
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
