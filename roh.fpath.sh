@@ -345,7 +345,7 @@ recover_file() {
 		return 0
 	fi
 
-	echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
+	# echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
 	# [ "$VERBOSE_MODE" = "true" ] && echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
 
 	# else
@@ -376,10 +376,14 @@ recover_file() {
 				# diff fpath
 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
  					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-					echo "       [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash -- hash mismatch -- FILENAME matches"
+					echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
+					echo "         [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash -- hash mismatch -- FILENAME matches"
+					((WARN_COUNT++))
 
 				elif [ -f "$found_abs_fpath" ]; then
-					echo "       [$found_hash]: [$found_abs_fpath] -- hash mismatch -- FILENAME matches"
+					echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
+					echo "         [$found_hash]: [$found_abs_fpath] -- hash mismatch -- FILENAME matches"
+					((WARN_COUNT++))
 #  					found_computed_hash=$(generate_hash "$found_abs_fpath")
 # 					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
 # 					if [ -f "$found_abs_roh_hash_fpath" ]; then
@@ -403,6 +407,7 @@ recover_file() {
 #  					fi
 
 				else
+					[ "$VERBOSE_MODE" = "true" ] && echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
 					[ "$VERBOSE_MODE" = "true" ] && echo "       ... [$found_abs_fpath] -- indexed, but missing"
 				fi
 
@@ -410,9 +415,9 @@ recover_file() {
 	    done <<< "$list_roh_hash_fpaths"
 
 
-
+	else
+		echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
 	fi
-
 
 	return 0
 
