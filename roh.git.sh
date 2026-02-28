@@ -13,6 +13,9 @@ usage() {
 	echo "  \$ $(basename "$0") -zC <PATH>"
 	echo "  \$ $(basename "$0") -C <PATH> add \"*\""
 	echo
+	echo "Other operations: "
+	echo "  git restore --staged \$(git diff --cached --name-only --diff-filter=D) # unstage deleted files"
+	echo
 }
 
 current_working_dir="."
