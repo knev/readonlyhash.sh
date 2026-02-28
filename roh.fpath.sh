@@ -1123,6 +1123,11 @@ else
 			exit 1	
 		fi
 		shift # this will fail if there are not enough args
+		if [ $# -ne 0 ]; then 
+			echo "ERROR: too many arguments after \"--\"" >&2
+			usage
+			exit 1	
+		fi
 		# echo "* PATHSPEC (ROOT) set to [$PATHSPEC]"
 	fi
 fi
