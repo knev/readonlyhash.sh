@@ -52,7 +52,6 @@ usage() {
 # on rebase, use the rebase string to rename output .roh.txt file
 # hash not in IDX... which hash? no NOOP
 # --force verify stops immediately on error
-# while do heading 
 # dont' index a shown directory
 
 #TODO: option to keep archives after extract
@@ -1642,7 +1641,7 @@ if contains "index" && ( contains "recover" || contains "query" ); then
 	cmds_copy=("${commands[@]}")
 	commands=("index")
 
-	echo "Indexing ..."
+	echo "Indexing ... [${ROH_DIR%/}]"
 	hash_maintanence "${ROH_DIR%/}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo && exit 1
 
@@ -1663,7 +1662,7 @@ if [ "$only_hashes" = "true" ]; then
 	:
 elif contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
-	echo "Processing files ..."
+	echo "Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
 	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_NEW]"
@@ -1672,7 +1671,7 @@ fi
 if [ "$only_files" = "true" ]; then
 	:
 elif contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
-	echo "Hash maintanence ..."
+	echo "Hash maintanence ... [${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}]"
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_DELETED]"
