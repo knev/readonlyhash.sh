@@ -407,8 +407,8 @@ recover_file() {
 #  					fi
 
 				else
-					[ "$VERBOSE_MODE" = "true" ] && echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
-					[ "$VERBOSE_MODE" = "true" ] && echo "       ... [$found_abs_fpath] -- indexed, but missing"
+					[ "$VERBOSE_MODE" = "true" ] && echo "OK: [$computed_hash]: [$fpath] -- NEW!?"
+					[ "$VERBOSE_MODE" = "true" ] && echo "    ... [$found_abs_fpath] -- indexed, but missing"
 				fi
 
 			fi
@@ -416,7 +416,7 @@ recover_file() {
 
 
 	else
-		echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
+		echo "OK: [$computed_hash]: [$fpath] -- NEW!?"
 	fi
 
 	return 0

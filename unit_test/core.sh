@@ -372,7 +372,7 @@ run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(esca
 #        absolute fpath [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/rxn-renamed.txt]
 
 echo "#RXN#" > "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-new.txt"
-run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "OK: -- [2a5364040532fd64388c6d6c78f5812d30d499bfffb15be2a822cd0f6fefa872]: [test/sub-directory with spaces.ro/rxn-new.txt] -- NEW!?")"
+run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "OK: [2a5364040532fd64388c6d6c78f5812d30d499bfffb15be2a822cd0f6fefa872]: [test/sub-directory with spaces.ro/rxn-new.txt] -- NEW!?")"
 
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-new.txt"
 mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-renamed.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
