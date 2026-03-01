@@ -40,8 +40,8 @@ echo
 echo "# init"
 
 $FPATH_BIN write -- Fotos\ \[space\]/2003/2003-11-29\ Digital\ Reality/* >/dev/null 2>&1
-run_test "$ROH_BIN init --directory Fotos\ \[space\]/2003" "0" "ERROR" "true"
-rm -rf "Fotos [space]/2003.ro/$ROH_DIR"
+run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "0" "$(escape_expected "Initialized empty Git repository in /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003/.roh.git/.git/")"
+run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "1" "$(escape_expected "ERROR: [Fotos [space]/2003/.roh.git/.git] exists already; aborting")"
 #mv "Fotos [space]/2003.ro" "Fotos [space]/2003"
 run_test "ls -al Fotos\ \[space\]/2003~ro.roh.txt" "0" "$(escape_expected "Fotos [space]/2003~ro.roh.txt" "0")"
 rm "Fotos [space]/2003~ro.roh.txt"

@@ -1,10 +1,11 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $(basename "$0") [--force] <[-z|-x] [-[z|x]C PATH]> [ARGUMENTS]"
+    echo "Usage: $(basename "$0") [--force] <[-i|-z|-x] -[i|z|x]C PATHSPEC> [ARGUMENTS]"
     echo "Options:"
-	echo "  -z             Archive the roh_git storage"
-	echo "  -x             Extract the roh_git storage"
+	echo "  -i             Initialize the roh.git storage"
+	echo "  -z             Archive the roh.git storage"
+	echo "  -x             Extract the roh.git storage"
 	echo "  -C             Specify the working directory"
     echo "      --force    Force operation"	
     echo "      --version  Display the version and exit"
@@ -21,11 +22,26 @@ usage() {
 
 archive_mode="false"
 extract_mode="false"
+commands=()  # normal array is fine even in 3.2
+
+contains() {
+    local needle="$1"
+    local item
+    for item in "${commands[@]}"; do
+        [[ "$item" == "$needle" ]] && return 0
+    done
+    return 1
+}
+
 CWD=""
 force_mode="false"
+
 # Parse command line options
-while getopts ":zxC:h-:" opt; do
+while getopts ":izxC:h-:" opt; do
   case $opt in
+	i)
+	  commands+=("init")
+	  ;;
 	z)
 	  archive_mode="true"
 	  ;;
@@ -104,6 +120,45 @@ if [ -z "$CWD" ] || ! [ -d "$CWD" ]; then
 	usage
 	exit 1
 fi
+
+#------------------------------------------------------------------------------------------------------------------------------------------
+
+init_roh() {
+	ROH_DIR=".roh.git"
+	mkdir -p "$CWD/$ROH_DIR"
+
+	if [ -d "$CWD/$ROH_DIR/.git" ]; then
+		echo "ERROR: [$CWD/$ROH_DIR/.git] exists already; aborting"
+		return 1
+	fi
+
+	# GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$CWD/$ROH_DIR" git status
+	export GIT_CONFIG_COUNT=1
+	export GIT_CONFIG_KEY_0=advice.defaultBranchName
+	export GIT_CONFIG_VALUE_0="false"
+
+	git -C "$CWD/$ROH_DIR" init
+
+	echo ".DS_Store.$HASH" > "$CWD/$ROH_DIR"/.gitignore
+	git -C "$CWD/$ROH_DIR" add .gitignore
+	git -C "$CWD/$ROH_DIR" commit -m "Initial ignores."
+	# git -C "$CWD/$ROH_DIR" status
+
+	git_status=$(git -C "$CWD/$ROH_DIR" status)
+	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+		git -C "$CWD/$ROH_DIR" add "*"
+		git -C "$CWD/$ROH_DIR" commit -m "Initial hashes."
+		git -C "$CWD/$ROH_DIR" status
+	fi
+
+	unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+
+# 	dir_ro="$(rename_to_ro "$dir")"
+# 	if [ "$dir" != "$dir_ro" ] && mv "$dir" "$dir_ro"; then
+# 		echo "Renamed [$dir] to [$dir_ro]"
+# 	fi
+# 	echo "$dir_ro" >> "$LOOP_TXT_RO"
+}
 
 archive_roh() {
     local dir="$1"
@@ -185,6 +240,11 @@ extract_roh() {
         exit 1
     fi
 }
+
+#------------------------------------------------------------------------------------------------------------------------------------------
+
+if contains "init"; then
+	init_roh 
 
 elif [ "$archive_mode" = "true" ]; then
 	archive_roh "$CWD" "$force_mode"

@@ -208,34 +208,7 @@ rebase_directory() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-init_directory() {
-	local dir="$1"
 
-	ROH_DIR="$dir/.roh.git"
-	mkdir -p "$ROH_DIR"
-
-	if [ ! -d "$ROH_DIR/.git" ]; then
- 		$GIT_BIN -C "$dir" init
-
-		echo ".DS_Store.$HASH" > "$ROH_DIR"/.gitignore
-		$GIT_BIN -C "$dir" add .gitignore
-		$GIT_BIN -C "$dir" commit -m "Initial ignores."
-		# $GIT_BIN -C "$dir" status
-	fi
-
-	git_status=$($GIT_BIN -C "$dir" status)
-	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-		$GIT_BIN -C "$dir" add "*"
-		$GIT_BIN -C "$dir" commit -m "Initial hashes."
-		$GIT_BIN -C "$dir" status
-	fi
-
-	dir_ro="$(rename_to_ro "$dir")"
-	if [ "$dir" != "$dir_ro" ] && mv "$dir" "$dir_ro"; then
-		echo "Renamed [$dir] to [$dir_ro]"
-	fi
-	echo "$dir_ro" >> "$LOOP_TXT_RO"
-}
 
 verify_directory() {
 	local dir="$1"
