@@ -19,9 +19,9 @@ usage() {
 	echo
 }
 
-current_working_dir="."
 archive_mode="false"
 extract_mode="false"
+CWD=""
 force_mode="false"
 # Parse command line options
 while getopts ":zxC:h-:" opt; do
@@ -33,7 +33,7 @@ while getopts ":zxC:h-:" opt; do
 	  extract_mode="true"
 	  ;;
     C)
-	  current_working_dir="$OPTARG"
+	  CWD="$OPTARG"
       ;;	
     h)
       usage
@@ -79,7 +79,7 @@ shift $((OPTIND-1))
 
 ROH_DIR=".roh.git"
 
-# echo "* current_working_dir: [$current_working_dir]"
+# echo "* CWD: [$CWD]"
 # echo "* [$#][$@]"
 
 # Check if any mode is set or if positional arguments are needed
@@ -98,8 +98,8 @@ elif [ "$archive_mode" = "true" ] && [ "$extract_mode" = "true" ]; then
 		exit 1
 fi
 
-if [ -z "$current_working_dir" ] || ! [ -d "$current_working_dir" ]; then
-	echo "ERROR: invalid working directory [$current_working_dir]." >&2
+if [ -z "$CWD" ] || ! [ -d "$CWD" ]; then
+	echo "ERROR: invalid working directory [$CWD]." >&2
 	echo
 	usage
 	exit 1
@@ -186,11 +186,11 @@ extract_roh() {
     fi
 }
 
-if [ "$archive_mode" = "true" ]; then
-	archive_roh "$current_working_dir" "$force_mode"
+elif [ "$archive_mode" = "true" ]; then
+	archive_roh "$CWD" "$force_mode"
 
 elif [ "$extract_mode" = "true" ]; then
-	extract_roh "$current_working_dir" "$force_mode"
+	extract_roh "$CWD" "$force_mode"
 
 else
 	# External drive fatal error, because ownership ids are from another system
@@ -198,10 +198,10 @@ else
 	# To add an exception for this directory, call:
 	# git config --global --add safe.directory <PATH>
 	
-	# GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$current_working_dir/$ROH_DIR" git status
+	# GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$CWD/$ROH_DIR" git status
 	export GIT_CONFIG_COUNT=1
 	export GIT_CONFIG_KEY_0=safe.directory
-	export GIT_CONFIG_VALUE_0="$current_working_dir/$ROH_DIR"
+	export GIT_CONFIG_VALUE_0="$CWD/$ROH_DIR"
 
 	# Your name and email address were configured automatically based
 	# on your username and hostname. Please check that they are accurate.
@@ -214,7 +214,7 @@ else
 	export GIT_ADVICE_IMPLICIT_IDENTITY=false
 
 	# Now, $@ contains all arguments after -C PATH
-	git -C "$current_working_dir/$ROH_DIR" "$@"
+	git -C "$CWD/$ROH_DIR" "$@"
 
 	unset GIT_ADVICE_IMPLICIT_IDENTITY
 	unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
