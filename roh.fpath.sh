@@ -1632,14 +1632,14 @@ if [ "$globspec_mode" = "true" ]; then
 			continue
 		fi
 
+		[[ "${fpath}" = *.sha256 ]] && continue
+	
 		if ! [ -f "$fpath" ]; then
 			echo "WARN: [$fpath] not a file -- SKIPPING"
 			((WARN_COUNT++))
 			continue
 		fi
 		
-		[[ "${fpath}" = *.sha256 ]] && continue
-	
 		dir=$(dirname -- "$fpath")
 		entry="$fpath"
 
@@ -1650,6 +1650,9 @@ if [ "$globspec_mode" = "true" ]; then
 		fi
 		if contains "verify"; then
 			verify_hash "$dir" "$entry" 
+		fi
+		if contains "delete"; then
+			delete_hash "$dir" "$entry" 
 		fi
 	done
 
