@@ -9,14 +9,12 @@ HASH="sha256"
 usage() {
 	echo
     echo "Usage: $(basename "$0") <COMMAND|<<verify|copy> --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <FPATH/FN.roh.txt> [--resume-at STRING]"
-	echo "      init            ..."
 	echo "      verify          ..."
 	echo "      archive         ..."
 	echo "      extract         ..."
 	echo "      copy            ..."
     echo "Options:"
 	echo "      --resume-at     ..."
-	echo "      --directory     Operate on a single directory specified in FPATH, instead of a .roh.txt"
 	echo "      --rebase        ..."
     echo "      --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
@@ -158,7 +156,6 @@ while getopts "h-:" opt; do
   esac
 done
 
-directory_mode="false"
 rebase_mode="false"
 rebase_string="_INVALID_"
 
@@ -171,9 +168,6 @@ while getopts "dh-:" opt; do
       ;;	  
     -)
       case "${OPTARG}" in
-		directory)
-		  directory_mode="true"
-		  ;;
         rebase)
 		  if [ "$cmd" != "copy" ] && [ "$cmd" != "verify" ]; then
 			echo "ERROR: invalid use of --rebase"
@@ -500,10 +494,6 @@ copy_to_target() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-if [ "$directory_mode" = "true" ]; then
-	init_directory "$file_path" "false"
-	echo
-	exit 0
 # Check if the file ends with .ro.txt
 elif [[ ! "$file_path" =~ \.roh\.txt$ ]]; then
     echo "ERROR: No file path argument ending with '.roh.txt' found."
@@ -542,9 +532,6 @@ while IFS= read -r dir; do
 
     # Check if the directory exists
     if [ -d "$dir" ]; then
-
-		if [ "$cmd" = "init" ]; then
-			init_directory "$dir"
 
 		if contains "verify"; then
 			if [ "$rebase_mode" = "true" ]; then
