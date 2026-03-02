@@ -56,7 +56,6 @@ usage() {
 
 
 #Features:
-#TODO: verify outputs if DB exists
 #TODO: do the "more" with matched FILENAMES on recover files as with hashes
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
@@ -1218,7 +1217,12 @@ if contains "index"; then
 	roh_sqlite3_db_init "$DB_SQL" 
 fi
 
-if contains "recover" || contains "index"; then
+if contains "verify"; then
+	if  [ -f "$DB_SQL" ]; then
+		echo "WARN: database file [$DB_SQL] exists; has not been removed"
+		((WARN_COUNT++))
+	fi
+elif contains "recover" || contains "index"; then
 	if  [ -f "$DB_SQL" ]; then
 		echo "Using DB_SQL [$DB_SQL]"
 	else

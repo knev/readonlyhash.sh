@@ -307,6 +307,7 @@ echo
 echo "# index"
 
 run_test "$FPATH_BIN index query $TEST -- c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "0" "$(escape_expected "query hash: [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65].*OK: --      hash path [$PWD/test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256.*       absolute fpath [$PWD/test/sub-directory with spaces/sub-sub-directory/jkl.txt]")"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: database file [test/.roh.sqlite3] exists; has not been removed")"
 
 # create two files with the same hash to test the building of the index below
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl copy.txt"
