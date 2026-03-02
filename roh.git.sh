@@ -183,7 +183,7 @@ archive_roh() {
 		#tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 # tar.gz
 		tar -cvf "$dir/$ROH_DIR.tar" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 && zip -qm "$dir/$archive_name" "$dir/$ROH_DIR.tar"
         if [ $? -eq 0 ]; then
-            echo "Archived [$dir/$ROH_DIR] to [$dir/$archive_name]"
+            echo "Archived [$ROH_DIR] to [$dir/$archive_name]"
         else
             echo "ERROR: failed to archive [$dir/$ROH_DIR] to [$dir/$archive_name]"
 			echo
@@ -223,7 +223,7 @@ extract_roh() {
 		# unzip -q "$dir/$archive_name" -d "$dir"
 		unzip -jq "$dir/$archive_name" -d "$dir" && tar -xf "$dir/$ROH_DIR.tar" -C "$dir" && rm -f "$dir/$ROH_DIR.tar" "$dir/$archive_name"
 		if [ $? -eq 0 ]; then
-		    echo "Extracted [$dir/$ROH_DIR] from [$dir/$archive_name]"
+		    echo "Extracted [$dir/$ROH_DIR] from [$archive_name]"
 		else
 		    echo "ERROR: failed to extract [$dir/$ROH_DIR] from [$dir/$archive_name]"
 		    echo

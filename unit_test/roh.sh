@@ -91,12 +91,12 @@ $FPATH_BIN show "$PWD"/2002.ro #>/dev/null 2>&1
 run_test "$ROH_BIN archive $fpath" "1" "$(escape_expected "ERROR: local repo [$PWD/2002.ro/.roh.git] not clean")"
 
 $FPATH_BIN hide "$PWD"/2002.ro >/dev/null 2>&1
-run_test "$ROH_BIN archive $fpath" "0" "$(escape_expected "SKIP: directory [$PWD/Fotos [space]/1999] -- [$PWD/Fotos [space]/1999/_.roh.git.zip] exists.*Archived [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/.roh.git] to [$PWD/2002.ro/_.roh.git.zip].*Removed [$PWD/2002.ro/.roh.git]")"
+run_test "$ROH_BIN archive $fpath" "0" "$(escape_expected "SKIP: directory [$PWD/Fotos [space]/1999] -- [$PWD/Fotos [space]/1999/_.roh.git.zip] exists.*Archived [.roh.git] to [$PWD/2002.ro/_.roh.git.zip].*Removed [$PWD/2002.ro/.roh.git]")"
 
 mkdir 2002
 cp "$PWD/2002.ro/_.roh.git.zip" "2002/."
 mv "2002.ro" "2002.ro.ORIG"
-run_test "$GIT_BIN -xC 2002" "0" "$(escape_expected "Extracted [2002/.roh.git] from [2002/_.roh.git.zip].*Removed [2002/_.roh.git.zip]")"
+run_test "$GIT_BIN -xC 2002" "0" "$(escape_expected "Extracted [2002/.roh.git] from [_.roh.git.zip].*Removed [2002/_.roh.git.zip]")"
 rm -rf 2002
 mv "2002.ro.ORIG" "2002.ro"
 
