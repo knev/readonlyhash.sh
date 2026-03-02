@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#set -x
+
 usage() {
     echo "Usage: $(basename "$0") [--force] <[-i|-z|-x] -[i|z|x]C PATHSPEC> [ARGUMENTS]"
     echo "Options:"
@@ -20,8 +22,6 @@ usage() {
 	echo
 }
 
-archive_mode="false"
-extract_mode="false"
 commands=()  # normal array is fine even in 3.2
 
 contains() {
@@ -43,10 +43,10 @@ while getopts ":izxC:h-:" opt; do
 	  commands+=("init")
 	  ;;
 	z)
-	  archive_mode="true"
+	  commands+=("archive")
 	  ;;
 	x)
-	  extract_mode="true"
+	  commands+=("extract")
 	  ;;
     C)
 	  CWD="$OPTARG"
@@ -124,31 +124,32 @@ fi
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 init_roh() {
-	ROH_DIR=".roh.git"
-	mkdir -p "$CWD/$ROH_DIR"
+    local dir="$1"
 
-	if [ -d "$CWD/$ROH_DIR/.git" ]; then
-		echo "ERROR: [$CWD/$ROH_DIR/.git] exists already; aborting"
+	mkdir -p "$dir/$ROH_DIR"
+
+	if [ -d "$dir/$ROH_DIR/.git" ]; then
+		echo "ERROR: [$dir/$ROH_DIR/.git] exists already; aborting"
 		return 1
 	fi
 
-	# GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$CWD/$ROH_DIR" git status
+	# GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$dir/$ROH_DIR" git status
 	export GIT_CONFIG_COUNT=1
 	export GIT_CONFIG_KEY_0=advice.defaultBranchName
 	export GIT_CONFIG_VALUE_0="false"
 
-	git -C "$CWD/$ROH_DIR" init
+	git -C "$dir/$ROH_DIR" init
 
-	echo ".DS_Store.$HASH" > "$CWD/$ROH_DIR"/.gitignore
-	git -C "$CWD/$ROH_DIR" add .gitignore
-	git -C "$CWD/$ROH_DIR" commit -m "Initial ignores."
+	echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
+	git -C "$dir/$ROH_DIR" add .gitignore
+	git -C "$dir/$ROH_DIR" commit -m "Initial ignores."
 	# git -C "$CWD/$ROH_DIR" status
 
-	git_status=$(git -C "$CWD/$ROH_DIR" status)
+	git_status=$(git -C "$dir/$ROH_DIR" status)
 	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-		git -C "$CWD/$ROH_DIR" add "*"
-		git -C "$CWD/$ROH_DIR" commit -m "Initial hashes."
-		git -C "$CWD/$ROH_DIR" status
+		git -C "$dir/$ROH_DIR" add "*"
+		git -C "$dir/$ROH_DIR" commit -m "Initial hashes."
+		git -C "$dir/$ROH_DIR" status
 	fi
 
 	unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
@@ -244,12 +245,12 @@ extract_roh() {
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 if contains "init"; then
-	init_roh 
+	init_roh "$CWD"
 
-elif [ "$archive_mode" = "true" ]; then
+elif contains "archive"; then
 	archive_roh "$CWD" "$force_mode"
 
-elif [ "$extract_mode" = "true" ]; then
+elif contains "extract"; then
 	extract_roh "$CWD" "$force_mode"
 
 else

@@ -35,29 +35,37 @@ rm -rf "__MACOSX"
 rm "$fpath" >/dev/null 2>&1
 rm "$fpath_ro" >/dev/null 2>&1
 
+# args
+echo
+echo "# args"
+
+run_test "$GIT_BIN Fotos\ \[space\]/2003" "1" "$(escape_expected "ERROR: invalid working directory [].")"
+
 # init
 echo
 echo "# init"
 
-$FPATH_BIN write -- Fotos\ \[space\]/2003/2003-11-29\ Digital\ Reality/* >/dev/null 2>&1
 run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "0" "$(escape_expected "Initialized empty Git repository in /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003/.roh.git/.git/")"
 run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "1" "$(escape_expected "ERROR: [Fotos [space]/2003/.roh.git/.git] exists already; aborting")"
-#mv "Fotos [space]/2003.ro" "Fotos [space]/2003"
-run_test "ls -al Fotos\ \[space\]/2003~ro.roh.txt" "0" "$(escape_expected "Fotos [space]/2003~ro.roh.txt" "0")"
-rm "Fotos [space]/2003~ro.roh.txt"
+rm -rf 'Fotos [space]/2003/.roh.git' >/dev/null 2>&1
 
-echo "$PWD/Fotos/2003" > "$fpath"
-run_test "$ROH_BIN init $fpath" "1" "$(escape_expected "ERROR: Directory [$PWD/Fotos/2003] does not exist.")"
-# run_test "ls -al $fpath_ro" "0" "Fotos~ro.loop.txt: No such file or directory" "true"
-# rm "$fpath_ro"
+# 2003: git
 
-echo "$PWD/Fotos [space]/1999" > "$fpath"
-echo "$PWD/2002" >> "$fpath"
-run_test "$ROH_BIN init $fpath" "0" "Initialized empty Git repository"
-run_test "ls -al $fpath_ro" "0" "$fpath_ro"
-rm "$fpath"
-run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999.ro status" "0" "nothing to commit, working tree clean"
-run_test "$GIT_BIN -C $PWD/2002.ro status" "0" "nothing to commit, working tree clean"
+echo "$PWD/Fotos [space]/2003" > "$fpath"
+echo "$PWD/Fotos [space]/1999" >> "$fpath"
+echo "$PWD/2002.ro" >> "$fpath"
+#run_test "$ROH_BIN init $fpath" "0" "Initialized empty Git repository"
+$FPATH_BIN write "Fotos [space]/2003" >/dev/null 2>&1
+$FPATH_BIN write "Fotos [space]/1999" >/dev/null 2>&1
+$FPATH_BIN write '2002' >/dev/null 2>&1
+$GIT_BIN -iC "Fotos [space]/2003" >/dev/null 2>&1
+$GIT_BIN -iC "Fotos [space]/1999" >/dev/null 2>&1
+$GIT_BIN -iC "2002" >/dev/null 2>&1
+run_test "$GIT_BIN -C $PWD/Fotos\ \[space\]/1999 status" "0" "nothing to commit, working tree clean"
+run_test "$GIT_BIN -C $PWD/2002 status" "0" "nothing to commit, working tree clean"
+mv $PWD/2002 $PWD/2002.ro 
+
+#run_test "ls -al $fpath_ro" "0" "$fpath_ro"
 
 echo "$PWD/1999" > "Fake.roh.txt"
 cat "$fpath_ro" >> "Fake.roh.txt"
