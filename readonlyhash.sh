@@ -307,7 +307,7 @@ verify_directory() {
 	if [ -f "$dir/$archive_name" ]; then
 		echo "ERROR: found archived ROH_DIR [$dir/$archive_name] at [$dir]"
 		echo
-		exit 1
+		return 0
 
 # 		tmp_dir=$(mktemp -d)
 # 		echo "tmp_dir [$tmp_dir]"
