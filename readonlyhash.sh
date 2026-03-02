@@ -14,13 +14,12 @@ usage() {
 	echo "      extract         ..."
 	echo "      copy            ..."
     echo "Options:"
-	echo "      --resume-at     ..."
 	echo "      --rebase        ..."
     echo "      --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
 	echo 
-	echo
 	echo "Other operations: "
+	echo "      --resume-at     ..."
 	echo "      while IFS= read -r line; do ... \"\$line\"; done < FILENAME.roh.txt"
     echo
 }
@@ -300,8 +299,6 @@ rebase_directory() {
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 verify_directory() {
 	local dir="$1"

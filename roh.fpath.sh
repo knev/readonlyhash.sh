@@ -56,6 +56,7 @@ usage() {
 
 
 #Features:
+#TODO: verify outputs if DB exists
 #TODO: do the "more" with matched FILENAMES on recover files as with hashes
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
