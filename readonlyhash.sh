@@ -209,8 +209,20 @@ done
 
 # capture all remaining arguments after the options have been processed
 shift $((OPTIND-1))
-file_path="$1"
-LOOP_TXT_RO="${file_path%.roh.txt}~ro.roh.txt"
+ROH_TXT="$1"
+ALT_TXT="${ROH_TXT%.roh.txt}~ro.roh.txt"
+
+# Check if the file ends with .ro.txt
+if [[ ! "$ROH_TXT" =~ \.roh\.txt$ ]]; then
+    echo "ERROR: no file path argument ending with '.roh.txt' found."
+	usage
+    exit 1
+fi
+if [ ! -f "$ROH_TXT" ]; then
+	echo "ERROR: [$ROH_TXT] not found"
+	usage
+	exit 1
+fi
 
 shift
 skipping_mode="false"
@@ -489,17 +501,8 @@ copy_to_target() {
 	else
 		echo "[$dir_rebased]"
 	fi
- 	echo "$dir_rebased_ro" >> "$LOOP_TXT_RO"
+ 	echo "$dir_rebased_ro" >> "$ALT_TXT"
 }
-
-#------------------------------------------------------------------------------------------------------------------------------------------
-
-# Check if the file ends with .ro.txt
-elif [[ ! "$file_path" =~ \.roh\.txt$ ]]; then
-    echo "ERROR: No file path argument ending with '.roh.txt' found."
-	usage
-    exit 1
-fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -507,7 +510,7 @@ fi
 while IFS= read -r dir; do
 	# Skip lines that start with '#'
 	if [[ "$dir" =~ ^#.* ]]; then
-		echo "$dir" >> "$LOOP_TXT_RO"
+		echo "$dir" >> "$ALT_TXT"
 		continue
 	fi
 
@@ -522,7 +525,7 @@ while IFS= read -r dir; do
 		echo "OK: directory entry [$dir] -- SKIPPING"
 		echo "■"
 		if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
-			echo "#SKIPPED: $dir" >> "$LOOP_TXT_RO"
+			echo "#SKIPPED: $dir" >> "$ALT_TXT"
 		fi
 		continue
 	fi
@@ -561,12 +564,12 @@ while IFS= read -r dir; do
     fi
 	echo "■"
 
-done < "$file_path"
+done < "$ROH_TXT"
 
 if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
 	# Filter out comments at the end of lines and compare
-	if diff <(sed 's/#.*$//' "$file_path") <(sed 's/#.*$//' "$LOOP_TXT_RO") > /dev/null 2>&1; then
-		rm "$LOOP_TXT_RO"
+	if diff <(sed 's/#.*$//' "$ROH_TXT") <(sed 's/#.*$//' "$ALT_TXT") > /dev/null 2>&1; then
+		rm "$ALT_TXT"
 	fi
 fi
 
