@@ -33,43 +33,130 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-cmd="_INVALID_"
-# Parse command
-case "$1" in
-    init) 
-        ;;
-    verify) 
-        ;;
-    archive) 
-        ;;
-    extract) 
-        ;;
-	copy)
-	    ;;
-#    delete) 
-#        ;;
-	--version)
-	    echo "$(basename "$0") version: $VERSION"
-		echo
-	    exit 0
-	    ;;
-    -h)
-		usage
-        exit 0
-        ;;
-    --help)
-		usage
-        exit 0
-        ;;
-    *)
-        echo "ERROR: unknown command: [$1]"
-		usage
-        exit 1
-        ;;
-esac
-cmd="$1"
+# ----
 
-shift
+# Compatible with bash 3.2+ (macOS default) and bash 4+
+
+# List of valid full commands
+valid_long="init verify archive extract copy"
+
+# Short to long mapping (using case statement instead of assoc array)
+get_long() {
+    case "$1" in
+        i) echo "init" ;;
+        v) echo "verify" ;;
+        a) echo "archive" ;;
+        x) echo "extract" ;;
+        c) echo "copy" ;;
+        *) echo "" ;;  # empty = invalid
+    esac
+}
+
+commands=()  # normal array is fine even in 3.2
+
+contains() {
+    local needle="$1"
+    local item
+    for item in "${commands[@]}"; do
+        [[ "$item" == "$needle" ]] && return 0
+    done
+    return 1
+}
+
+i=1
+while [ $i -le $# ]; do
+    arg=$(eval echo "\$$i")
+
+    # Stop on any switch-like argument
+    case "$arg" in
+        -*) break ;;
+    esac
+
+    # 1. Try full word match
+    if echo "$valid_long" | grep -qw "$arg"; then
+        commands+=("$arg")
+        i=$((i+1))
+        continue
+    fi
+
+    # 2. Try short letters (consecutive, no separators)
+    if echo "$arg" | grep -qE '^[vwidhsqre]+$'; then
+        invalid=0
+        for ((j=0; j<${#arg}; j++)); do
+            c="${arg:$j:1}"
+            long=$(get_long "$c")
+            if [ -n "$long" ]; then
+                commands+=("$long")
+            else
+                echo "ERROR: unknown short operation '$c' in '$arg'" >&2
+                invalid=1
+                break
+            fi
+        done
+        if [ $invalid -eq 0 ]; then
+            i=$((i+1))
+            continue
+        fi
+    fi
+
+	if [ ${#commands[@]} -eq 0 ]; then
+		# If we get here → error
+		echo "ERROR: invalid command [$arg]" >&2
+		# echo "Allowed full: verify write index delete hide show query recover sweep" >&2
+		# echo "     short:  v      w     i      d      h    s    q     r      e" >&2
+		# echo "Shorts can be concatenated like: vwidhsqre" >&2
+		usage
+		exit 1
+	fi
+	break
+done
+# echo "Parsed commands (${#commands[@]}):"
+# for cmd in "${commands[@]}"; do
+#     echo "  - $cmd"
+# done
+
+# Reset positional parameters to remaining arguments only
+shift $((i-1))   # now $1 is the first -something argument
+
+# -----
+
+while getopts "h-:" opt; do
+  # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
+  case $opt in
+    h)
+      usage
+      exit 0
+      ;;	  
+    -)
+      case "${OPTARG}" in
+	    version)
+	      echo "$(basename "$0") version: $VERSION"
+		  echo
+	      exit 0
+	      ;;
+        help)
+          usage
+          exit 0
+          ;;
+        *)
+          echo "ERROR: invalid option: [--${OPTARG}]" >&2
+          usage
+          exit 1
+          ;;
+      esac
+      ;;
+    \?)
+      echo "ERROR: invalid option: [-${OPTARG}]" >&2
+      usage
+      exit 1
+      ;;
+    :)
+      echo "ERROR: option [-$OPTARG] requires an argument." >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
 
 directory_mode="false"
 rebase_mode="false"
@@ -459,17 +546,17 @@ while IFS= read -r dir; do
 		if [ "$cmd" = "init" ]; then
 			init_directory "$dir"
 
-		elif [ "$cmd" = "verify" ]; then
+		if contains "verify"; then
 			if [ "$rebase_mode" = "true" ]; then
 				verify_target "$dir" "$rebase_string"
 			else
 				verify_directory "$dir"
 			fi
 
-		elif [ "$cmd" = "archive" ]; then
+		elif contains "archive"; then
 			archive_directory "$dir"
 
-		elif [ "$cmd" = "extract" ]; then
+		elif contains "extract"; then
 			extract_directory "$dir"
 
 		elif [ "$cmd" = "copy" ]; then
