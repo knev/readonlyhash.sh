@@ -50,7 +50,6 @@ usage() {
 #TODO: on rebase, use the rebase string to rename output .roh.txt file; create a roh.copy command that accepts a rebase string; accepts export output too
 
 #BUGS
-#TODO: dont' index a shown directory
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 
 
@@ -1564,6 +1563,15 @@ hash_maintanence() {
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 #	local visibility_mode="$3"
 #   local force_mode="$4"
+
+	# searching for hashes, because .git exists
+	if contains "index"; then
+		if [ -z "$(find "$ROH_DIR" -name "*.sha256" -mindepth 1 -print -quit)" ]; then
+			echo "ERROR: nothing to index [$ROH_DIR]"
+			echo
+			return 1
+		fi
+	fi
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;

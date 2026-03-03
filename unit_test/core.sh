@@ -538,6 +538,8 @@ cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
 run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not shown).*destination [test/file with spaces.txt.sha256] -- exists.*for source [test/.roh.git/file with spaces.txt.sha256]")"
 run_test "$FPATH_BIN show --verbose --force $TEST" "0" "$(escape_expected "OK: [$TEST/file with spaces.txt]: [test/file with spaces.txt.sha256] hash file -- moved(shown)")"
 
+run_test "$FPATH_BIN index $TEST" "1" "$(escape_expected "ERROR: nothing to index [test/.roh.git]")"
+
 run_test "$FPATH_BIN hide --verbose $TEST" "0" "$(escape_expected "OK: [$TEST/file with spaces.txt]: [$ROH_DIR/file with spaces.txt.sha256] hash file -- moved(hidden)")"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
