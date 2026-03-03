@@ -122,7 +122,10 @@ popd >/dev/null 2>&1
 run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "Avoiding symlink [test/X11] like the Plague")"
 rm "$TEST/X11"
 
-$FPATH_BIN write "$TEST" >/dev/null 2>&1
+chmod 000 "$TEST/file with spaces.txt"
+run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "ERROR: -- file [test/file with spaces.txt] not readable or permission denied.*computed [0000000000000000000000000000000000000000000000000000000000000000][test/file with spaces.txt]")"
+chmod 644 "$TEST/file with spaces.txt"
+$FPATH_BIN write "$TEST" #>/dev/null 2>&1
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "$ROH_DIR/file with spaces.txt.$HASH"
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/file with spaces.txt.$HASH"
 run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "WARN:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$ROH_DIR/file with spaces.txt.sha256].*WARN:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$TEST/file with spaces.txt.sha256]")"
@@ -309,6 +312,10 @@ echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 # index
 echo
 echo "# index"
+
+mkdir "$TEST/sql_dir"
+run_test "$FPATH_BIN query --db $TEST/sql_dir $TEST -- c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "1" "$(escape_expected "ERROR: failed to query db [test/sql_dir]")"
+rmdir "$TEST/sql_dir"
 
 run_test "$FPATH_BIN index query $TEST -- c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "0" "$(escape_expected "query hash: [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65].*OK: --      hash path [$PWD/test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256.*       absolute fpath [$PWD/test/sub-directory with spaces/sub-sub-directory/jkl.txt]")"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: database file [test/.roh.sqlite3] exists; has not been removed")"
@@ -523,6 +530,9 @@ echo "# show/hide"
 # $FPATH_BIN show "$TEST" >/dev/null 2>&1
 # run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR:.* -- hash file [.*] exists/(NOT hidden)")"
 # $FPATH_BIN hide "$TEST" >/dev/null 2>&1
+chmod 000 "$ROH_DIR"
+run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test] -- missing or inacccessible [test/.roh.git]. Aborting.")"
+chmod 755 "$ROH_DIR"
 
 cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
 run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not shown).*destination [test/file with spaces.txt.sha256] -- exists.*for source [test/.roh.git/file with spaces.txt.sha256]")"
@@ -549,9 +559,9 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 echo
 echo "# roh.git"
 
-run_test "$GIT_BIN" "1" "$(escape_expected "ERROR: not enough arguments.")" 
+run_test "$GIT_BIN" "1" "$(escape_expected "ERROR: invalid working directory []")" 
 #run_test "$GIT_BIN status" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
-run_test "$GIT_BIN --force" "1" "$(escape_expected "ERROR: not enough arguments.")" 
+run_test "$GIT_BIN --force" "1" "$(escape_expected "ERROR: invalid working directory []")" 
 #run_test "$GIT_BIN --force -x" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
 run_test "$GIT_BIN -xC" "1" "$(escape_expected "ERROR: option [-C] requires an argument.")" 
 run_test "$GIT_BIN -xC FAKE_FPATH" "1" "$(escape_expected "ERROR: invalid working directory [FAKE_FPATH].")" 

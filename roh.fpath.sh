@@ -51,7 +51,6 @@ usage() {
 
 #BUGS
 #TODO: dont' index a shown directory
-#TODO: unit test each return 1
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 
 
@@ -112,8 +111,8 @@ generate_hash() {
     local file="$1"
 	if [ ! -r "$file" ]; then
         echo "ERROR: -- file [$file] not readable or permission denied" >&2
-        echo "ERROR: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] -- exists/(NOT hidden)"
-        return 1
+		echo "0000000000000000000000000000000000000000000000000000000000000000"
+		return
     fi
     # echo $($SHA256_BIN "$file" | awk '{print $1}')
 	# echo $(stdbuf -i0 shasum -a 256 "$file" | cut -c1-64) # brew install coreutils || gstdbuf Instead
@@ -209,7 +208,7 @@ roh_sqlite3_db_init() {
     # Remove existing database file if it exists (no point if using mktemp)
 	if [ -f "$db" ]; then
 		# rm "$db"; echo "db: [$db] -- removed"
-		return
+		return 0
 	fi
 
     # Create or open the SQLite database with a new schema
@@ -234,6 +233,7 @@ CREATE INDEX IF NOT EXISTS idx_filename ON hashes(filename);
 EOF
 
     echo "DB_SQL: [$db] -- initialized"
+	return 0
 }
 
 # sqlite3 "$DB_SQL" ".dump hashes" >&2
@@ -244,6 +244,11 @@ roh_sqlite3_db_insert() {
     local roh_hash_fpath="$3"
     local stored="$4"
 	
+    if [ ! -f "$db" ]; then
+		echo "ERROR: can not access database file [$db]" >&2
+		exit 1
+	fi
+
     # Escape single quotes for SQLite
     local fn=$(basename "$fpath")
     local enc_fn=$(hex_encode "$fn")
@@ -265,7 +270,8 @@ roh_sqlite3_db_find_hash() {
     local stored="$2"
 
     if [ ! -f "$db" ]; then
-		return 1
+		echo "ERROR: can not access database file [$db]" >&2
+		exit 1
 	fi
 
 	sqlite3 "$db" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
@@ -277,7 +283,8 @@ roh_sqlite3_db_find_fn() {
     local fn="$2"
 
     if [ ! -f "$db" ]; then
-		return 1
+		echo "ERROR: can not access database file [$db]" >&2
+		exit 1
 	fi
 
     local enc_fn=$(hex_encode "$fn")
@@ -289,6 +296,11 @@ roh_sqlite3_db_find_fpath() {
     local db="$1"
 	local fpath="$2"
 	local stored="$3"
+
+    if [ ! -f "$db" ]; then
+		echo "ERROR: can not access database file [$db]" >&2
+		exit 1
+	fi
 
 	local abs_fpath=$(readlink -f "$fpath")
 	if [ -z "$abs_fpath" ]; then
@@ -303,6 +315,11 @@ roh_sqlite3_db_get_1fpath_hash() {
     local db="$1"
 	local fpath="$2"
 	
+    if [ ! -f "$db" ]; then
+		echo "ERROR: can not access database file [$db]" >&2
+		exit 1
+	fi
+
 	local abs_fpath=$(readlink -f "$fpath")
 	if [ -z "$abs_fpath" ]; then
 		return "0000000000000000000000000000000000000000000000000000000000000000";
@@ -321,7 +338,8 @@ recover_file() {
     local roh_hash_fpath="$3"
     local computed_hash="$4"
 
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$computed_hash")
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$computed_hash") || return 1
+
 	# while IFS=$'\r' read -r found_fpath found_roh_hash_fpath; do
 	#	echo "[$found_fpath:$found_roh_hash_fpath]"
 	# done <<< "$list_roh_hash_fpaths"
@@ -333,7 +351,7 @@ recover_file() {
 
 		local stored=$(stored_hash "$roh_hash_fpath")
 
-		local fpath_exists=$(roh_sqlite3_db_find_fpath "$db" "$fpath" "$stored")
+		local fpath_exists=$(roh_sqlite3_db_find_fpath "$db" "$fpath" "$stored") || return 1
 		if [ "$fpath_exists" -eq 0 ]; then
 			roh_sqlite3_db_insert "$db" "$fpath" "$roh_hash_fpath" "$stored"
 			echo " IDX: >$stored<: [$fpath] -- written INDEXED"
@@ -358,8 +376,7 @@ recover_file() {
     local abs_fpath=$(readlink -f "$fpath")
 #    local enc_abs_fpath=$(hex_encode "$abs_fpath")
 
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn")
-	[ $? -ne 0 ] && return 0
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
 	if [ -n "$list_roh_hash_fpaths" ]; then
 
 		# echo "* Found in file(s): [ ..."
@@ -566,11 +583,11 @@ write_hash() {
 			echo "ERROR"
 			exit 1
 		fi
-		local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "0000000000000000000000000000000000000000000000000000000000000000")
+		local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "0000000000000000000000000000000000000000000000000000000000000000") || return 1
 		if [ "$fpath_exists" -eq 0 ]; then
 			:
 		elif [ "$fpath_exists" -eq 1 ]; then
-			local stored=$(roh_sqlite3_db_get_1fpath_hash "$DB_SQL" "$fpath")
+			local stored=$(roh_sqlite3_db_get_1fpath_hash "$DB_SQL" "$fpath") || return 1
 			echo " IDX: [$stored]: [$fpath] -- already exists, skipping"
 			return
 		else
@@ -751,6 +768,8 @@ delete_hash() {
 		rm "$roh_hash_fpath"
 		[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$roh_hash_fpath] -- deleted"
     fi
+
+	return 0
 }
 
 manage_hash_visibility() {
@@ -819,6 +838,8 @@ manage_hash_visibility() {
         ((ERROR_COUNT++))
         return 0
     fi
+
+	return 0
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -887,8 +908,7 @@ process_directory() {
 
 			fi
 
-			process_directory "$entry" "$visibility_mode" "$force_mode"
-			[ $? -ne 0 ] && return 1
+			process_directory "$entry" "$visibility_mode" "$force_mode" || return 1
 
 		# else ...
         elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
@@ -899,20 +919,16 @@ process_directory() {
 					continue;
 				fi
 				if contains "verify" || contains "recover"; then
-					verify_hash "$dir" "$entry"
-					[ $? -ne 0 ] && return 1
+					verify_hash "$dir" "$entry" || return 1
 				elif contains "write"; then
-					write_hash "$dir" "$entry" "$visibility_mode" "$force_mode"
-					[ $? -ne 0 ] && return 1
+					write_hash "$dir" "$entry" "$visibility_mode" "$force_mode" || return 1
 				elif [ ${#commands[@]} -eq 1 ] && contains "hide"; then
-					manage_hash_visibility "$dir" "$entry" "hide" "$force_mode"
-					[ $? -ne 0 ] && return 1
+					manage_hash_visibility "$dir" "$entry" "hide" "$force_mode" || return 1
 				elif [ ${#commands[@]} -eq 1 ] && contains "show"; then 
-					manage_hash_visibility "$dir" "$entry" "show" "$force_mode"
-					[ $? -ne 0 ] && return 1
+					manage_hash_visibility "$dir" "$entry" "show" "$force_mode" || return 1
 				fi
 			else
-				delete_hash "$dir" "$entry"
+				delete_hash "$dir" "$entry" || return 1
             fi
         fi
     done
@@ -1214,7 +1230,10 @@ fi
 # echo "* DB_SQL [${DB_SQL[*]}]"
 
 if contains "index"; then
-	roh_sqlite3_db_init "$DB_SQL" 
+	if ! roh_sqlite3_db_init "$DB_SQL"; then
+		echo "ERROR: database file [$DB_SQL]? this should not happen" >&2
+		exit 1
+	fi
 fi
 
 if contains "verify"; then
@@ -1250,8 +1269,7 @@ recover_hash() {
     local abs_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
     local enc_abs_roh_hash_fpath=$(hex_encode "$abs_roh_hash_fpath")
 
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$stored")
-	[ $? -ne 0 ] && return 1
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$stored") || return 1
 	if [ -n "$list_roh_hash_fpaths" ]; then
 
 		# echo "* Found in file(s): [ ..."
@@ -1331,8 +1349,7 @@ recover_hash() {
 	fi
 	((ERROR_COUNT++))
 
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn")
-	[ $? -ne 0 ] && return 1
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
 	if [ -n "$list_roh_hash_fpaths" ]; then
 
 		# echo "* Found in file(s): [ ..."
@@ -1423,9 +1440,7 @@ run_directory_process() {
 		fi 
 	fi
 
-	process_directory "$@"	
-	[ $? -ne 0 ] && return 1
-
+	process_directory "$@" || return 1
 	return 0
 }
 
@@ -1471,8 +1486,7 @@ process_hash_repo()
 	 
 	 			fi
 
-				process_hash_repo "$recursive_dir" "$visibility_mode" "$force_mode"
-				[ $? -ne 0 ] && return 1
+				process_hash_repo "$recursive_dir" || return 1
 			fi
 
 			if [ -z "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
@@ -1511,7 +1525,7 @@ process_hash_repo()
 					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
 	 			fi
  	 			if contains "index"; then
-   			        local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "$stored")
+   			        local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "$stored") || return 1
    			        if [ "$fpath_exists" -eq 0 ]; then
 						roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 						if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
@@ -1523,14 +1537,12 @@ process_hash_repo()
    			        fi
 				fi
 	 			if contains "recover"; then
-	 				# echo "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-	 				[ $? -ne 0 ] && return 1
+	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored" || return 1 # never happens ?
 				fi
 
 			else
 		 		if contains "index"; then
-					local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "$stored")
+					local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "$stored") || return 1
 		 			if [ "$fpath_exists" -eq 0 ]; then
 		 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 		 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
@@ -1597,7 +1609,8 @@ process_query() {
 	local query_hash="$2"
 
     echo "query hash: [$query_hash]"
-	if ! list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$query_hash"); then
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_hash "$db" "$query_hash")
+	if [ $? -ne 0 ]; then
 		echo "ERROR: failed to query db [$db]"
 		return 1
 	fi
