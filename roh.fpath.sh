@@ -245,6 +245,8 @@ roh_sqlite3_db_insert() {
 	
     if [ ! -f "$db" ]; then
 		echo "ERROR: can not access database file [$db]" >&2
+		echo "Abort."
+		echo
 		exit 1
 	fi
 
@@ -270,6 +272,8 @@ roh_sqlite3_db_find_hash() {
 
     if [ ! -f "$db" ]; then
 		echo "ERROR: can not access database file [$db]" >&2
+		echo "Abort."
+		echo
 		exit 1
 	fi
 
@@ -283,6 +287,8 @@ roh_sqlite3_db_find_fn() {
 
     if [ ! -f "$db" ]; then
 		echo "ERROR: can not access database file [$db]" >&2
+		echo "Abort."
+		echo
 		exit 1
 	fi
 
@@ -298,6 +304,8 @@ roh_sqlite3_db_find_fpath() {
 
     if [ ! -f "$db" ]; then
 		echo "ERROR: can not access database file [$db]" >&2
+		echo "Abort."
+		echo
 		exit 1
 	fi
 
@@ -316,6 +324,8 @@ roh_sqlite3_db_get_1fpath_hash() {
 	
     if [ ! -f "$db" ]; then
 		echo "ERROR: can not access database file [$db]" >&2
+		echo "Abort."
+		echo
 		exit 1
 	fi
 
@@ -593,6 +603,8 @@ write_hash() {
 		# fpath must exist for roh_sqlite3_db_find_fpath() to succeed here
 		if [ ! -f "$fpath" ]; then 
 			echo "ERROR"
+			echo "Abort."
+			echo
 			exit 1
 		fi
 		local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "0000000000000000000000000000000000000000000000000000000000000000") || return 1
@@ -604,6 +616,8 @@ write_hash() {
 			return
 		else
 			echo "ERROR"
+			echo "Abort."
+			echo
 			exit 1
 		fi
 	fi
@@ -803,6 +817,8 @@ manage_hash_visibility() {
 		dest_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
     else
         echo "ERROR: invalid hash visibility action"
+		echo "Abort."
+		echo
         exit 1
     fi
 
@@ -1158,6 +1174,7 @@ else
 	# echo "* ROOT [$ROOT]"
 	if ! contains "query" && [ ! -d "$ROOT" ]; then
 		echo "ERROR: Directory [$ROOT] does not exist"
+		echo "Abort."
 		echo
 		exit 1
 	fi
@@ -1244,6 +1261,8 @@ fi
 if contains "index"; then
 	if ! roh_sqlite3_db_init "$DB_SQL"; then
 		echo "ERROR: database file [$DB_SQL]? this should not happen" >&2
+		echo "Abort."
+		echo
 		exit 1
 	fi
 fi
@@ -1258,6 +1277,8 @@ elif contains "recover" || contains "index"; then
 		echo "Using DB_SQL [$DB_SQL]"
 	else
 		echo "ERROR: database file [$DB_SQL] not found" >&2
+		echo "Abort."
+		echo
 		exit 1
 	fi
 fi
@@ -1302,9 +1323,10 @@ recover_hash() {
 					if [ -f "$found_abs_roh_hash_fpath" ]; then
 						continue
 					else
-						echo "this should not happen, because we are processing orphans that exist"
-						((ERROR_COUNT++))
-						continue
+						echo "ERROR: this should not happen, because we are processing orphans that exist"
+						echo "Abort."
+						echo 
+						exit 1
 					fi
 				fi
 
@@ -1710,7 +1732,7 @@ if contains "index" && ( contains "recover" || contains "query" ); then
 
 	echo "Indexing ... [${ROH_DIR%/}]"
 	hash_maintanence "${ROH_DIR%/}" # "$visibility_mode" "$force_mode"
-	[ $? -ne 0 ] && echo && exit 1
+	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 
 	commands=("${cmds_copy[@]/index}")
 fi
@@ -1718,7 +1740,7 @@ fi
 if contains "query"; then
     QUERY_HASH="$PATHSPEC"
 	if ! process_query "$DB_SQL" "$QUERY_HASH"; then
-		echo && exit 1
+		echo "Abort." && echo && exit 1
 	fi
 
     echo "Done."
@@ -1731,7 +1753,7 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
 	echo "Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
 	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
-	[ $? -ne 0 ] && echo && exit 1
+	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_NEW]"
 fi
 
@@ -1740,7 +1762,7 @@ if [ "$only_files" = "true" ]; then
 elif contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
 	echo "Hash maintanence ... [${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}]"
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
-	[ $? -ne 0 ] && echo && exit 1
+	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_DELETED]"
 fi
 
