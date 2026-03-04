@@ -389,19 +389,32 @@ run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(esca
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-new.txt"
 mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-renamed.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
 $FPATH_BIN write sweep --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
+rm "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.sqlite3"
 
-mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/rxn.txt"
+#clean: $TEST/$SUBDIR_WITH_SPACES_RO
+
+# file is found, but at a different path
+for i in {11..23}; do
+    printf -v num "%02d" "$i"
+    mkdir -p "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/$num"
+	cp "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/$num/rxn.txt"
+done
+run_test "$FPATH_BIN write index --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected " OK: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [test/sub-directory with spaces.ro/sub-sub-directory/15/rxn.txt] -- file hash written.*IDX: >d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af<: [test/sub-directory with spaces.ro/.roh.git/sub-sub-directory/20/rxn.txt.sha256] -- INDEXED")"
+# file is missing, but it was indexed as having a valid fpath -- indexed, but missing
+for i in {15..19}; do
+    printf -v num "%02d" "$i"
+	rm "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/$num/rxn.txt"
+done
+# file is missing, indexed as file not found, so fpath == NULL;  orphaned hash
+for d in {1..9}; do
+	mkdir -p "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/$d/"
+    printf '%64s\n' | tr ' ' "$d" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/$d/rxn.txt.sha256"
+done
+run_test "$FPATH_BIN index \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected " ")"
+# catalyst
 echo "#RXN#" > "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/rxn.txt"
-echo "rxn" > "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt"
-mkdir "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/1/"
-mkdir "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/2/"
-mkdir "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/3/"
-mkdir "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/4/"
-echo "1111111111111111111111111111111111111111111111111111111111111111" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/1/rxn.txt.sha256"
-echo "2222222222222222222222222222222222222222222222222222222222222222" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/2/rxn.txt.sha256"
-echo "3333333333333333333333333333333333333333333333333333333333333333" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/3/rxn.txt.sha256"
-echo "4444444444444444444444444444444444444444444444444444444444444444" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/4/rxn.txt.sha256"
-run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "hash mismatch -- FILENAME matches.*[d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/.roh.git/rxn.txt.sha256] orphaned hash.*1 more.*ERROR: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af] -- hash not in IDX [test/sub-directory with spaces.ro/rxn.txt] -- file DELETED !")"
+run_test "$FPATH_BIN recover --only-files --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "WARN: [2a5364040532fd64388c6d6c78f5812d30d499bfffb15be2a822cd0f6fefa872]: [test/sub-directory with spaces.ro/sub-sub-directory/rxn.txt] -- NEW!?.*[d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/sub-sub-directory/11/rxn.txt].*[/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/sub-sub-directory/19/rxn.txt] -- indexed, but missing.*[9999999999999999999999999999999999999999999999999999999999999999]: [/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-directory with spaces.ro/.roh.git/9/rxn.txt.sha256] orphaned hash")"
+run_test "$FPATH_BIN recover --only-files \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "19 more")"
 
 exit
 
