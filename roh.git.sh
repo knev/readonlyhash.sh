@@ -99,7 +99,7 @@ ROH_DIR=".roh.git"
 # echo "* [$#][$@]"
 
 # Check if any mode is set or if positional arguments are needed
-if [ "$archive_mode" = "false" ] && [ "$extract_mode" = "false" ]; then
+if ! contains "init" && ! contains "archive" && ! contains "extract"; then
 	if [ $# -eq 0 ]; then
 		echo "ERROR: not enough arguments." >&2
 		echo
@@ -107,7 +107,7 @@ if [ "$archive_mode" = "false" ] && [ "$extract_mode" = "false" ]; then
 		exit 1
 	fi
 
-elif [ "$archive_mode" = "true" ] && [ "$extract_mode" = "true" ]; then
+elif contains "archive" && contains "extract"; then
 		echo "ERROR: archive and extract operations are mutually exclusive." >&2
 		echo
 		usage

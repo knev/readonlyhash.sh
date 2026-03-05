@@ -663,9 +663,9 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 echo
 echo "# roh.git"
 
-run_test "$GIT_BIN" "1" "$(escape_expected "ERROR: invalid working directory []")" 
+run_test "$GIT_BIN" "1" "$(escape_expected "ERROR: not enough arguments.")" 
 #run_test "$GIT_BIN status" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
-run_test "$GIT_BIN --force" "1" "$(escape_expected "ERROR: invalid working directory []")" 
+run_test "$GIT_BIN --force -iC \"\"" "1" "$(escape_expected "ERROR: invalid working directory []")" 
 #run_test "$GIT_BIN --force -x" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
 run_test "$GIT_BIN -xC" "1" "$(escape_expected "ERROR: option [-C] requires an argument.")" 
 run_test "$GIT_BIN -xC FAKE_FPATH" "1" "$(escape_expected "ERROR: invalid working directory [FAKE_FPATH].")" 
@@ -678,14 +678,14 @@ $GIT_BIN -C "$TEST" add "*" >/dev/null 2>&1
 $GIT_BIN -C "$TEST" commit -m "Initial hashes" >/dev/null 2>&1
 run_test "$GIT_BIN -C $TEST status" "0" "nothing to commit, working tree clean"
 
-run_test "$GIT_BIN -zC $TEST" "0" "$(escape_expected "Archived [test/.roh.git] to [test/_.roh.git.zip].*Removed [test/.roh.git]")"
+run_test "$GIT_BIN -zC $TEST" "0" "$(escape_expected "Archived [.roh.git] to [test/_.roh.git.zip].*Removed [test/.roh.git]")"
 
 run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] exists in [test]; aborting")"
 mv "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
 run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] does NOT exist in [test]")"
 
 mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
-run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "Extracted [test/.roh.git] from [test/_.roh.git.zip].*Removed [test/_.roh.git.zip]")"
+run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "Extracted [test/.roh.git] from [_.roh.git.zip].*Removed [test/_.roh.git.zip]")"
 run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] exists in [test]; aborting")"
 mv "$ROH_DIR" "$ROH_DIR~"
 run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] does NOT exist in [test]")"
@@ -711,17 +711,17 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 echo
 echo "# process_directory()"
 
-run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "WARN: [test/$SUBDIR_COPY_SLASH_RO] is a readonlyhash directory -- SKIPPING.* WARN: [test/$SUBDIR_WITH_SPACES_RO] is a readonlyhash directory -- SKIPPING")"
-run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "OK: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test/file with spaces.txt].* WARN: [test/$SUBDIR_COPY_SLASH_RO] is a readonlyhash directory -- SKIPPING.* WARN: [test/$SUBDIR_WITH_SPACES_RO] is a readonlyhash directory -- SKIPPING")"
+run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "WARN: [test/$SUBDIR_COPY_SLASH_RO] is a readonlyhash directory -- SKIPPING.*WARN: [test/$SUBDIR_WITH_SPACES_RO] is a readonlyhash directory -- SKIPPING")"
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "OK: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test/file with spaces.txt].*WARN: [test/$SUBDIR_COPY_SLASH_RO] is a readonlyhash directory -- SKIPPING.*WARN: [test/$SUBDIR_WITH_SPACES_RO] is a readonlyhash directory -- SKIPPING")"
 
 $GIT_BIN -zC "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
-run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: [test/$SUBDIR_COPY_SLASH_RO] is a readonlyhash directory -- SKIPPING.* WARN: [test/$SUBDIR_WITH_SPACES_RO] is a readonlyhash directory -- SKIPPING")"
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: [test/$SUBDIR_COPY_SLASH_RO] is a readonlyhash directory -- SKIPPING.*WARN: [test/$SUBDIR_WITH_SPACES_RO] is a readonlyhash directory -- SKIPPING")"
 $GIT_BIN -xC "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
 
 touch "$TEST/file with spaces.rslsz"
 run_test "$FPATH_BIN write $TEST" "1" "$(escape_expected "ERROR: [$TEST] \"file with spaces.rslsz\" -- file with restricted extension")"
 
-run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "ERROR: [$TEST] \"file with spaces.rslsz\" -- file with restricted extension")" "true"
+run_test "$FPATH_BIN delete sweep $TEST" "0" "$(escape_expected "ERROR: [$TEST] \"file with spaces.rslsz\" -- file with restricted extension")" "true"
 rm "$TEST/file with spaces.rslsz"
  
 #	mkdir -p "$ROH_DIR"
@@ -744,6 +744,7 @@ rm -rf "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git"
 rmdir "$TEST/$SUBDIR_COPY_SLASH_RO"
 
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/jkl copy.txt"
+rm "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/jkl.txt"
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/iop.txt"
 rmdir "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR"
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/omn's_.txt"
