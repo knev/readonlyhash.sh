@@ -462,7 +462,7 @@ recover_file() {
 	    done <<< "$list_roh_hash_fpaths"
 
 		local displayed=$((files_displayed + orphans_displayed + missing_displayed))
-		if [ "$VERBOSE_MODE" = "true" ] || [ "$total_found" -gt 3 ]; then
+		if [ ! "$VERBOSE_MODE" = "true" ] && [ "$total_found" -gt 3 ]; then
 			echo "               ... $((total_found - displayed)) more ..."
 		fi
 
