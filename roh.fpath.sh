@@ -1309,18 +1309,30 @@ recover_hash() {
 		# echo "$list_roh_hash_fpaths"
 		# echo "...]"
 
-		local files_found=0
+		local original_found=0
+		local duplicates_found=0
+		local total_found=0
 	
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
 	        if [ -n "$found" ]; then
 				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath <<< "$found"
-				# echo "[$found_enc_abs_fpath] [$found_enc_abs_roh_hash_fpath]"
+
+				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+				# echo "[$found_abs_fpath] [$found_abs_roh_hash_fpath]"
 
 				# same hash fpath
 				if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
-					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
 					if [ -f "$found_abs_roh_hash_fpath" ]; then
+						# we found the original file
+						if [ "$original_found" -gt 1 ]; then
+							echo "ERROR: this should not happen, should only be one original"
+							echo "Abort."
+							echo 
+							exit 1
+						fi
+						((original_found++))
 						continue
 					else
 						echo "ERROR: this should not happen, because we are processing orphans that exist"
@@ -1330,44 +1342,60 @@ recover_hash() {
 					fi
 				fi
 
-				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+				((total_found++))
 
-				# diff fpath
+				# diff fpath: same index hash, different location
 				if [ -f "$found_abs_fpath" ]; then
-					local computed_hash=$(generate_hash "$found_abs_fpath")
-					if [ "$computed_hash" = "$stored" ]; then
-						((files_found++))
-						if [ "$files_found" -lt 3 ]; then
-							[ "$VERBOSE_MODE" = "true" ] && echo "            ... [$found_abs_fpath] -- duplicate FOUND"
+
+					# $stored == found_hash(indexed), because we queried on $stored
+					# found_roh_hash_fpath(found_stored) == stored(indexed)? verify IDX
+					# found_file_fpath hash matches found_roh_hash_fpath? 
+
+					# verify IDX
+					local found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
+					if [ "$stored" != "$found_stored" ]; then
+						echo "ERROR: [$found_abs_roh_hash_fpath] -- IDX inconsistency: ..."
+						echo "        ... indexed [$stored]"
+						echo "        ...  stored [$found_stored]"
+						echo "Abort."
+						echo
+						exit 1
+					fi
+
+					local found_computed=$(generate_hash "$found_abs_fpath")
+					if [ "$found_computed" = "$stored" ]; then
+						((duplicates_found++))
+						# duplicate FOUND
+						if [ "$VERBOSE_MODE" = "true" ]; then
+							echo "         ... [$found_abs_fpath] -- duplicate FOUND"
 						fi
 					else
-						echo "  ERROR:    ... [$found_abs_fpath] -- hash mismatch: ..."
-						echo "                ... computed [$computed_hash]"
-						echo "                ...   stored [$stored]"
-						((ERROR_COUNT++))
+						if [ "$VERBOSE_MODE" = "true" ]; then
+							echo "         ... [$found_abs_fpath] -- hash mismatch: ..."
+							echo "             ... computed [$found_computed]"
+							echo "             ...   stored [$stored]"
+						fi
 					fi
 				else
 					# we found another orphaned hash, assume the rest of the loop will take care of it
-					[ "$VERBOSE_MODE" = "true" ] && echo "            ... [$found_abs_fpath] -- indexed, but missing"
+					[ "$VERBOSE_MODE" = "true" ] && echo "         ... [$found_abs_fpath] -- indexed, but missing"
 				fi
 
 			fi
 	    done <<< "$list_roh_hash_fpaths"
 
-		if [ "$files_found" -ne 0 ]; then
-			if [ "$files_found" -gt 2 ]; then
-				echo "            ... $((files_found - 2)) more ..."
-			fi
-			if rm "$roh_hash_fpath"; then
-				if [ "$VERBOSE_MODE" = "true" ]; then
-					echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
-				else
-					echo "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash -- removed"
-				fi
-			else
-				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
-				((ERROR_COUNT++))
-			fi			
+		if [ "$duplicates_found" -ne 0 ]; then
+ 			if rm "$roh_hash_fpath"; then
+ 				if [ "$VERBOSE_MODE" = "true" ]; then
+ 					#echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
+ 					echo "      ■: REMOVED!"
+ 				else
+ 					echo "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash -- REMOVED!"
+ 				fi
+ 			else
+ 				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
+ 				((ERROR_COUNT++))
+ 			fi			
 			return 0
 		fi
 
