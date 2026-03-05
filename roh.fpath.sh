@@ -108,7 +108,7 @@ check_extension() {
 generate_hash() {
     local file="$1"
 	if [ ! -r "$file" ]; then
-        echo "ERROR: -- file [$file] not readable or permission denied" >&2
+        echo "ERROR: [$file] file -- not readable or permission denied" >&2
 		echo "0000000000000000000000000000000000000000000000000000000000000000"
 		return
     fi
@@ -383,7 +383,7 @@ find_matching_fn()
 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
 					if [ "$VERBOSE_MODE" = "true" ] || [ "$orphans_displayed" -lt 2 ]; then
 						((orphans_displayed++))
-						echo "       ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
+						echo "      ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
 					fi
 					continue # found_enc_abs_fpath == NULL, so found_abs_fpath is INVALID
 				fi
@@ -394,8 +394,8 @@ find_matching_fn()
 					local found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
 					if [ "$found_hash" != "$found_stored" ]; then
 						echo "ERROR: [$found_abs_roh_hash_fpath] -- IDX inconsistency: ..."
-						echo "        ... indexed [$found_hash]"
-						echo "        ...  stored [$found_stored]"
+						echo "       ... indexed [$found_hash]"
+						echo "       ...  stored [$found_stored]"
 						echo "Abort."
 						echo
 						exit 1
@@ -403,14 +403,14 @@ find_matching_fn()
 
 					if [ "$VERBOSE_MODE" = "true" ] || [ "$files_displayed" -lt 2 ]; then
 						((files_displayed++))
-						echo "       ... [$found_hash]: [$found_abs_fpath]"
+						echo "      ... [$found_hash]: [$found_abs_fpath]"
 					fi
 
 				# file is missing, but it was indexed as having a valid fpath
 				else
 					if [ "$VERBOSE_MODE" = "true" ]; then
 						((missing_displayed++))
-						echo "       ... [$found_abs_fpath] -- indexed, but missing"
+						echo "      ... [$found_abs_fpath] -- indexed, but missing"
 					fi
 				fi
 
@@ -419,7 +419,7 @@ find_matching_fn()
 
 		local displayed=$((files_displayed + orphans_displayed + missing_displayed))
 		if [ ! "$VERBOSE_MODE" = "true" ] && [ "$total_found" -gt 3 ]; then
-			echo "           ... $((total_found - displayed)) more ..."
+			echo "          ... $((total_found - displayed)) more ..."
 		fi
 
 		return 0
@@ -462,14 +462,14 @@ recover_file() {
 		return 0
 	fi
 
-	# echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
-	# [ "$VERBOSE_MODE" = "true" ] && echo "OK: -- [$computed_hash]: [$fpath] -- NEW!?"
+	# echo "  OK: [$computed_hash]: [$fpath] -- NEW!?"
+	# [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath] -- NEW!?"
 
 	# else
 	# no matching hash found, file identical file names
 
 	if ! find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"; then
-		echo "OK: [$computed_hash]: [$fpath] -- NEW!?"
+		echo "  OK: [$computed_hash]: [$fpath] -- NEW!?"
 	fi
 
 	return 0
@@ -537,10 +537,10 @@ verify_hash() {
 		local stored_roh=$(stored_hash "$roh_hash_fpath")
 		local stored_dir=$(stored_hash "$dir_hash_fpath")
 
-        echo "ERROR: -- two hash files exist ..."
-		echo "            ... hidden [$stored_roh][$roh_hash_fpath]"
-		echo "             ... shown [$stored_dir][$dir_hash_fpath]"
-		echo "          ... computed [$computed_hash][$fpath]"
+        echo "ERROR: two hash files exist ..."
+		echo "         ... hidden [$stored_roh][$roh_hash_fpath]"
+		echo "          ... shown [$stored_dir][$dir_hash_fpath]"
+		echo "       ... computed [$computed_hash][$fpath]"
 
 		x_roh_hash="false"
         ((ERROR_COUNT++))
@@ -554,9 +554,9 @@ verify_hash() {
 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath]"
 			return 0
 		else
-			echo "ERROR: -- hash mismatch: ..."
-			echo "          ...   stored [$stored][$roh_hash_fpath]"
-			echo "          ... computed [$computed_hash][$fpath]"
+			echo "ERROR: hash mismatch: ..."
+			echo "         ... stored [$stored][$roh_hash_fpath]"
+			echo "       ... computed [$computed_hash][$fpath]"
 			((ERROR_COUNT++))
 			return 0
 		fi
@@ -570,9 +570,9 @@ verify_hash() {
 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath]"
 			return 0
 		else
-			echo "ERROR: -- hash mismatch: ..."
-			echo "          ...   stored [$stored][$dir_hash_fpath]"
-			echo "          ... computed [$computed_hash][$fpath]"
+			echo "ERROR: hash mismatch: ..."
+			echo "         ... stored [$stored][$dir_hash_fpath]"
+			echo "       ... computed [$computed_hash][$fpath]"
 			((ERROR_COUNT++))
 			return 0
 		fi 
@@ -582,7 +582,7 @@ verify_hash() {
 		recover_file "$DB_SQL" "$fpath" "$roh_hash_fpath" "$computed_hash"
 		return $?
 	else
-		echo "WARN: -- [$computed_hash]: [$fpath] -- NEW!?"
+		echo "WARN: [$computed_hash]: [$fpath] -- NEW!?"
 		((WARN_COUNT++))
 		[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_NEW"
 	fi
@@ -650,11 +650,11 @@ write_hash() {
 			# exist-R=T (eq-R=F)
 			if [ "$force_mode" = "true" ]; then
 				rm "$roh_hash_fpath"
-				echo "  OK: -- hash mismatch: ..."
+				echo "  OK: hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
 				echo "      ...   stored [$stored][$roh_hash_fpath] -- removed (FORCED)!"
 			else
-				echo "WARN: -- hash mismatch: ..."
+				echo "WARN: hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
 				echo "      ...   stored [$stored][$roh_hash_fpath]"
 				((WARN_COUNT++))
@@ -671,11 +671,11 @@ write_hash() {
 			# exist-D=T (eq-D=F)
 			if [ "$force_mode" = "true" ]; then
 				rm "$dir_hash_fpath"
-				echo "  OK: -- hash mismatch: ..."
+				echo "  OK: hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
 				echo "      ...   stored [$stored][$dir_hash_fpath] -- removed (FORCED)!"
 			else
-				echo "WARN: -- hash mismatch: ..."
+				echo "WARN: hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
 				echo "      ...   stored [$stored][$dir_hash_fpath]"
 				((WARN_COUNT++))
@@ -759,8 +759,8 @@ write_hash() {
 	# 		else
 	# 			if { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
 	# 				echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
-	# 				echo "       ...   stored [$stored]: [$roh_hash_fpath]"
-	# 				echo "       ... computed [$computed_hash]: [$fpath] -- new hash stored -- FORCED!"
+	# 				echo "      ...   stored [$stored]: [$roh_hash_fpath]"
+	# 				echo "      ... computed [$computed_hash]: [$fpath] -- new hash stored -- FORCED!"
 	# 				return 0  # No error
 	#  			else
 	#  				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
@@ -834,8 +834,8 @@ manage_hash_visibility() {
 	if [ -f "$src_fpath" ]; then
 		if [ -f "$dest_fpath" ] && [ "$force_mode" = "false" ]; then
 			echo "ERROR: [$fpath] -- not moving/(not $past_tense) ..." 
-			echo "                   ... destination [$dest_fpath] -- exists"
-			echo "                    ... for source [$src_fpath]"
+			echo "       ... destination [$dest_fpath] -- exists"
+			echo "        ... for source [$src_fpath]"
 			((ERROR_COUNT++))
 			return 0
 		fi
@@ -913,7 +913,7 @@ process_directory() {
 		# If the entry is a directory, process it recursively
         elif [ -d "$entry" ]; then
 			if [ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]; then
-				echo " WARN: [$entry] is a readonlyhash directory -- SKIPPING"
+				echo "WARN: [$entry] is a readonlyhash directory -- SKIPPING"
 				((WARN_COUNT++))
 				continue
 			fi
@@ -929,7 +929,7 @@ process_directory() {
 					else
 						hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
 						if [ -z "$hash_found" ]; then
-							echo "WARN: -- [$entry] -- NEW DIRECTORY!?"
+							echo "WARN: [$entry] -- NEW DIRECTORY!?"
 							((WARN_COUNT++))
 							continue
 						fi
@@ -1235,7 +1235,7 @@ fi
 
 # Check for force_mode usage
 if [ "$force_mode" = "true" ] && ! contains "write" && ! contains "show" && ! contains "hide"; then
-    echo "ERROR: --force can only be used with: write|show|hide" >&2
+    echo "ERROR: [--force] can only be used with: write|show|hide" >&2
     usage
     exit 1
 fi
@@ -1293,7 +1293,7 @@ recover_hash() {
     local roh_hash_fpath="$3"
     local stored="$4"
 
-	[ "$VERBOSE_MODE" = "true" ] && echo "RECOVER: [$stored]: [$roh_hash_fpath] -- orphaned hash"
+	[ "$VERBOSE_MODE" = "true" ] && echo "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash ..."
 	
     local fn=$(basename "$fpath")
     local enc_fn=$(hex_encode "$fn")
@@ -1362,8 +1362,8 @@ recover_hash() {
 					local found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
 					if [ "$stored" != "$found_stored" ]; then
 						echo "ERROR: [$found_abs_roh_hash_fpath] -- IDX inconsistency: ..."
-						echo "        ... indexed [$stored]"
-						echo "        ...  stored [$found_stored]"
+						echo "       ... indexed [$stored]"
+						echo "       ...  stored [$found_stored]"
 						echo "Abort."
 						echo
 						exit 1
@@ -1549,7 +1549,7 @@ process_hash_repo()
 					# echo "   * fpath DIRECTORY: [$dir_fpath]"
 	 
 	 				if [ ! -d "$dir_fpath" ]; then
-						echo "ERROR: -- [$recursive_dir] -- orphaned hash DIRECTORY!"
+						echo "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
 						((ERROR_COUNT++))
 						continue
 	 				fi
@@ -1565,7 +1565,7 @@ process_hash_repo()
 						echo "ERROR: Failed to remove directory [$recursive_dir]"
 						((ERROR_COUNT++))
 					else
-						[ "$VERBOSE_MODE" = "true" ] && echo "OK: orphaned hash directory [$recursive_dir] -- removed"
+						[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash directory [$recursive_dir] -- removed"
 					fi
 				fi
 			fi
@@ -1583,14 +1583,14 @@ process_hash_repo()
 	 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
 	 					((ERROR_COUNT++))
 	 				else
-	 					echo "OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
+	 					echo "  OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
 						continue;
 	 				fi
 				fi
 				if contains "verify"; then
-	 				echo "ERROR: -- [$stored]: [$roh_hash_fpath] -- orphaned hash"
-	 				#                                    "          [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
-	 				[ "$VERBOSE_MODE" = "true" ] && echo "          ...                                          NO corresponding file: [$fpath]"
+	 				echo "ERROR: [$stored]: [$roh_hash_fpath] -- orphaned hash"
+	 				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
+	 				[ "$VERBOSE_MODE" = "true" ] && echo "       ...                                          NO corresponding file: [$fpath]"
 	 				((ERROR_COUNT++))
 					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
 	 			fi
@@ -1657,7 +1657,7 @@ hash_maintanence() {
 				echo "ERROR: Failed to remove [$ROH_DIR]"
 				((ERROR_COUNT++))
 			else
-				[ "$VERBOSE_MODE" = "true" ] && echo "OK: remove [$ROH_DIR]"
+				[ "$VERBOSE_MODE" = "true" ] && echo "  OK: remove [$ROH_DIR]"
 			fi
 		fi
 	fi
@@ -1700,8 +1700,8 @@ process_query() {
 		if [ -n "$found_enc_abs_roh_hash_fpath" ]; then
 			found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
 			found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
-			echo "OK: --      hash path [$found_abs_roh_hash_fpath]"
-			echo "       absolute fpath [$found_abs_fpath]"
+			echo "OK: found -- hash path [$found_abs_roh_hash_fpath]"
+			echo "    ... absolute fpath [$found_abs_fpath]"
 		fi
 	done <<< "$list_roh_hash_fpaths"
 #    # Loop through DB_SQL array
