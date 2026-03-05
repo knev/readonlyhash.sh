@@ -534,7 +534,6 @@ rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/jkl copy.txt"
 # generate an error too
 echo "_jkl_" > "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/jkl copy.txt"
 
-#TODO: [] -- indexed, but missing
 run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "0" "$(escape_expected "[$PWD/test/sub-directory with spaces.ro/sub-sub-directory/jkl copy.txt] -- hash mismatch:.*computed [fcfd9ff0ceaae9e70fa27b6333f0f40a2909c5b4e595062ff399b32a5e9ebfe7].*stored [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65].*■: REMOVED!")"
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/jkl copy.txt"
 

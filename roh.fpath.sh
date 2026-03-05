@@ -1324,6 +1324,11 @@ recover_hash() {
 				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
 				# echo "[$found_abs_fpath] [$found_abs_roh_hash_fpath]"
 
+				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
+					[ "$VERBOSE_MODE" = "true" ] && echo "         ... [<NULL>] -- indexed, but [$found_abs_roh_hash_fpath] orphaned hash"
+					continue
+				fi
+
 				# same hash fpath
 				if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
 					if [ -f "$found_abs_roh_hash_fpath" ]; then
