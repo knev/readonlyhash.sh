@@ -360,8 +360,7 @@ find_matching_fn()
 		# echo "$list_roh_hash_fpaths"
 		# echo "...]"
 
-		echo "WARN: [$computed_hash]: [$fpath] -- NEW!? -- FILENAME matches ..."
-		((WARN_COUNT++))
+		echo "    : FILENAME matches ..."
 
 		local files_displayed=0
 		local orphans_displayed=0
@@ -422,10 +421,10 @@ find_matching_fn()
 			echo "          ... $((total_found - displayed)) more ..."
 		fi
 
-		return 0
+		[ "$VERBOSE_MODE" = "true" ] && echo "   ■: NOOP!"
 	fi
 
-	return 1
+	return 0
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -468,52 +467,10 @@ recover_file() {
 	# else
 	# no matching hash found, file identical file names
 
-	if ! find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"; then
-		echo "  OK: [$computed_hash]: [$fpath] -- NEW!?"
-	fi
+	echo "WARN: [$computed_hash]: [$fpath] -- NEW!?"
+	((WARN_COUNT++))
 
-	return 0
-
-#	[ "$VERBOSE_MODE" = "true" ] && echo "RECOVER: [$stored]: [$roh_hash_fpath] -- orphaned hash"
-#	
-#    local abs_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
-#    local enc_abs_roh_hash_fpath=$(hex_encode "$abs_roh_hash_fpath")
-#
-#	if [ "$VERBOSE_MODE" = "true" ]; then
-#	   	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
-#	else
-#		echo "  ERROR: [$stored] -- NOT in IDX [$fpath] -- file DELETED !?"
-#	fi
-#	((ERROR_COUNT++))
-#
-
-
-				# same fpath
-#				if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
-#					# echo "found_hash: $found_hash:$stored"
-#					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-#					if [ -f "$found_abs_roh_hash_fpath" ]; then
-#						if [ "$found_hash" != "$stored" ]; then
-#							echo "  ERROR:    ... hash mismatch: ..."
-#							echo "                ... indexed [$found_hash]: [$found_abs_roh_hash_fpath]"
-#							echo "                ...  stored [$stored]: [$abs_roh_hash_fpath]"
-#							((ERROR_COUNT++))
-#						fi								
-#						continue
-#					else
-#						echo "this should not happen, because we are processing orphans that exist"
-#						((ERROR_COUNT++))
-#						continue
-#					fi
-#				fi
-#
-
-
-#
-#	# else
-#	# echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- NOOP!"
-#	[ "$VERBOSE_MODE" = "true" ] && echo "      ■: -- NOOP!"
-
+	find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"
 	return 0
 }
 
@@ -1414,7 +1371,7 @@ recover_hash() {
 	# no matching hash found, file identical file names
 
 	if [ "$VERBOSE_MODE" = "true" ]; then
-	   	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
+	   	echo " ERR: hash not in IDX [$fpath] -- file DELETED !?"
 	else
 		echo "ERROR: [$stored] -- hash not in IDX [$fpath] -- file DELETED !?"
 	fi
@@ -1487,10 +1444,7 @@ recover_hash() {
 #	    done <<< "$list_roh_hash_fpaths"
 #	fi
 
-	if ! find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$stored"; then
-		# echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- NOOP!"
-		[ "$VERBOSE_MODE" = "true" ] && echo "      ■: NOOP!"
-	fi
+	find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$stored"
 
 	return 0
 }
