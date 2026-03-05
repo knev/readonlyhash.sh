@@ -1325,7 +1325,8 @@ recover_hash() {
 				# echo "[$found_abs_fpath] [$found_abs_roh_hash_fpath]"
 
 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
-					[ "$VERBOSE_MODE" = "true" ] && echo "         ... [<NULL>] -- indexed, but [$found_abs_roh_hash_fpath] orphaned hash"
+					# consider this as if the hash is different, so should be found as a filename match instead
+					# [ "$VERBOSE_MODE" = "true" ] && echo "         ... [<NULL>] -- indexed, but [$found_abs_roh_hash_fpath] orphaned hash"
 					continue
 				fi
 
@@ -1385,7 +1386,8 @@ recover_hash() {
 					fi
 				else
 					# we found another orphaned hash, assume the rest of the loop will take care of it
-					[ "$VERBOSE_MODE" = "true" ] && echo "         ... [$found_abs_fpath] -- indexed, but missing"
+					# consider this as if the hash is different, so should be found as a filename match instead
+					: # [ "$VERBOSE_MODE" = "true" ] && echo "         ... [$found_abs_fpath] -- X indexed, but missing"
 				fi
 
 			fi
