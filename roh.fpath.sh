@@ -54,7 +54,6 @@ usage() {
 
 
 #Features:
-#TODO: do the "more" with matched FILENAMES on recover files as with hashes
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
 #TODO: prune all index hashes that point to files that no longer exist
@@ -341,6 +340,96 @@ roh_sqlite3_db_get_1fpath_hash() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
+find_matching_fn() 
+{
+    local db="$1"
+    local fpath="$2"
+    local roh_hash_fpath="$3"
+    local computed_hash="$4"
+
+    local fn=$(basename "$fpath")
+#    local enc_fn=$(hex_encode "$fn")
+
+    local abs_fpath=$(readlink -f "$fpath")
+#    local enc_abs_fpath=$(hex_encode "$abs_fpath")
+
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
+	if [ -n "$list_roh_hash_fpaths" ]; then
+
+		# echo "* Found in file(s): [ ..."
+		# echo "$list_roh_hash_fpaths"
+		# echo "...]"
+
+		echo "WARN: [$computed_hash]: [$fpath] -- NEW!? -- FILENAME matches ..."
+		((WARN_COUNT++))
+
+		local files_displayed=0
+		local orphans_displayed=0
+		local missing_displayed=0
+		local total_found=0
+
+	    # Only print non-empty paths
+	    while IFS= read -r found; do
+			if [ -n "$found" ]; then
+				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
+
+				((total_found++))
+
+				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+				# echo "[$found_hash] [$found_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
+
+				# file is missing, indexed as file not found, so fpath == NULL
+				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
+					if [ "$VERBOSE_MODE" = "true" ] || [ "$orphans_displayed" -lt 2 ]; then
+						((orphans_displayed++))
+						echo "       ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
+					fi
+					continue # found_enc_abs_fpath == NULL, so found_abs_fpath is INVALID
+				fi
+
+				# file is found, but at a different path
+				if [ -f "$found_abs_fpath" ]; then
+					# verify IDX
+					local found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
+					if [ "$found_hash" != "$found_stored" ]; then
+						echo "ERROR: [$found_abs_roh_hash_fpath] -- IDX inconsistency: ..."
+						echo "        ... indexed [$found_hash]"
+						echo "        ...  stored [$found_stored]"
+						echo "Abort."
+						echo
+						exit 1
+					fi
+
+					if [ "$VERBOSE_MODE" = "true" ] || [ "$files_displayed" -lt 2 ]; then
+						((files_displayed++))
+						echo "       ... [$found_hash]: [$found_abs_fpath]"
+					fi
+
+				# file is missing, but it was indexed as having a valid fpath
+				else
+					if [ "$VERBOSE_MODE" = "true" ]; then
+						((missing_displayed++))
+						echo "       ... [$found_abs_fpath] -- indexed, but missing"
+					fi
+				fi
+
+			fi
+	    done <<< "$list_roh_hash_fpaths"
+
+		local displayed=$((files_displayed + orphans_displayed + missing_displayed))
+		if [ ! "$VERBOSE_MODE" = "true" ] && [ "$total_found" -gt 3 ]; then
+			echo "           ... $((total_found - displayed)) more ..."
+		fi
+
+		return 0
+	fi
+
+	return 1
+}
+
+#------------------------------------------------------------------------------------------------------------------------------------------
+
 recover_file() {
     local db="$1"
     local fpath="$2"
@@ -379,94 +468,7 @@ recover_file() {
 	# else
 	# no matching hash found, file identical file names
 
-    local fn=$(basename "$fpath")
-#    local enc_fn=$(hex_encode "$fn")
-
-    local abs_fpath=$(readlink -f "$fpath")
-#    local enc_abs_fpath=$(hex_encode "$abs_fpath")
-
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
-	if [ -n "$list_roh_hash_fpaths" ]; then
-
-		# echo "* Found in file(s): [ ..."
-		# echo "$list_roh_hash_fpaths"
-		# echo "...]"
-
-		echo "WARN: [$computed_hash]: [$fpath] -- NEW!?"
-		echo "       ... hash mismatch -- FILENAME matches ..."
-		((WARN_COUNT++))
-
-		local files_displayed=0
-		local orphans_displayed=0
-		local missing_displayed=0
-		local total_found=0
-
-	    # Only print non-empty paths
-	    while IFS= read -r found; do
-			if [ -n "$found" ]; then
-				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
-
-				((total_found++))
-
-				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
-				# echo "[$found_hash] [$found_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
-
-				# file is missing, indexed as file not found, so fpath == NULL
-				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
-					if [ "$VERBOSE_MODE" = "true" ] || [ "$orphans_displayed" -lt 2 ]; then
-						((orphans_displayed++))
-						local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-						echo "           ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
-					fi
-					continue # found_enc_abs_fpath == NULL, so found_abs_fpath is INVALID
-				fi
-
-				# file is found, but at a different path
-				if [ -f "$found_abs_fpath" ]; then
-					if [ "$VERBOSE_MODE" = "true" ] || [ "$files_displayed" -lt 2 ]; then
-						((files_displayed++))
-						echo "           ... [$found_hash]: [$found_abs_fpath]"
-					fi
-
-#  					found_computed_hash=$(generate_hash "$found_abs_fpath")
-# 					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-# 					if [ -f "$found_abs_roh_hash_fpath" ]; then
-# 						found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
-# 						if [ "$found_computed_hash" != "$found_stored" ]; then
-#							echo "  ERROR:    ... hash mismatch -- matching FILENAME found ..."
-#							echo "                ...   stored [$found_stored]: [$found_abs_roh_hash_fpath]"
-#							echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
-# 							((ERROR_COUNT++))
-# 							continue
-# 						fi
-# 					fi
-# 					# echo "computed_hash: $found_computed_hash:$stored"
-#  					if [ "$found_computed_hash" = "$stored" ]; then
-# 						# the indexed and found file at a different location was indexed with a wrong/outdated hash
-#  						echo "         ... duplicate FOUND [$found_abs_fpath]"
-#  					else
-#  						echo "            ... hash mismatch -- matching FILENAME found ..."
-# 						echo "                ...   stored [$stored]: [$abs_roh_hash_fpath]"
-# 						echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
-#  					fi
-
-				# file is missing, but it was indexed as having a valid fpath
-				else
-					if [ "$VERBOSE_MODE" = "true" ]; then
-						((missing_displayed++))
-						echo "           ... [$found_abs_fpath] -- indexed, but missing"
-					fi
-				fi
-
-			fi
-	    done <<< "$list_roh_hash_fpaths"
-
-		local displayed=$((files_displayed + orphans_displayed + missing_displayed))
-		if [ ! "$VERBOSE_MODE" = "true" ] && [ "$total_found" -gt 3 ]; then
-			echo "               ... $((total_found - displayed)) more ..."
-		fi
-
-	else
+	if ! find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"; then
 		echo "OK: [$computed_hash]: [$fpath] -- NEW!?"
 	fi
 
@@ -1344,7 +1346,7 @@ recover_hash() {
 
 				((total_found++))
 
-				# diff fpath: same index hash, different location
+				# same index hash, diff fpath, different location
 				if [ -f "$found_abs_fpath" ]; then
 
 					# $stored == found_hash(indexed), because we queried on $stored
@@ -1407,80 +1409,81 @@ recover_hash() {
 	if [ "$VERBOSE_MODE" = "true" ]; then
 	   	echo "  ERROR:    ... hash not in IDX [$fpath] -- file DELETED !?"
 	else
-		echo "  ERROR: [$stored] -- hash not in IDX [$fpath] -- file DELETED !?"
+		echo "ERROR: [$stored] -- hash not in IDX [$fpath] -- file DELETED !?"
 	fi
 	((ERROR_COUNT++))
 
-	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
-	if [ -n "$list_roh_hash_fpaths" ]; then
+#	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
+#	if [ -n "$list_roh_hash_fpaths" ]; then
+#
+#		# echo "* Found in file(s): [ ..."
+#		# echo "$list_roh_hash_fpaths"
+#		# echo "...]"
+#
+#		#TODO: indexed, but missing 4 times
+#		local files_found=0
+#
+#	    # Only print non-empty paths
+#	    while IFS= read -r found; do
+#			if [ -n "$found" ]; then
+#				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
+#				# echo "[$found_enc_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
+#
+#				# same fpath
+#				if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
+#					# echo "found_hash: $found_hash:$stored"
+#					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+#					if [ -f "$found_abs_roh_hash_fpath" ]; then
+#						if [ "$found_hash" != "$stored" ]; then
+#							echo "  ERROR:    ... hash mismatch: ..."
+#							echo "                ... indexed [$found_hash]: [$found_abs_roh_hash_fpath]"
+#							echo "                ...  stored [$stored]: [$abs_roh_hash_fpath]"
+#							((ERROR_COUNT++))
+#						fi								
+#						continue
+#					else
+#						echo "this should not happen, because we are processing orphans that exist"
+#						((ERROR_COUNT++))
+#						continue
+#					fi
+#				fi
+#
+#				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+#
+#				# diff fpath
+#				if [ -f "$found_abs_fpath" ]; then
+# 					found_computed_hash=$(generate_hash "$found_abs_fpath")
+#					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+#					if [ -f "$found_abs_roh_hash_fpath" ]; then
+#						found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
+#						if [ "$found_computed_hash" != "$found_stored" ]; then
+#							echo "  ERROR:    ... hash mismatch -- matching FILENAME found ..."
+#							echo "                ...   stored [$found_stored]: [$found_abs_roh_hash_fpath]"
+#							echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
+#							((ERROR_COUNT++))
+#							continue
+#						fi
+#					fi
+#					# echo "computed_hash: $found_computed_hash:$stored"
+# 					if [ "$found_computed_hash" = "$stored" ]; then
+#						# the indexed and found file at a different location was indexed with a wrong/outdated hash
+# 						echo "         ... duplicate FOUND [$found_abs_fpath]"
+# 					else
+# 						echo "            ... hash mismatch -- matching FILENAME found ..."
+#						echo "                ...   stored [$stored]: [$abs_roh_hash_fpath]"
+#						echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
+# 					fi
+#				else
+#					echo "            ... [$found_abs_fpath] -- indexed, but missing"
+#				fi
+#			fi
+#	    done <<< "$list_roh_hash_fpaths"
+#	fi
 
-		# echo "* Found in file(s): [ ..."
-		# echo "$list_roh_hash_fpaths"
-		# echo "...]"
-
-		#TODO: indexed, but missing 4 times
-		local files_found=0
-
-	    # Only print non-empty paths
-	    while IFS= read -r found; do
-			if [ -n "$found" ]; then
-				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
-				# echo "[$found_enc_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
-
-				# same fpath
-				if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
-					# echo "found_hash: $found_hash:$stored"
-					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-					if [ -f "$found_abs_roh_hash_fpath" ]; then
-						if [ "$found_hash" != "$stored" ]; then
-							echo "  ERROR:    ... hash mismatch: ..."
-							echo "                ... indexed [$found_hash]: [$found_abs_roh_hash_fpath]"
-							echo "                ...  stored [$stored]: [$abs_roh_hash_fpath]"
-							((ERROR_COUNT++))
-						fi								
-						continue
-					else
-						echo "this should not happen, because we are processing orphans that exist"
-						((ERROR_COUNT++))
-						continue
-					fi
-				fi
-
-				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
-
-				# diff fpath
-				if [ -f "$found_abs_fpath" ]; then
- 					found_computed_hash=$(generate_hash "$found_abs_fpath")
-					local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-					if [ -f "$found_abs_roh_hash_fpath" ]; then
-						found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
-						if [ "$found_computed_hash" != "$found_stored" ]; then
-							echo "  ERROR:    ... hash mismatch -- matching FILENAME found ..."
-							echo "                ...   stored [$found_stored]: [$found_abs_roh_hash_fpath]"
-							echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
-							((ERROR_COUNT++))
-							continue
-						fi
-					fi
-					# echo "computed_hash: $found_computed_hash:$stored"
- 					if [ "$found_computed_hash" = "$stored" ]; then
-						# the indexed and found file at a different location was indexed with a wrong/outdated hash
- 						echo "         ... duplicate FOUND [$found_abs_fpath]"
- 					else
- 						echo "            ... hash mismatch -- matching FILENAME found ..."
-						echo "                ...   stored [$stored]: [$abs_roh_hash_fpath]"
-						echo "                ... computed [$found_computed_hash]: [$found_abs_fpath]"
- 					fi
-				else
-					echo "            ... [$found_abs_fpath] -- indexed, but missing"
-				fi
-			fi
-	    done <<< "$list_roh_hash_fpaths"
+	if ! find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$stored"; then
+		# echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- NOOP!"
+		[ "$VERBOSE_MODE" = "true" ] && echo "      ■: NOOP!"
 	fi
-
-	# else
-	# echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- NOOP!"
-	[ "$VERBOSE_MODE" = "true" ] && echo "      ■: -- NOOP!"
 
 	return 0
 }
