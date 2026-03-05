@@ -1766,7 +1766,7 @@ if contains "index" && ( contains "recover" || contains "query" ); then
 	cmds_copy=("${commands[@]}")
 	commands=("index")
 
-	echo "Indexing ... [${ROH_DIR%/}]"
+	echo "# Indexing ... [${ROH_DIR%/}]"
 	hash_maintanence "${ROH_DIR%/}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 
@@ -1787,7 +1787,7 @@ if [ "$only_hashes" = "true" ]; then
 	:
 elif contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
-	echo "Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
+	echo "# Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
 	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_NEW]"
@@ -1796,7 +1796,7 @@ fi
 if [ "$only_files" = "true" ]; then
 	:
 elif contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
-	echo "Hash maintanence ... [${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}]"
+	echo "# Hash maintanence ... [${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}]"
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_DELETED]"
