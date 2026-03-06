@@ -338,6 +338,23 @@ roh_sqlite3_db_get_1fpath_hash() {
 	fi
 }
 
+roh_sqlite3_db_roh_hash_fpath_exists() {
+    local db="$1"
+	local roh_hash_fpath="$2"
+	
+    if [ ! -f "$db" ]; then
+		echo "ERROR: can not access database file [$db]" >&2
+		echo "Abort."
+		echo
+		exit 1
+	fi
+
+    local abs_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
+    local enc_abs_roh_hash_fpath=$(hex_encode "$abs_roh_hash_fpath")
+
+	sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE roh_hash_fpath = '$enc_abs_roh_hash_fpath';"
+}
+
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 find_matching_fn() 
@@ -1551,6 +1568,14 @@ process_hash_repo()
 					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
 	 			fi
  	 			if contains "index"; then
+					# IDX consistency
+					local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
+   			        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
+						echo "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
+	 					((ERROR_COUNT++))
+						continue
+					fi
+
    			        local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
    			        if [ "$fpath_exists" -eq 0 ]; then
 						roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
@@ -1568,6 +1593,14 @@ process_hash_repo()
 
 			else
 		 		if contains "index"; then
+					# IDX consistency
+					local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
+   			        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
+						echo "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
+	 					((ERROR_COUNT++))
+						continue
+					fi
+
 					local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
 		 			if [ "$fpath_exists" -eq 0 ]; then
 		 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
