@@ -296,7 +296,7 @@ roh_sqlite3_db_find_fn() {
 	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath' \r '$stored'
 }
 
-roh_sqlite3_db_find_fpath() {
+roh_sqlite3_db_fpath_exists() {
     local db="$1"
 	local fpath="$2"
 	local stored="$3"
@@ -448,7 +448,7 @@ recover_file() {
 
 		local stored=$(stored_hash "$roh_hash_fpath")
 
-		local fpath_exists=$(roh_sqlite3_db_find_fpath "$db" "$fpath" "$stored") || return 1
+		local fpath_exists=$(roh_sqlite3_db_fpath_exists "$db" "$fpath" "$stored") || return 1
 		if [ "$fpath_exists" -eq 0 ]; then
 			roh_sqlite3_db_insert "$db" "$fpath" "$roh_hash_fpath" "$stored"
 			echo " IDX: >$stored<: [$fpath] -- written INDEXED"
@@ -559,14 +559,14 @@ write_hash() {
 
 	# optimization for if we run "write index" more than once
 	if contains "index"; then
-		# fpath must exist for roh_sqlite3_db_find_fpath() to succeed here
+		# fpath must exist for roh_sqlite3_db_fpath_exists() to succeed here
 		if [ ! -f "$fpath" ]; then 
 			echo "ERROR"
 			echo "Abort."
 			echo
 			exit 1
 		fi
-		local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "0000000000000000000000000000000000000000000000000000000000000000") || return 1
+		local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "0000000000000000000000000000000000000000000000000000000000000000") || return 1
 		if [ "$fpath_exists" -eq 0 ]; then
 			:
 		elif [ "$fpath_exists" -eq 1 ]; then
@@ -1551,7 +1551,7 @@ process_hash_repo()
 					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
 	 			fi
  	 			if contains "index"; then
-   			        local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "$stored") || return 1
+   			        local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
    			        if [ "$fpath_exists" -eq 0 ]; then
 						roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 						if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
@@ -1568,7 +1568,7 @@ process_hash_repo()
 
 			else
 		 		if contains "index"; then
-					local fpath_exists=$(roh_sqlite3_db_find_fpath "$DB_SQL" "$fpath" "$stored") || return 1
+					local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
 		 			if [ "$fpath_exists" -eq 0 ]; then
 		 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 		 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
