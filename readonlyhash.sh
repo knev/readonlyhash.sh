@@ -389,6 +389,13 @@ archive_directory() {
 			echo
 			exit 1
 		fi
+
+		# searching for hashes, because .git exists
+		if [ -n "$(find "$dir" -path "*/.roh.git/*" -prune -o -name "*.sha256" -mindepth 1 -print -quit)" ]; then
+			echo "ERROR: hashes not exclusively hidden in [$ROH_DIR]"
+			echo
+			return 1
+		fi
 	
 		git_status=$($GIT_BIN -C "$dir" status)
 		echo "$git_status"
