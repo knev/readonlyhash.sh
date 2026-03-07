@@ -317,6 +317,7 @@ archive_directory() {
 		echo "SKIP: directory [$dir] -- [$dir/_.roh.git.zip] exists"
 	else
 		$GIT_BIN -zC "$dir" 
+		[ $? -ne 0 ] && exit 1
 	fi
 
 	if [ -f "$dir/.roh.sqlite3" ]; then
@@ -329,6 +330,7 @@ extract_directory() {
 	local dir="$1"
 
 	$GIT_BIN -xC "$dir" 
+	[ $? -ne 0 ] && exit 1
 }
 
 # - get the absolute path of $TARGET
