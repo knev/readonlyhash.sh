@@ -2,7 +2,7 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") < --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <FPATH/FN.roh.txt>"
+    echo "Usage: $(basename "$0") < --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <PATHSPEC>"
     echo "Options:"
 	echo "      --rebase        ..."
     echo "      --version       Display the version and exit"
@@ -31,11 +31,6 @@ while getopts "dh-:" opt; do
     -)
       case "${OPTARG}" in
         rebase)
-		  if [ "$cmd" != "copy" ] && [ "$cmd" != "verify" ]; then
-			echo "ERROR: invalid use of --rebase"
-		  	usage
-			exit 1
-		  fi
 		  rebase_mode="true"
           rebase_string="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
@@ -68,6 +63,29 @@ while getopts "dh-:" opt; do
       ;;
   esac
 done
+
+# echo "[$@]"
+
+PATHSPEC=""
+
+# capture all remaining arguments after the options have been processed
+shift $((OPTIND-1))
+
+PATHSPEC="$1"
+if [ -z "$PATHSPEC" ]; then
+	echo "ERROR: expected argument after Options" >&2
+	usage
+	exit 1	
+fi
+shift # this will fail if there are not enough args
+if [ $# -ne 0 ]; then 
+	echo "ERROR: too many arguments after PATHSPEC" >&2
+	usage
+	exit 1	
+fi
+# echo "* PATHSPEC (ROOT) set to [$PATHSPEC]"
+
+# echo "[$@]"
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -123,6 +141,12 @@ copy_to_target() {
 	local rebase_string="$2"
     IFS=':' read -r rebase_origin rebase_target <<< "$rebase_string"
 
+	if [ ! -d "$dir" ]; then
+		echo "ERROR: rebase origin [$dir] not accessible"
+		echo 
+		exit 1
+	fi
+
 	local dir_rebased=$(rebase_directory "$dir" "$rebase_origin" "$rebase_target")
 	if [ "$dir_rebased" = "_INVALID_" ]; then
         echo "ERROR: invalid rebase string [$rebase_string]"
@@ -164,18 +188,18 @@ copy_to_target() {
 	 	fi
 	fi
 
- 	dir_rebased_ro=$(rename_to_ro "$dir_rebased")
-	if [ "$dir_rebased" != "$dir_rebased_ro" ] && mv -n "$dir_rebased" "$dir_rebased_ro"; then
- 		# echo "Renamed [$dir_rebased] to [$dir_rebased_ro]"
-		echo "Renamed [${rebase_target}/${dir_rebased#*${rebase_target}/}] to [${rebase_target}/${dir_rebased_ro#*${rebase_target}/}]"
-	else
-		echo "[$dir_rebased]"
-	fi
- 	echo "$dir_rebased_ro" >> "$ALT_TXT"
+# 	dir_rebased_ro=$(rename_to_ro "$dir_rebased")
+#	if [ "$dir_rebased" != "$dir_rebased_ro" ] && mv -n "$dir_rebased" "$dir_rebased_ro"; then
+# 		# echo "Renamed [$dir_rebased] to [$dir_rebased_ro]"
+#		echo "Renamed [${rebase_target}/${dir_rebased#*${rebase_target}/}] to [${rebase_target}/${dir_rebased_ro#*${rebase_target}/}]"
+#	else
+#		echo "[$dir_rebased]"
+#	fi
+# 	echo "$dir_rebased_ro" >> "$ALT_TXT"
 }
 
+#------------------------------------------------------------------------------------------------------------------------------------------
 
-#		elif [ "$cmd" = "copy" ]; then
-#			copy_to_target "$dir" "$rebase_string"
 
+copy_to_target "$PATHSPEC" "$rebase_string"
 

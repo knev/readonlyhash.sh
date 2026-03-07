@@ -3,6 +3,7 @@
 ROH=readonlyhash
 ROH_FPATH=roh.fpath
 ROH_GIT=roh.git
+ROH_COPY=roh.copy
 
 # Define the version here or pass it as an environment variable
 VERSION := $(shell git describe --tags --long --match v[0-9]*.[0-9]* | sed 's/-g.*$$//')
@@ -49,6 +50,13 @@ install:
 	@tail -n +2 ./${ROH_GIT}.sh >> ~/bin/${ROH_GIT}
 	@chmod +x ~/bin/${ROH_GIT}
 #
+	@cp -v ./${ROH_COPY}.sh ~/bin/${ROH_COPY} # this will get clobbered !
+	@echo "#!/bin/bash" > ~/bin/${ROH_COPY}
+	@echo "" >> ~/bin/${ROH_COPY}
+	@echo "VERSION=\"$(VERSION)\"" >> ~/bin/${ROH_COPY}
+	@tail -n +2 ./${ROH_COPY}.sh >> ~/bin/${ROH_COPY}
+	@chmod +x ~/bin/${ROH_COPY}
+#
 	@echo "Done."
 	@echo
 
@@ -59,5 +67,6 @@ clean:
 	-rm ~/bin/${ROH}
 	-rm ~/bin/${ROH_FPATH}
 	-rm ~/bin/${ROH_GIT}
+	-rm ~/bin/${ROH_COPY}
 	@echo
 

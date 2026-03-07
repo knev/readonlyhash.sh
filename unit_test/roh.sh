@@ -7,6 +7,8 @@ FPATH_BIN="./roh.fpath.sh"
 chmod +x $FPATH_BIN
 GIT_BIN="./roh.git.sh"
 chmod +x $GIT_BIN
+ROH_COPY="./roh.copy.sh"
+chmod +x $ROH_COPY
 fpath="Fotos.roh.txt"
 fpath_ro="Fotos~ro.roh.txt"
 fpath_ro_ro="Fotos~ro~ro.roh.txt"
@@ -155,27 +157,36 @@ echo "# copy --rebase"
 #
 #"$Fractal/blammy/cheeze:$Fractal/_target~"
 
-# mkdir -p "blammy/cheeze"
-# mv "$PWD/Fotos [space]" "$PWD/blammy/cheeze/." 
-# mv "$PWD/2002.ro" "$PWD/blammy/cheeze/." 
-# echo "$PWD/blammy/cheeze/Fotos [space]/1999.ro" > "$fpath_ro"
-# echo "$PWD/blammy/cheeze/2002.ro" >> "$fpath_ro"
-# unzip Fotos.zip -d $TARGET >/dev/null 2>&1
-# rm -rf "$TARGET/__MACOSX"
-# 
-# run_test "$ROH_BIN copy --rebase blammy/cheeze $fpath_ro" "1" "$(escape_expected "ERROR: invalid rebase string [blammy/cheeze]" )"
-# 
-# run_test "$ROH_BIN verify --rebase blammy/cheeze:$TARGET $fpath_ro" "0" "ERROR" "true"
-# 
-# run_test "$ROH_BIN copy --rebase blammy/cheeze:$TARGET $fpath_ro" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999.ro/.roh.git] to [$TARGET/Fotos [space]/1999/.].*Copied [blammy/cheeze/2002.ro/.roh.git] to [$TARGET/2002/.]")"
-# run_test "ls -al $PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR" "0" "$(escape_expected "$PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR: No such file or directory")" "true"
-# #TMP run_test "$ROH_BIN verify $fpath_ro_ro" "0" "ERROR" "true"
-# 
-# rm -rf "$TARGET"
-# mv "$PWD/blammy/cheeze/Fotos [space]" "$PWD/."
-# mv "$PWD/blammy/cheeze/2002.ro" "$PWD/." 
-# rmdir "blammy/cheeze"
-# rmdir "blammy"
+mkdir -p "blammy/cheeze"
+mv "$PWD/Fotos [space]" "$PWD/blammy/cheeze/." 
+mv "$PWD/2002.ro" "$PWD/blammy/cheeze/." 
+echo "$PWD/blammy/cheeze/Fotos [space]/1999.ro" > "$fpath_ro"
+echo "$PWD/blammy/cheeze/2002.ro" >> "$fpath_ro"
+unzip Fotos.zip -d $TARGET >/dev/null 2>&1
+rm -rf "$TARGET/__MACOSX"
+
+run_test "$ROH_COPY --rebase blammy/cheeze $fpath_ro" "1" "$(escape_expected "ERROR: invalid rebase string [blammy/cheeze]" )"
+
+run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/Fotos\ \[space\]/1999.ro" "1" "$(escape_expected "ERROR: rebase origin [blammy/cheeze/Fotos [space]/1999.ro] not accessible")"
+
+run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/.roh.git] to [$TARGET/Fotos [space]/1999/.]")"
+run_test "ls -al $PWD/_target~/Fotos\ [space]/1999/$ROH_DIR" "0" "$(escape_expected "$PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR: No such file or directory")" "true"
+run_test "$FPATH_BIN verify _target~/Fotos\ \[space\]/1999" "0" "ERROR" "true"
+rm -rf '_target~/Fotos [space]/1999/.roh.git'
+exit
+
+#run_test "$ROH_BIN --rebase blammy/cheeze:$TARGET $fpath_ro" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999.ro/.roh.git] to [$TARGET/Fotos [space]/1999/.].*Copied [blammy/cheeze/2002.ro/.roh.git] to [$TARGET/2002/.]")"
+
+#TODO: readonlyhash: do the copy and then the verify?
+#run_test "$ROH_BIN verify --rebase blammy/cheeze:$TARGET $fpath_ro" "0" "ERROR" "true"
+
+#TMP run_test "$ROH_BIN verify $fpath_ro_ro" "0" "ERROR" "true"
+
+rm -rf "$TARGET"
+mv "$PWD/blammy/cheeze/Fotos [space]" "$PWD/."
+mv "$PWD/blammy/cheeze/2002.ro" "$PWD/." 
+rmdir "blammy/cheeze"
+rmdir "blammy"
 
 # Clean up test files
 echo
