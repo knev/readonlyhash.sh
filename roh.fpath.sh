@@ -58,7 +58,6 @@ usage() {
 #TODO: permissions: git created as user account, access as different user or root
 #TODO: prune all index hashes that point to files that no longer exist
 #TODO: archive, then try a retarget
-#TODO: how does the extract to tmp of zip interact with the --retarget ?!
 #TODO: update readme
 #TODO: ? write parts in C++ or rust to improve performance
 #TODO: should probably add a delete on the ROH level to delete the hashes and .git
@@ -1562,11 +1561,12 @@ process_hash_repo()
 				fi
 				if contains "verify"; then
 	 				echo "ERROR: [$stored]: [$roh_hash_fpath] -- orphaned hash"
-	 				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$fpath] -- NO corresponding file"
+	 				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$roh_hash_fpath] -- orphaned hash"
 	 				[ "$VERBOSE_MODE" = "true" ] && echo "       ...                                          NO corresponding file: [$fpath]"
 	 				((ERROR_COUNT++))
 					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
 	 			fi
+
  	 			if contains "index"; then
 					# IDX consistency
 					local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
@@ -1588,7 +1588,7 @@ process_hash_repo()
    			        fi
 				fi
 	 			if contains "recover"; then
-	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored" || return 1 # never happens ?
+	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored" || return 1
 				fi
 
 			else
