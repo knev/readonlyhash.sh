@@ -1475,10 +1475,17 @@ run_directory_process() {
 		if [ ! -d "$ROH_DIR" ]; then
 			mkdir "$ROH_DIR"
 		fi
- 	elif contains "recover" || ( contains "show" && ! contains "write" ); then
+ 	elif contains "verify" || contains "recover" || ( contains "show" && ! contains "write" ); then
 		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
-			echo "ERROR: [$ROOT] -- missing or inacccessible [$ROH_DIR]. Aborting." >&2
-			return 1
+			if contains "verify"; then
+				echo "WARN: [.roh.git] missing or inacccessible" >&2
+				((WARN_COUNT++))
+			else
+				echo "ERROR: [$ROH_DIR] -- missing or inacccessible." >&2
+				echo "Abort."
+				echo
+				return 1
+			fi
 		fi 
 	fi
 
