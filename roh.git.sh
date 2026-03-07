@@ -179,26 +179,49 @@ archive_roh() {
 		fi
 	fi
         
-     if [ -d "$dir/$ROH_DIR" ]; then
-		#tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 # tar.gz
-		tar -cvf "$dir/$ROH_DIR.tar" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 && zip -qm "$dir/$archive_name" "$dir/$ROH_DIR.tar"
-        if [ $? -eq 0 ]; then
-            echo "Archived [$ROH_DIR] to [$dir/$archive_name]"
-        else
-            echo "ERROR: failed to archive [$dir/$ROH_DIR] to [$dir/$archive_name]"
-			echo
-            exit 1
-        fi
-
-		if [ -f "$dir/$archive_name" ]; then
-			rm -rf "$dir/$ROH_DIR"
-			echo "Removed [$dir/$ROH_DIR]"
-		fi
-    else
+    if [ ! -d "$dir/$ROH_DIR" ]; then
         echo "ERROR: directory [$ROH_DIR] does NOT exist in [$dir]"
 		echo
         exit 1
     fi
+
+	if [ ! -d "$dir/$ROH_DIR/.git" ]; then
+		echo "ERROR: local repo [$dir/$ROH_DIR/.git] does not exist"
+		echo
+		exit 1
+	fi
+
+	# searching for hashes, because .git exists
+	if [ -n "$(find "$dir" -path "*/.roh.git/*" -prune -o -name "*.sha256" -mindepth 1 -print -quit)" ]; then
+		echo "ERROR: hashes not exclusively hidden in [$dir/$ROH_DIR]"
+		echo
+		return 1
+	fi
+
+	git_status=$(git -C "$dir/$ROH_DIR" status)
+	# echo "$git_status"
+	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+        echo "ERROR: local repo [$dir/$ROH_DIR] not clean"
+		echo
+		exit 1
+	fi
+
+	#tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 # tar.gz
+	tar -cvf "$dir/$ROH_DIR.tar" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 && zip -qm "$dir/$archive_name" "$dir/$ROH_DIR.tar"
+    if [ $? -eq 0 ]; then
+        echo "Archived [$ROH_DIR] to [$dir/$archive_name]"
+    else
+        echo "ERROR: failed to archive [$dir/$ROH_DIR] to [$dir/$archive_name]"
+		echo
+        exit 1
+    fi
+
+	if [ -f "$dir/$archive_name" ]; then
+		rm -rf "$dir/$ROH_DIR"
+		echo "Removed [$dir/$ROH_DIR]"
+	fi
+
+	return 0
 }
 
 extract_roh() {

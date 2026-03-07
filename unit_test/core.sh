@@ -270,7 +270,6 @@ run_test "ls -al $ROH_DIR" "0" "this_is_a_directory.sha256"
 run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "OK: orphaned hash directory [test/.roh.git/this_is_a_directory.sha256] -- removed")"
 
 echo "DS_Store" > "$ROH_DIR/.DS_Store"
-$GIT_BIN -C "$TEST" init >/dev/null 2>&1
 run_test "$FPATH_BIN verify $TEST" "0" ".DS_Store.$HASH" "true"
 
 # write PATHSPEC
@@ -300,6 +299,7 @@ run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK:.*sub-sub
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: [test/sub-directory with spaces/sub-sub-directory-empty] -- NEW DIRECTORY!?")" "true"
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR-empty"
 
+$GIT_BIN -iC "$TEST" >/dev/null 2>&1
 $GIT_BIN -zC "$TEST" >/dev/null 2>&1
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: found archived ROH_DIR [test/_.roh.git.zip] at [test]")"
 $GIT_BIN -xC "$TEST" >/dev/null 2>&1
@@ -762,6 +762,7 @@ rmdir "$TEST/$SUBDIR_WITH_SPACES_RO"
 
 find "$TEST" -name '.DS_Store' -type f -delete
 rm -rf "$ROH_DIR/.git"
+rm "$ROH_DIR/.gitignore"
 rmdir "$ROH_DIR"
 
 $FPATH_BIN delete "$TEST" >/dev/null 2>&1

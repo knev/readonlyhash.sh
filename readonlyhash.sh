@@ -316,33 +316,6 @@ archive_directory() {
 	if [ -f "$dir/_.roh.git.zip" ]; then
 		echo "SKIP: directory [$dir] -- [$dir/_.roh.git.zip] exists"
 	else
-		# local tmp=$(find "$dir" -name '*.sha256' -type f -not -path '*/.roh.git/*')
-		# echo "$tmp"
-	
-		# verify_directory "$dir"
-		
-		if [ ! -d "$ROH_DIR/.git" ]; then
-			echo "ERROR: local repo [$ROH_DIR/.git] does not exist"
-			echo
-			exit 1
-		fi
-
-		# searching for hashes, because .git exists
-		if [ -n "$(find "$dir" -path "*/.roh.git/*" -prune -o -name "*.sha256" -mindepth 1 -print -quit)" ]; then
-			echo "ERROR: hashes not exclusively hidden in [$ROH_DIR]"
-			echo
-			return 1
-		fi
-	
-		git_status=$($GIT_BIN -C "$dir" status)
-		echo "$git_status"
-		if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-			echo
-	        echo "ERROR: local repo [$ROH_DIR] not clean"
-			echo
-			exit 1
-		fi
-
 		$GIT_BIN -zC "$dir" 
 	fi
 

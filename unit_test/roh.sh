@@ -91,7 +91,7 @@ $FPATH_BIN delete sweep "$PWD"/2002.ro >/dev/null 2>&1
 rm -rf "2002.ro/.roh.git"
 $GIT_BIN -iC "2002.ro" >/dev/null 2>&1
 $FPATH_BIN write show "$PWD"/2002.ro >/dev/null 2>&1
-run_test "$ROH_BIN archive $fpath --resume-at 2002.ro" "0" "$(escape_expected "ERROR: hashes not exclusively hidden in [$PWD/2002.ro/.roh.git]")"
+run_test "$GIT_BIN -zC 2002.ro" "1" "$(escape_expected "ERROR: hashes not exclusively hidden in [2002.ro/.roh.git]")"
 
 $FPATH_BIN hide "$PWD"/2002.ro >/dev/null 2>&1
 run_test "$ROH_BIN archive $fpath" "1" "$(escape_expected "ERROR: local repo [$PWD/2002.ro/.roh.git] not clean")"
