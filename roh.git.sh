@@ -129,7 +129,9 @@ init_roh() {
 	mkdir -p "$dir/$ROH_DIR"
 
 	if [ -d "$dir/$ROH_DIR/.git" ]; then
-		echo "ERROR: [$dir/$ROH_DIR/.git] exists already; aborting"
+		echo "ERROR: [$dir/$ROH_DIR/.git] exists already."
+		echo "Abort."
+		echo
 		return 1
 	fi
 
@@ -171,9 +173,10 @@ archive_roh() {
 	if [ -f "$dir/$archive_name" ]; then
 		if [ "$force_mode" = "true" ]; then
 			rm "$dir/$archive_name"
-			echo "Removed [$dir/$archive_name]"
+			echo "Clobber [$dir/$archive_name] (FORCED)!"
 		else
-			echo "ERROR: archive [$archive_name] exists in [$dir]; aborting"
+			echo "ERROR: archive [$archive_name] exists in [$dir]."
+			echo "Abort."
 			echo
 			exit 1
 		fi
@@ -181,12 +184,14 @@ archive_roh() {
         
     if [ ! -d "$dir/$ROH_DIR" ]; then
         echo "ERROR: directory [$ROH_DIR] does NOT exist in [$dir]"
+		echo "Abort."
 		echo
         exit 1
     fi
 
 	if [ ! -d "$dir/$ROH_DIR/.git" ]; then
 		echo "ERROR: local repo [$dir/$ROH_DIR/.git] does not exist"
+		echo "Abort."
 		echo
 		exit 1
 	fi
@@ -194,6 +199,7 @@ archive_roh() {
 	# searching for hashes, because .git exists
 	if [ -n "$(find "$dir" -path "*/.roh.git/*" -prune -o -name "*.sha256" -mindepth 1 -print -quit)" ]; then
 		echo "ERROR: hashes not exclusively hidden in [$dir/$ROH_DIR]"
+		echo "Abort."
 		echo
 		return 1
 	fi
@@ -202,6 +208,7 @@ archive_roh() {
 	# echo "$git_status"
 	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
         echo "ERROR: local repo [$dir/$ROH_DIR] not clean"
+		echo "Abort."
 		echo
 		exit 1
 	fi
@@ -212,6 +219,7 @@ archive_roh() {
         echo "Archived [$ROH_DIR] to [$dir/$archive_name]"
     else
         echo "ERROR: failed to archive [$dir/$ROH_DIR] to [$dir/$archive_name]"
+		echo "Abort."
 		echo
         exit 1
     fi
@@ -233,9 +241,10 @@ extract_roh() {
 	if [ -d "$dir/$ROH_DIR" ]; then
 		if [ "$force_mode" = "true" ]; then
 			rm -rf "$dir/$ROH_DIR"
-			echo "Removed [$dir/$ROH_DIR]"
+			echo "Clobber [$dir/$ROH_DIR] (FORCED)!"
 		else
-			echo "ERROR: directory [$ROH_DIR] exists in [$dir]; aborting"
+			echo "ERROR: directory [$ROH_DIR] exists in [$dir]"
+			echo "Abort."
 			echo
 			exit 1
 		fi
@@ -249,6 +258,7 @@ extract_roh() {
 		    echo "Extracted [$dir/$ROH_DIR] from [$archive_name]"
 		else
 		    echo "ERROR: failed to extract [$dir/$ROH_DIR] from [$dir/$archive_name]"
+			echo "Abort."
 		    echo
 		    exit 1
 		fi
@@ -260,6 +270,7 @@ extract_roh() {
 
 	else
         echo "ERROR: archive [$archive_name] does NOT exist in [$dir]"
+		echo "Abort."
 		echo
         exit 1
     fi

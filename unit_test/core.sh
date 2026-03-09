@@ -223,8 +223,11 @@ echo
 echo "# verify"
 
 mkdir "$TEST-empty"
+run_test "$FPATH_BIN verify $TEST-empty" "0" "$(escape_expected "WARN: [.roh.git] missing or inacccessible")"
+
 # we don't care about empty directories
-run_test "$FPATH_BIN verify $TEST-empty" "0" "$(escape_expected "Done.")"
+run_test "$FPATH_BIN write $TEST-empty" "0" "$(escape_expected "Done.")"
+run_test "ls -al test-empty/.roh.git" "0" "$(escape_expected "total 0")"
 rm -rf "$TEST-empty"
 
 echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.$HASH"
@@ -641,7 +644,7 @@ echo "# show/hide"
 # run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR:.* -- hash file [.*] exists/(NOT hidden)")"
 # $FPATH_BIN hide "$TEST" >/dev/null 2>&1
 chmod 000 "$ROH_DIR"
-run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test] -- missing or inacccessible [test/.roh.git]. Aborting.")"
+run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test/.roh.git] -- missing or inacccessible.*Abort.")"
 chmod 755 "$ROH_DIR"
 
 cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
@@ -688,26 +691,26 @@ run_test "$GIT_BIN -C $TEST status" "0" "nothing to commit, working tree clean"
 
 run_test "$GIT_BIN -zC $TEST" "0" "$(escape_expected "Archived [.roh.git] to [test/_.roh.git.zip].*Removed [test/.roh.git]")"
 
-run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] exists in [test]; aborting")"
+run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] exists in [test].*Abort.")"
 mv "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
 run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] does NOT exist in [test]")"
 
 mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
 run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "Extracted [test/.roh.git] from [_.roh.git.zip].*Removed [test/_.roh.git.zip]")"
-run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] exists in [test]; aborting")"
-mv "$ROH_DIR" "$ROH_DIR~"
+run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] exists in [test].*Abort.")"
+mv "$ROH_DIR" "roh.git-tmp-copy" # move .roh.git to avoid the error above and hit the error below
 run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] does NOT exist in [test]")"
-mv "$ROH_DIR~" "$ROH_DIR"
+mv "roh.git-tmp-copy" "$ROH_DIR"
 
-cp -R "$ROH_DIR" "$ROH_DIR~"
-$GIT_BIN -zC "$TEST" >/dev/null 2>&1
-mv "$ROH_DIR~" "$ROH_DIR"
-run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Removed [test/_.roh.git.zip]")"
+cp -R "$ROH_DIR" "roh.git-tmp-copy"
+$GIT_BIN -zC "$TEST" #>/dev/null 2>&1
+mv "roh.git-tmp-copy" "$ROH_DIR" # putting the copy where the extracted copy should go
+run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Clobber [test/_.roh.git.zip] (FORCED)!")"
 
 cp "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
 $GIT_BIN -xC "$TEST" >/dev/null 2>&1
 mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
-run_test "$GIT_BIN --force -xC $TEST" "0" "$(escape_expected "Removed [test/.roh.git]")"
+run_test "$GIT_BIN --force -xC $TEST" "0" "$(escape_expected "Clobber [test/.roh.git] (FORCED)!.*Removed [test/_.roh.git.zip]")"
 
 # if show/hide dies while processing; recover
 mv "$ROH_DIR/file with spaces.txt.$HASH" "$TEST/file with spaces.txt.$HASH" 

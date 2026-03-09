@@ -27,6 +27,7 @@ rm -rf "2002.ro" >/dev/null 2>&1
 rm -rf "2002.ro.ORIG" >/dev/null 2>&1
 rm -rf "Fotos [space]" >/dev/null 2>&1
 rm -rf "blammy"
+rm -rf "backup-target"
 rm -rf "$TARGET"
 unzip Fotos.zip >/dev/null 2>&1
 rm -rf "__MACOSX"
@@ -50,7 +51,7 @@ echo
 echo "# init"
 
 run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "0" "$(escape_expected "Initialized empty Git repository in /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003/.roh.git/.git/")"
-run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "1" "$(escape_expected "ERROR: [Fotos [space]/2003/.roh.git/.git] exists already; aborting")"
+run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "1" "$(escape_expected "ERROR: [Fotos [space]/2003/.roh.git/.git] exists already.*Abort.")"
 rm -rf 'Fotos [space]/2003/.roh.git' >/dev/null 2>&1
 
 # 2003: git
@@ -127,9 +128,9 @@ echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.
 run_test "$ROH_BIN verify $fpath" "1" "$(escape_expected "ERROR: hash mismatch:.*stored [0000000000000000000000000000000000000000000000000000000000000000][$PWD/2002.ro/.roh.git/2002_FIRE!/Untitled-001.jpg.sha256].* computed [816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4][$PWD/2002.ro/2002_FIRE!/Untitled-001.jpg]")"
 echo "816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4" > "2002.ro/$ROH_DIR/2002_FIRE!/Untitled-001.jpg.$HASH"
 
-echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
+echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_DIR/2002_FIRE!/.HIDDEN_FILE"
 run_test "$ROH_BIN verify $fpath" "1" "$(escape_expected "ERROR: local repo [$PWD/2002.ro/$ROH_DIR] not clean")"
-rm "2002.ro/$ROH_DIR/2002_FIRE!/.SECRET_FILE"
+rm "2002.ro/$ROH_DIR/2002_FIRE!/.HIDDEN_FILE"
 
 run_test "$ROH_BIN verify $fpath" "0" "ERROR" "true"
 
@@ -173,7 +174,14 @@ run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/Fotos\ \[space\
 run_test "ls -al $PWD/_target~/Fotos\ [space]/1999/$ROH_DIR" "0" "$(escape_expected "$PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR: No such file or directory")" "true"
 run_test "$FPATH_BIN verify _target~/Fotos\ \[space\]/1999" "0" "ERROR" "true"
 rm -rf '_target~/Fotos [space]/1999/.roh.git'
-exit
+
+run_test "$ROH_COPY --rebase blammy/cheeze:backup-target blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/.roh.git] to [backup-target/Fotos [space]/1999/.]")"
+run_test "ls -al backup-target/Fotos\ [space]/1999/$ROH_DIR" "0" "$(escape_expected "$PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR: No such file or directory")" "true"
+rm -rf "backup-target"
+
+$GIT_BIN -zC "blammy/cheeze/Fotos [space]/1999"
+run_test "$ROH_COPY --rebase blammy/cheeze:backup-target blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/_.roh.git.zip] to [backup-target/Fotos [space]/1999/.]")"
+run_test "ls -al backup-target/Fotos\ [space]/1999/_.roh.git.zip" "0" "$(escape_expected "$PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR: No such file or directory")" "true"
 
 #run_test "$ROH_BIN --rebase blammy/cheeze:$TARGET $fpath_ro" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999.ro/.roh.git] to [$TARGET/Fotos [space]/1999/.].*Copied [blammy/cheeze/2002.ro/.roh.git] to [$TARGET/2002/.]")"
 
