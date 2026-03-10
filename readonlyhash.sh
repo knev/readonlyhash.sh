@@ -8,19 +8,17 @@ HASH="sha256"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND|<<verify|copy> --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <FPATH/FN.roh.txt> [--resume-at STRING]"
-	echo "      verify          ..."
-	echo "      archive         ..."
-	echo "      extract         ..."
-	echo "      copy            ..."
+    echo "Usage: $(basename "$0") <COMMAND> _BASEPATH> [OPTIONS] <FPATH/FN.roh.txt> [--resume-at STRING]"
+	echo "      v|verify          ..."
+	echo "      a|archive         ..."
+	echo "      x|extract         ..."
     echo "Options:"
-	echo "      --rebase        ..."
     echo "      --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
 	echo 
 	echo "Other operations: "
 	echo "      --resume-at     ..."
-	echo "      while IFS= read -r line; do ... \"\$line\"; done < FILENAME.roh.txt"
+	echo "      while IFS= read -r line; do echo \"\$line\"; done < FILENAME.roh.txt"
     echo
 }
 
@@ -35,16 +33,14 @@ fi
 # Compatible with bash 3.2+ (macOS default) and bash 4+
 
 # List of valid full commands
-valid_long="init verify archive extract copy"
+valid_long="verify archive extract"
 
 # Short to long mapping (using case statement instead of assoc array)
 get_long() {
     case "$1" in
-        i) echo "init" ;;
         v) echo "verify" ;;
         a) echo "archive" ;;
         x) echo "extract" ;;
-        c) echo "copy" ;;
         *) echo "" ;;  # empty = invalid
     esac
 }
@@ -77,7 +73,7 @@ while [ $i -le $# ]; do
     fi
 
     # 2. Try short letters (consecutive, no separators)
-    if echo "$arg" | grep -qE '^[vwidhsqre]+$'; then
+    if echo "$arg" | grep -qE '^[vax]+$'; then
         invalid=0
         for ((j=0; j<${#arg}; j++)); do
             c="${arg:$j:1}"
@@ -409,12 +405,6 @@ while IFS= read -r dir; do
 		elif contains "extract"; then
 			extract_directory "$dir"
 
-		elif [ "$cmd" = "copy" ]; then
-			copy_to_target "$dir" "$rebase_string"
-
-		elif [ "$cmd" = "delete" ]; then
-			echo delete
-			
 		fi
 
     else
