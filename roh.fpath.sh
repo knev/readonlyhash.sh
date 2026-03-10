@@ -872,6 +872,11 @@ process_directory() {
 		return 0
 	fi
 
+	if find "$dir" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
+		echo "WARN: directory [$dir] contains hidden entries"
+		((WARN_COUNT++))
+	fi
+
 	if [ -f "$dir/_.roh.git.zip" ]; then
 		echo "ERROR: found archived ROH_DIR [$dir/_.roh.git.zip] at [$dir]"
 		((ERROR_COUNT++))
@@ -897,8 +902,14 @@ process_directory() {
 				# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
 
 				if [ ! -d "$roh_hash_path" ]; then
-					if [[ -z "$(ls -A -- "$entry")" ]]; then
-					    : # echo "Directory '$entry' is empty (including hidden files)"
+					if [ -z "$(ls -A -- "$entry")" ]; then
+						# completely empty (no entries except . and ..)
+						: # echo "Directory '$entry' is completely empty"
+
+					elif [ -z "$(ls -A -- "$entry" | grep -v '^\.')" ]; then
+						# only hidden files (ls -A output contains only lines starting with .)
+						: # echo "Directory '$entry' contains only hidden entries"
+
 					else
 						hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
 						if [ -z "$hash_found" ]; then
@@ -1505,6 +1516,11 @@ process_hash_repo()
 		return 0
 	fi
 
+	if find "$dir" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.git*' -print -quit | grep -q .; then
+		echo "ERROR: directory [$dir] contains hidden entries"
+		((ERROR_COUNT++))
+	fi
+
     for roh_hash_fpath in "$dir"/*; do
  		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
 
@@ -1523,7 +1539,8 @@ process_hash_repo()
 			# echo "Directory '$entry' is empty (including hidden files)"
 			if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 
-	 			if contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
+				local hashes_found=$(find "$recursive_dir" -name "*.$HASH" -mindepth 1 -print -quit)
+	 			if [ -n "$hashes_found" ] && contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
 					local dir_fpath="$(hash_fpath_to_fpath "$recursive_dir")"
 					# echo "   * fpath DIRECTORY: [$dir_fpath]"
 	 

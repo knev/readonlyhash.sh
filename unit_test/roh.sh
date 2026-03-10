@@ -172,7 +172,7 @@ run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/Fotos\ \[space\
 
 run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/.roh.git] to [$TARGET/Fotos [space]/1999/.]")"
 run_test "ls -al $PWD/_target~/Fotos\ [space]/1999/$ROH_DIR" "0" "$(escape_expected "$PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR: No such file or directory")" "true"
-run_test "$FPATH_BIN verify _target~/Fotos\ \[space\]/1999" "0" "ERROR" "true"
+run_test "$FPATH_BIN verify _target~/Fotos\ \[space\]/1999" "0" "ERROR:" "true"
 rm -rf '_target~/Fotos [space]/1999/.roh.git'
 
 run_test "$ROH_COPY --rebase blammy/cheeze:backup-target blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/.roh.git] to [backup-target/Fotos [space]/1999/.]")"

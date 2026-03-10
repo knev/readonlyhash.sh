@@ -63,9 +63,9 @@ if [ -d $TEST ]; then
 	chmod -R 777 $TEST
 	rm -rf "$TEST"
 fi
+rm -rf "$TEST-empty"
 
 mkdir -p "$TEST"
-echo "DS_Store" > "$TEST/.DS_Store"
 echo "ABC" > "$TEST/file with spaces.txt"
 mkdir -p "$TEST/$SUBDIR_WITH_SPACES"
 echo "PNO" > "$TEST/$SUBDIR_WITH_SPACES/pno.txt"
@@ -248,7 +248,12 @@ mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: hashes not exclusively hidden in [$ROH_DIR]")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
+touch "$TEST/.HIDDEN_FILE"
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: directory [test] contains hidden entries")" 
+rm "$TEST/.HIDDEN_FILE"
+
 run_test "$FPATH_BIN verify index --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
+rm "$TEST/.roh.sqlite3"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
 echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.$HASH"
@@ -259,12 +264,27 @@ rm "$TEST/file with spaces.txt.$HASH"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- NEW!?")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
-# mkdir "$TEST/orphaned_hashes"
-# echo "YHB" > "$TEST/orphaned_hashes/yhb.txt"
-# $FPATH_BIN write "$TEST" >/dev/null 2>&1
-# rm -rf "$TEST/orphaned_hashes"
-# run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: -- [test/.roh.git/orphaned_hashes] -- orphaned hash DIRECTORY!")"
-# $FPATH_BIN sweep "$TEST" >/dev/null 2>&1
+mkdir -p "test/.roh.git/orphaned_hashes"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "orphaned hash DIRECTORY!")" "true"
+
+mkdir -p "test/.roh.git/orphaned_hashes/tmp-empty"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "orphaned hash DIRECTORY!")" "true"
+rmdir "test/.roh.git/orphaned_hashes/tmp-empty"
+
+touch "test/.roh.git/orphaned_hashes/.HIDDEN_FILE"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: directory [test/.roh.git/orphaned_hashes] contains hidden entries")"
+rm "test/.roh.git/orphaned_hashes/.HIDDEN_FILE"
+
+mkdir "test/.roh.git/orphaned_hashes/.HIDDEN_DIR"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: directory [test/.roh.git/orphaned_hashes] contains hidden entries")"
+rmdir "test/.roh.git/orphaned_hashes/.HIDDEN_DIR"
+
+mkdir "$TEST/orphaned_hashes"
+echo "YHB" > "$TEST/orphaned_hashes/yhb.txt"
+$FPATH_BIN write "$TEST" >/dev/null 2>&1
+rm -rf "$TEST/orphaned_hashes"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: [test/.roh.git/orphaned_hashes] -- orphaned hash DIRECTORY!")"
+$FPATH_BIN sweep "$TEST" >/dev/null 2>&1
 
 mkdir "$ROH_DIR/this_is_a_directory.sha256"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "$ROH_DIR/this_is_a_directory.sha256")" "true"
@@ -273,7 +293,9 @@ run_test "ls -al $ROH_DIR" "0" "this_is_a_directory.sha256"
 run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "OK: orphaned hash directory [test/.roh.git/this_is_a_directory.sha256] -- removed")"
 
 echo "DS_Store" > "$ROH_DIR/.DS_Store"
-run_test "$FPATH_BIN verify $TEST" "0" ".DS_Store.$HASH" "true"
+run_test "$FPATH_BIN verify $TEST" "1" ".DS_Store.$HASH" "true"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: directory [test/.roh.git] contains hidden entries")"
+rm "$ROH_DIR/.DS_Store"
 
 # write PATHSPEC
 run_test "$FPATH_BIN verify --verbose $TEST -- \"$SUBDIR_WITH_SPACES\"" "0" "$(escape_expected "file with spaces.txt")" "true"
@@ -291,11 +313,25 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
 cp "$TEST/.roh.git/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.sha256" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/."
 rm -rf "$TEST/.roh.git/$SUBDIR_WITH_SPACES/$SUBSUBDIR"
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: [test/sub-directory with spaces/sub-sub-directory] -- NEW DIRECTORY!?")" "true"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
 
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: [test/sub-directory with spaces/sub-sub-directory] -- NEW DIRECTORY!?")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
+
+mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
+
+touch "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"
+rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
+
+mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"
+rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
+rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
 
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR-empty"
 run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK:.*sub-sub-directory-empty.*-- written")" "true"
@@ -703,7 +739,7 @@ run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.
 mv "roh.git-tmp-copy" "$ROH_DIR"
 
 cp -R "$ROH_DIR" "roh.git-tmp-copy"
-$GIT_BIN -zC "$TEST" #>/dev/null 2>&1
+$GIT_BIN -zC "$TEST" >/dev/null 2>&1
 mv "roh.git-tmp-copy" "$ROH_DIR" # putting the copy where the extracted copy should go
 run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Clobber [test/_.roh.git.zip] (FORCED)!")"
 
