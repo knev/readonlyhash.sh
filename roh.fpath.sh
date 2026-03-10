@@ -875,6 +875,7 @@ process_directory() {
 	if find "$dir" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
 		echo "WARN: directory [$dir] contains hidden entries"
 		((WARN_COUNT++))
+		[ "$EXPORT_MODE" = "true" ] && echo "$dir" >> "$EXPORT_FN_HIDDEN"
 	fi
 
 	if [ -f "$dir/_.roh.git.zip" ]; then
@@ -1227,8 +1228,10 @@ else
 	ROH_DIR="$ROOT/.roh.git"
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
+
 EXPORT_FN_NEW="$ROH_DIR/../.roh.new-files.txt"
 EXPORT_FN_DELETED="$ROH_DIR/../.roh.deleted-files.txt"
+EXPORT_FN_HIDDEN="roh-hidden-files.exported.txt"
 
 if [ -z "$db" ]; then
     DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array

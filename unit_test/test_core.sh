@@ -331,12 +331,12 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "t
 
 touch "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"
+run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
 
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"
+run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
 
