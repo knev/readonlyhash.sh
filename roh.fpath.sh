@@ -902,14 +902,8 @@ process_directory() {
 				# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
 
 				if [ ! -d "$roh_hash_path" ]; then
-					if [ -z "$(ls -A -- "$entry")" ]; then
-						# completely empty (no entries except . and ..)
+					if ! find "$entry" -mindepth 1 -not -name '.*' ! -type l | read; then
 						: # echo "Directory '$entry' is completely empty"
-
-					elif [ -z "$(ls -A -- "$entry" | grep -v '^\.')" ]; then
-						# only hidden files (ls -A output contains only lines starting with .)
-						: # echo "Directory '$entry' contains only hidden entries"
-
 					else
 						hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
 						if [ -z "$hash_found" ]; then

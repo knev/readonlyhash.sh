@@ -319,6 +319,13 @@ rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: [test/sub-directory with spaces/sub-sub-directory] -- NEW DIRECTORY!?")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
+# weird symlink to existing file
+mkdir  "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH"
+ln -s "../../pno.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH/a-symlink"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
+rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH/a-symlink"
+rmdir  "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH"
+
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
 
