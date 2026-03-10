@@ -182,6 +182,7 @@ rm -rf "backup-target"
 $GIT_BIN -zC "blammy/cheeze/Fotos [space]/1999"
 run_test "$ROH_COPY --rebase blammy/cheeze:backup-target blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/_.roh.git.zip] to [backup-target/Fotos [space]/1999/.]")"
 run_test "ls -al backup-target/Fotos\ [space]/1999/_.roh.git.zip" "0" "$(escape_expected "$PWD/_target~/Fotos\ [space]/1999.ro/$ROH_DIR: No such file or directory")" "true"
+rm -rf "backup-target"
 
 #run_test "$ROH_BIN --rebase blammy/cheeze:$TARGET $fpath_ro" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999.ro/.roh.git] to [$TARGET/Fotos [space]/1999/.].*Copied [blammy/cheeze/2002.ro/.roh.git] to [$TARGET/2002/.]")"
 
@@ -205,9 +206,10 @@ rm -rf "Fotos [space]/1999" >/dev/null 2>&1
 rm -rf "Fotos [space]/2003" >/dev/null 2>&1
 rm "Fotos [space]/.DS_Store"
 rmdir "Fotos [space]"
-# rm "$fpath_ro"
 # rm "$fpath_ro_ro" >/dev/null 2>&1
-# 
+rm "$fpath_ro"
+rm "$fpath"
+ 
 run_test "ls -alR 2002.ro" "1" "$(escape_expected "ls: 2002.ro: No such file or directory")"
 # run_test "ls -alR Fotos\ \[space\]" "1" "$(escape_expected "ls: Fotos [space]: No such file or directory")"
 # run_test "ls -alR $TARGET" "1" "$(escape_expected "ls: $TARGET: No such file or directory")"
