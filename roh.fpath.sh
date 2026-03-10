@@ -1251,14 +1251,14 @@ if contains "index"; then
 		echo
 		exit 1
 	fi
-fi
-
-if contains "verify"; then
+elif contains "verify"; then
 	if  [ -f "$DB_SQL" ]; then
 		echo "WARN: database file [$DB_SQL] exists; has not been removed"
 		((WARN_COUNT++))
 	fi
-elif contains "recover" || contains "index"; then
+fi
+
+if contains "index" || contains "recover" ; then
 	if  [ -f "$DB_SQL" ]; then
 		echo "Using DB_SQL [$DB_SQL]"
 	else
