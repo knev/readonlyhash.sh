@@ -1533,7 +1533,7 @@ process_hash_repo()
 			# echo "Directory '$entry' is empty (including hidden files)"
 			if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 
-				local hashes_found=$(find "$recursive_dir" -name "*.$HASH" -mindepth 1 -print -quit)
+				local hashes_found=$(find "$recursive_dir" -mindepth 1 -name "*.$HASH" -print -quit)
 	 			if [ -n "$hashes_found" ] && contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
 					local dir_fpath="$(hash_fpath_to_fpath "$recursive_dir")"
 					# echo "   * fpath DIRECTORY: [$dir_fpath]"
@@ -1644,7 +1644,7 @@ hash_maintanence() {
 
 	# searching for hashes, because .git exists
 	if contains "index"; then
-		if [ -z "$(find "$ROH_DIR" -name "*.sha256" -mindepth 1 -print -quit)" ]; then
+		if [ -z "$(find "$ROH_DIR" -mindepth 1 -name "*.sha256" -print -quit)" ]; then
 			echo "ERROR: nothing to index [$ROH_DIR]"
 			echo
 			return 1
