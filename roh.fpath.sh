@@ -1512,9 +1512,11 @@ process_hash_repo()
 		return 0
 	fi
 
-	if find "$dir" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.git*' -print -quit | grep -q .; then
-		echo "ERROR: directory [$dir] contains hidden entries"
-		((ERROR_COUNT++))
+	if contains "verify"; then
+		if find "$dir" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.git*' -print -quit | grep -q .; then
+			echo "ERROR: directory [$dir] contains hidden entries"
+			((ERROR_COUNT++))
+		fi
 	fi
 
     for roh_hash_fpath in "$dir"/*; do
