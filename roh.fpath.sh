@@ -45,7 +45,6 @@ usage() {
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 
 # readonlyhash
-#TODO: make it readonlyhash command --resume-at BLAH < filename
 #TODO: reinstate ability to verify without extracting?
 #TODO: readonlyhash commit
 #TODO: do we need the --rebase switch? isn't alway required?

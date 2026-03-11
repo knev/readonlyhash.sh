@@ -8,16 +8,16 @@ HASH="sha256"
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") <COMMAND> _BASEPATH> [OPTIONS] <FPATH/FN.roh.txt> [--resume-at STRING]"
-	echo "      v|verify          ..."
-	echo "      a|archive         ..."
-	echo "      x|extract         ..."
+    echo "Usage: $(basename "$0") <C|COMMAND> [OPTIONS|--resume-at STRING] < <FN.roh.txt>"
+	echo "      v|verify              ..."
+	echo "      a|archive             ..."
+	echo "      x|extract             ..."
     echo "Options:"
+	echo "      --resume-at <STRING>  ..."
     echo "      --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
 	echo 
-	echo "Other operations: "
-	echo "      --resume-at     ..."
+	echo "whie;do:"
 	echo "      while IFS= read -r line; do echo \"\$line\"; done < FILENAME.roh.txt"
     echo
 }
@@ -26,6 +26,16 @@ usage() {
 if [ $# -eq 0 ]; then
 	usage
     exit 1
+fi
+
+# ----
+
+# Enforce stdin redirection
+if [[ -t 0 ]]; then 
+    echo "ERROR: missing input redirection of '.roh.txt' file"
+	echo "Abort."
+	echo
+	exit 1
 fi
 
 # ----
@@ -113,6 +123,9 @@ shift $((i-1))   # now $1 is the first -something argument
 
 # -----
 
+skipping_mode="false"
+resume_string=""
+
 while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
@@ -122,6 +135,15 @@ while getopts "h-:" opt; do
       ;;	  
     -)
       case "${OPTARG}" in
+	    resume-at)
+          if [[ $# -lt 2 ]]; then
+            echo "Error: --resume-at requires a value" >&2
+            exit 1
+          fi
+		  skipping_mode="true"
+          resume_string="$2"
+          shift 2
+          ;;
 	    version)
 	      echo "$(basename "$0") version: $VERSION"
 		  echo
@@ -132,49 +154,14 @@ while getopts "h-:" opt; do
           exit 0
           ;;
         *)
-          echo "ERROR: invalid option: [--${OPTARG}]" >&2
+          echo "ERROR: invalid option [--${OPTARG}]" >&2
           usage
           exit 1
           ;;
       esac
       ;;
     \?)
-      echo "ERROR: invalid option: [-${OPTARG}]" >&2
-      usage
-      exit 1
-      ;;
-    :)
-      echo "ERROR: option [-$OPTARG] requires an argument." >&2
-      usage
-      exit 1
-      ;;
-  esac
-done
-
-rebase_string="_INVALID_"
-
-while getopts "dh-:" opt; do
-  # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
-  case $opt in
-    h)
-      usage
-      exit 0
-      ;;	  
-    -)
-      case "${OPTARG}" in
-        help)
-          usage
-          exit 0
-          ;;
-        *)
-          echo "ERROR: invalid option: [--${OPTARG}]" >&2
-          usage
-          exit 1
-          ;;
-      esac
-      ;;
-    \?)
-      echo "ERROR: invalid option: [-${OPTARG}]" >&2
+      echo "ERROR: invalid option [-${OPTARG}]" >&2
       usage
       exit 1
       ;;
@@ -188,34 +175,6 @@ done
 
 # capture all remaining arguments after the options have been processed
 shift $((OPTIND-1))
-ROH_TXT="$1"
-ALT_TXT="${ROH_TXT%.roh.txt}~ro.roh.txt"
-
-# Check if the file ends with .ro.txt
-if [[ ! "$ROH_TXT" =~ \.roh\.txt$ ]]; then
-    echo "ERROR: no file path argument ending with '.roh.txt' found."
-	usage
-    exit 1
-fi
-if [ ! -f "$ROH_TXT" ]; then
-	echo "ERROR: [$ROH_TXT] not found"
-	usage
-	exit 1
-fi
-
-shift
-skipping_mode="false"
-resume_string=""
-if [ $# -ne 0 ]; then
-	if [ $# -eq 2 ] && [ "$1" = "--resume-at" ]; then
-		resume_string="$2"
-		skipping_mode="true"
-	else
-		echo "ERROR: invalid option [$@]"
-		usage
-		exit 1
-	fi
-fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 # captured output : NO spurious echo/printf outputs!
@@ -414,7 +373,7 @@ while IFS= read -r dir; do
     fi
 	echo "■"
 
-done < "$ROH_TXT"
+done
 
 if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
 	# Filter out comments at the end of lines and compare
