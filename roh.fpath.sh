@@ -41,18 +41,19 @@ usage() {
 	echo
 }
 
+#BUGS
+#TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
+
 # readonlyhash
+#TODO: make it readonlyhash command --resume-at BLAH < filename
+#TODO: reinstate ability to verify without extracting?
 #TODO: readonlyhash commit
 #TODO: do we need the --rebase switch? isn't alway required?
 #TODO: option to keep archives after extract
 
+# roh.copy
 #TODO: on rebase, use the rebase string to rename output .roh.txt file; create a roh.copy command that accepts a rebase string; accepts export output too
 
-#BUGS
-#TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
-
-
-#Features:
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
 #TODO: prune all index hashes that point to files that no longer exist
