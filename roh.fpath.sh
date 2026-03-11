@@ -846,108 +846,86 @@ manage_hash_visibility() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-# Function to process directory contents recursively
-process_directory() {
-    local dir="$1"
+# Function to process entries contents recursively
+process_entry() 
+{
+	local parent="$1"
+    local entry="$2"
 	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-	local visibility_mode="$2"
-    local force_mode="$3"
+	local visibility_mode="$3"
+    local force_mode="$4"
 
-	# ?! do we care about empty directories
-	#
-	#	if [ "$verify_mode" = "true" ]; then
-	#		if [ ! -d "$ROH_DIR/$sub_dir" ]; then
-	#			echo "ERROR: [$dir] -- not a READ-ONLY directory, missing [$ROH_DIR/$sub_dir]"
-	#			((ERROR_COUNT++))
-	#			return 0 
-	#		fi
-	#	fi
+	if [ -L "$entry" ]; then
+		[ "$VERBOSE_MODE" = "true" ] && echo "Avoiding symlink [$entry] like the Plague"
+		continue
 
-	if [ -d "$dir" ]; then
-		: # echo "Processing directory: [$dir]"
-	else
-		echo "ERROR: can't find directory [$dir] for processing"
-		((ERROR_COUNT++))
-		return 0
-	fi
+	# If the entry is a directory, process it recursively
+    elif [ -d "$entry" ]; then
 
-	if find "$dir" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
-		echo "WARN: directory [$dir] contains hidden entries"
-		((WARN_COUNT++))
-		[ "$EXPORT_MODE" = "true" ] && echo "$dir" >> "$EXPORT_FN_HIDDEN"
-	fi
+		if find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
+			echo "WARN: directory [$entry] contains hidden entries"
+			((WARN_COUNT++))
+			[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FN_HIDDEN"
+		fi
+	
+		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
+			echo "WARN: [$entry] is a readonlyhash directory -- SKIPPING"
+			((WARN_COUNT++))
+			return 0
+		fi
 
-	if [ -f "$dir/_.roh.git.zip" ]; then
-		echo "ERROR: found archived ROH_DIR [$dir/_.roh.git.zip] at [$dir]"
-		((ERROR_COUNT++))
-		return 0
-	fi
+		if contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
+			local sub_dir="$(remove_top_dir "$ROOT" "$entry")"
+			local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+			# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
 
-    for entry in "$dir"/*; do
-		if [ -L "$entry" ]; then
-			[ "$VERBOSE_MODE" = "true" ] && echo "Avoiding symlink [$entry] like the Plague"
-			continue
-
-		# If the entry is a directory, process it recursively
-        elif [ -d "$entry" ]; then
-			if [ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]; then
-				echo "WARN: [$entry] is a readonlyhash directory -- SKIPPING"
-				((WARN_COUNT++))
-				continue
-			fi
-
-			if contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
-				local sub_dir="$(remove_top_dir "$ROOT" "$entry")"
-				local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-				# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
-
-				if [ ! -d "$roh_hash_path" ]; then
-					if ! find "$entry" -mindepth 1 -not -name '.*' ! -type l | read; then
-						: # echo "Directory '$entry' is completely empty"
-					else
-						hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
-						if [ -z "$hash_found" ]; then
-							echo "WARN: [$entry] -- NEW DIRECTORY!?"
-							((WARN_COUNT++))
-							continue
-						fi
+			if [ ! -d "$roh_hash_path" ]; then
+				if ! find "$entry" -mindepth 1 -not -name '.*' ! -type l | read; then
+					: # echo "Directory '$entry' is completely empty"
+				else
+					hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
+					if [ -z "$hash_found" ]; then
+						echo "WARN: [$entry] -- NEW DIRECTORY!?"
+						((WARN_COUNT++))
+						return 0
 					fi
 				fi
-
 			fi
 
-			process_directory "$entry" "$visibility_mode" "$force_mode" || return 1
+		fi
 
-		# else ...
-        elif [ -f "$entry" ] && [[ ! $(basename "$entry") =~ \.${HASH}$ ]] && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
-			if ! contains "delete"; then
-				if check_extension "$entry"; then
-					echo "ERROR: [$dir] \"$(basename "$entry")\" -- file with restricted extension"
-					((ERROR_COUNT++))
-					continue;
-				fi
-				if contains "verify" || contains "recover"; then
-					verify_hash "$dir" "$entry" || return 1
-				elif contains "write"; then
-					write_hash "$dir" "$entry" "$visibility_mode" "$force_mode" || return 1
-				elif [ ${#commands[@]} -eq 1 ] && contains "hide"; then
-					manage_hash_visibility "$dir" "$entry" "hide" "$force_mode" || return 1
-				elif [ ${#commands[@]} -eq 1 ] && contains "show"; then 
-					manage_hash_visibility "$dir" "$entry" "show" "$force_mode" || return 1
-				fi
-			else
-				delete_hash "$dir" "$entry" || return 1
-            fi
+		#process_directory "$entry" "$visibility_mode" "$force_mode" || return 1
+	    for sub_entry in "$entry"/*; do
+			process_entry "$entry" "$sub_entry" "$visibility_mode" "$force_mode" || return 1
+		done
+
+	# else ...
+    elif [ -f "$entry" ]; then
+		if [[ $(basename "$entry") =~ \.${HASH}$ ]]; then # && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
+			return 0
+		fi
+
+		if ! contains "delete"; then
+			if check_extension "$entry"; then
+				echo "ERROR: [$parent] \"$(basename "$entry")\" -- file with restricted extension"
+				((ERROR_COUNT++))
+				return 0
+			fi
+			if contains "verify" || contains "recover"; then
+				verify_hash "$parent" "$entry" || return 1
+			elif contains "write"; then
+				write_hash "$parent" "$entry" "$visibility_mode" "$force_mode" || return 1
+			elif [ ${#commands[@]} -eq 1 ] && contains "hide"; then
+				manage_hash_visibility "$parent" "$entry" "hide" "$force_mode" || return 1
+			elif [ ${#commands[@]} -eq 1 ] && contains "show"; then 
+				manage_hash_visibility "$parent" "$entry" "show" "$force_mode" || return 1
+			fi
+		else
+			delete_hash "$parent" "$entry" || return 1
         fi
-    done
 
-	# it is not guaranteed that sub_dir has been created in $ROH_DIR for the
-	# sub_dir we are processing e.g., it could be an empty sub dir.
-	#
-	# local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-	# [ ! -d "$roh_hash_just_path" ] && return 0
-	# ...
-
+    fi	
+	
 	return 0
 }
 
@@ -1473,16 +1451,23 @@ recover_hash() {
 }
 
 run_directory_process() {
-    local dir="$1"
+	local parent="$1"
+    local entry="$2"
 	#local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
-	local visibility_mode="$2"
-    local force_mode="$3"
+	local visibility_mode="$3"
+    local force_mode="$4"
 
 	if contains "hide" || ( contains "write" && [ "$visibility_mode" != "show" ] ); then
 		if [ ! -d "$ROH_DIR" ]; then
 			mkdir "$ROH_DIR"
 		fi
  	elif contains "verify" || contains "recover" || ( contains "show" && ! contains "write" ); then
+		if [ -f "$entry/_.roh.git.zip" ]; then
+			echo "ERROR: found archived ROH_DIR [$entry/_.roh.git.zip] at [$entry]"
+			((ERROR_COUNT++))
+			return 0
+		fi
+
 		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
 			if contains "verify"; then
 				echo "WARN: [.roh.git] missing or inacccessible" >&2
@@ -1496,145 +1481,145 @@ run_directory_process() {
 		fi 
 	fi
 
-	process_directory "$@" || return 1
-	return 0
-}
-
-process_hash_repo()
-{
-	local dir="$1"
-
-	if [ -d "$dir" ]; then
+	if [ -e "$entry" ]; then
 		: # echo "Processing directory: [$dir]"
 	else
-		echo "ERROR: can't find directory [$dir] for processing"
+		echo "ERROR: can't find [$entry] for processing"
 		((ERROR_COUNT++))
 		return 0
 	fi
 
-	if contains "verify"; then
-		if find "$dir" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.git*' -print -quit | grep -q .; then
-			echo "ERROR: directory [$dir] contains hidden entries"
-			((ERROR_COUNT++))
+	#process_directory "$@" || return 1
+	process_entry "$ROOT" "$entry" "$visibility_mode" "$force_mode" || return 1
+	return 0
+}
+
+process_hash_entry()
+{
+	local roh_hash_fpath="$1"
+	# echo "* roh_hash_fpath: [$roh_hash_fpath]"
+
+	if [ -L "$roh_hash_fpath" ]; then
+		[ "$VERBOSE_MODE" = "true" ] && echo "Avoiding symlink [$roh_hash_fpath] like the Plague"
+		return 0
+
+	# if the fpath is a directory AND empty, remove it on delete|sweep
+    elif [ -d "$roh_hash_fpath" ]; then
+
+
+		if contains "verify"; then
+			if find "$roh_hash_fpath" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.git*' -print -quit | grep -q .; then
+				echo "ERROR: directory [$roh_hash_fpath] contains hidden entries"
+				((ERROR_COUNT++))
+			fi
 		fi
-	fi
+	
+		
+		# save to local variable, because $roh_hash_fpath gets trash during recursion
+		local recursive_dir="$roh_hash_fpath"
 
-    for roh_hash_fpath in "$dir"/*; do
- 		# echo "* roh_hash_fpath: [$roh_hash_fpath]"
+		# echo "Directory '$entry' is empty (including hidden files)"
+		if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 
-		if [ -L "$roh_hash_fpath" ]; then
-			[ "$VERBOSE_MODE" = "true" ] && echo "Avoiding symlink [$roh_hash_fpath] like the Plague"
-			continue
+			local hashes_found=$(find "$recursive_dir" -mindepth 1 -name "*.$HASH" -print -quit)
+ 			if [ -n "$hashes_found" ] && contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
+				local dir_fpath="$(hash_fpath_to_fpath "$recursive_dir")"
+				# echo "   * fpath DIRECTORY: [$dir_fpath]"
+ 
+ 				if [ ! -d "$dir_fpath" ]; then
+					echo "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
+					((ERROR_COUNT++))
+					return 0
+ 				fi
+ 
+ 			fi
 
-		# if the fpath is a directory AND empty, remove it on delete|sweep
-        elif [ -d "$roh_hash_fpath" ]; then
+			for sub_roh_hash_fpath in "$recursive_dir"/*; do
+				process_hash_entry "$sub_roh_hash_fpath" || return 1
+			done
+		fi
 
-			# save to local variable, because $roh_hash_fpath gets trash during recursion
-			local recursive_dir="$roh_hash_fpath"
+		if [ -z "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
+			if contains "delete" || contains "sweep" || contains "recover"; then
+				if ! rmdir "$recursive_dir"; then
+					echo "ERROR: Failed to remove directory [$recursive_dir]"
+					((ERROR_COUNT++))
+				else
+					[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash directory [$recursive_dir] -- removed"
+				fi
+			fi
+		fi
 
-			#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
-			#if [[ -z "$(ls -A -- "$entry")" ]]; then
-			# echo "Directory '$entry' is empty (including hidden files)"
-			if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
+    elif [ -f "$roh_hash_fpath" ]; then
 
-				local hashes_found=$(find "$recursive_dir" -mindepth 1 -name "*.$HASH" -print -quit)
-	 			if [ -n "$hashes_found" ] && contains "verify" && [ "$VERBOSE_MODE" = "false" ]; then
-					local dir_fpath="$(hash_fpath_to_fpath "$recursive_dir")"
-					# echo "   * fpath DIRECTORY: [$dir_fpath]"
-	 
-	 				if [ ! -d "$dir_fpath" ]; then
-						echo "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
-						((ERROR_COUNT++))
-						continue
-	 				fi
-	 
+		local stored=$(stored_hash "$roh_hash_fpath")
+		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
+		# echo "   * fpath: [$fpath]"
+
+ 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on sweep
+ 		if ! stat "$fpath" >/dev/null 2>&1; then
+ 			if contains "sweep"; then
+ 				if ! rm "$roh_hash_fpath"; then
+ 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
+ 					((ERROR_COUNT++))
+ 				else
+ 					echo "  OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
+					return 0
+ 				fi
+			fi
+			if contains "verify"; then
+ 				echo "ERROR: [$stored]: [$roh_hash_fpath] -- orphaned hash"
+ 				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$roh_hash_fpath] -- orphaned hash"
+ 				[ "$VERBOSE_MODE" = "true" ] && echo "       ...                                          NO corresponding file: [$fpath]"
+ 				((ERROR_COUNT++))
+				[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
+ 			fi
+
+ 			if contains "index"; then
+				# IDX consistency
+				local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
+		        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
+					echo "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
+ 					((ERROR_COUNT++))
+					return 0
+				fi
+
+		        local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
+		        if [ "$fpath_exists" -eq 0 ]; then
+					roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+					if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
+						echo " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
+					fi
+					[ "$VERBOSE_MODE" = "true" ] && echo "      ...                                          NO corresponding file: [$fpath]"
+		        else
+					[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
+		        fi
+			fi
+ 			if contains "recover"; then
+ 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored" || return 1
+			fi
+
+		else
+	 		if contains "index"; then
+				# IDX consistency
+				local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
+		        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
+					echo "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
+ 					((ERROR_COUNT++))
+					return 0
+				fi
+
+				local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
+	 			if [ "$fpath_exists" -eq 0 ]; then
+	 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+	 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
+	 			else
+	 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
 	 			fi
+	 		fi
+		fi
 
-				process_hash_repo "$recursive_dir" || return 1
-			fi
-
-			if [ -z "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
-				if contains "delete" || contains "sweep" || contains "recover"; then
-					if ! rmdir "$recursive_dir"; then
-						echo "ERROR: Failed to remove directory [$recursive_dir]"
-						((ERROR_COUNT++))
-					else
-						[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash directory [$recursive_dir] -- removed"
-					fi
-				fi
-			fi
-
-        elif [ -f "$roh_hash_fpath" ]; then
-
-			local stored=$(stored_hash "$roh_hash_fpath")
-			local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
-			# echo "   * fpath: [$fpath]"
-
-	 		# if the file corresponding to the hash doesn't exist (orphaned), remove it on sweep
-	 		if ! stat "$fpath" >/dev/null 2>&1; then
-	 			if contains "sweep"; then
-	 				if ! rm "$roh_hash_fpath"; then
-	 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
-	 					((ERROR_COUNT++))
-	 				else
-	 					echo "  OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
-						continue;
-	 				fi
-				fi
-				if contains "verify"; then
-	 				echo "ERROR: [$stored]: [$roh_hash_fpath] -- orphaned hash"
-	 				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$roh_hash_fpath] -- orphaned hash"
-	 				[ "$VERBOSE_MODE" = "true" ] && echo "       ...                                          NO corresponding file: [$fpath]"
-	 				((ERROR_COUNT++))
-					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
-	 			fi
-
- 	 			if contains "index"; then
-					# IDX consistency
-					local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
-   			        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
-						echo "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
-	 					((ERROR_COUNT++))
-						continue
-					fi
-
-   			        local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
-   			        if [ "$fpath_exists" -eq 0 ]; then
-						roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-						if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
-							echo " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
-						fi
-						[ "$VERBOSE_MODE" = "true" ] && echo "      ...                                          NO corresponding file: [$fpath]"
-   			        else
-						[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
-   			        fi
-				fi
-	 			if contains "recover"; then
-	 				recover_hash "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored" || return 1
-				fi
-
-			else
-		 		if contains "index"; then
-					# IDX consistency
-					local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
-   			        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
-						echo "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
-	 					((ERROR_COUNT++))
-						continue
-					fi
-
-					local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
-		 			if [ "$fpath_exists" -eq 0 ]; then
-		 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-		 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
-		 			else
-		 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
-		 			fi
-		 		fi
-			fi
-
-        fi
-    done
+    fi
 
 	return 0
 }
@@ -1658,20 +1643,9 @@ hash_maintanence() {
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
 
-	process_hash_repo "$dir"
+	process_hash_entry "$dir"
 
 	# This will fail if git is being used
-	if contains "sweep" || contains "show"; then
-		#if [ "$(ls -A "/path/to/directory" | wc -l)" -eq 0 ]; then
-		if [ -z "$(find "$ROH_DIR" -mindepth 1 -print -quit)" ]; then
-			if ! rmdir "$ROH_DIR"; then
-				echo "ERROR: Failed to remove [$ROH_DIR]"
-				((ERROR_COUNT++))
-			else
-				[ "$VERBOSE_MODE" = "true" ] && echo "  OK: remove [$ROH_DIR]"
-			fi
-		fi
-	fi
 
 	if contains "delete" && contains "sweep"; then
 		if [ -f "$DB_SQL" ]; then
@@ -1799,7 +1773,11 @@ if [ "$only_hashes" = "true" ]; then
 elif contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
 	echo "# Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
-	run_directory_process "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
+	if [ -z "$PATHSPEC" ]; then
+		run_directory_process "$ROOT" "$ROOT" "$visibility_mode" "$force_mode"
+	else
+		run_directory_process "$ROOT" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
+	fi
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_NEW]"
 fi

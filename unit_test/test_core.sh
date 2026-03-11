@@ -22,7 +22,7 @@ run_test "$FPATH_BIN write sweep --verbose --" "1" "$(escape_expected "ERROR: ex
 run_test "$FPATH_BIN sweep --verbose -- alkjasdflk asflkjasff" "0" "$(escape_expected "WARN: [alkjasdflk] not a file -- SKIPPING.*WARN: [asflkjasff] not a file -- SKIPPING")"
 run_test "$FPATH_BIN write sweep KJHJGJK" "1" "$(escape_expected "ERROR: Directory [KJHJGJK] does not exist")"
 run_test "$FPATH_BIN write sweep --verbose . --" "1" "$(escape_expected "ERROR: expected argument after \"--\"")"
-run_test "$FPATH_BIN write sweep --verbose . -- \"alkjasdflk asflkjasff\"" "1" "$(escape_expected "ERROR: can't find directory [./alkjasdflk asflkjasff] for processing")"
+run_test "$FPATH_BIN write sweep --verbose . -- \"alkjasdflk asflkjasff\"" "1" "$(escape_expected "ERROR: can't find [./alkjasdflk asflkjasff] for processing")"
 run_test "$FPATH_BIN write sweep --verbose KJHJGJK" "1" "$(escape_expected "ERROR: Directory [KJHJGJK] does not exist")"
 run_test "$FPATH_BIN --verbose ." "1" "$(escape_expected "ERROR: invalid command combination []")"
 run_test "$FPATH_BIN wn --verbose" "1" "$(escape_expected "ERROR: invalid command [wn]")"
@@ -125,7 +125,13 @@ rm "$TEST/X11"
 chmod 000 "$TEST/file with spaces.txt"
 run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "ERROR: [test/file with spaces.txt] file -- not readable or permission denied.*computed [0000000000000000000000000000000000000000000000000000000000000000][test/file with spaces.txt]")"
 chmod 644 "$TEST/file with spaces.txt"
-$FPATH_BIN write "$TEST" #>/dev/null 2>&1
+
+echo "#NEW_FILE#" >> "$TEST/new-file.txt"
+run_test "$FPATH_BIN write --verbose $TEST -- new-file.txt" "0" "$(escape_expected "OK: [d76a514430a56c7d071db6099fc6a3d3917f90f94ed731ae09220e29b09466ab]: [test/new-file.txt] -- file hash written")"
+run_test "$FPATH_BIN verify --verbose $TEST -- new-file.txt" "0" "$(escape_expected "OK: [d76a514430a56c7d071db6099fc6a3d3917f90f94ed731ae09220e29b09466ab]: [test/new-file.txt]")"
+rm "$TEST/new-file.txt"
+rm "$TEST/.roh.git/new-file.txt.$HASH"
+
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "$ROH_DIR/file with spaces.txt.$HASH"
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/file with spaces.txt.$HASH"
 run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "WARN:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$ROH_DIR/file with spaces.txt.sha256].*WARN:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$TEST/file with spaces.txt.sha256]")"
