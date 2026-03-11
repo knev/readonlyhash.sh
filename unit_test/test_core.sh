@@ -229,7 +229,7 @@ echo
 echo "# verify"
 
 mkdir "$TEST-empty"
-run_test "$FPATH_BIN verify $TEST-empty" "0" "$(escape_expected "WARN: [.roh.git] missing or inacccessible")"
+run_test "$FPATH_BIN verify $TEST-empty" "0" "$(escape_expected "WARN: [test-empty/.roh.git] missing or inacccessible")"
 
 # we don't care about empty directories
 run_test "$FPATH_BIN write $TEST-empty" "0" "$(escape_expected "Done.")"

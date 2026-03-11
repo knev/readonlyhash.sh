@@ -1470,7 +1470,7 @@ run_directory_process() {
 
 		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
 			if contains "verify"; then
-				echo "WARN: [.roh.git] missing or inacccessible" >&2
+				echo "WARN: [$ROH_DIR] missing or inacccessible" >&2
 				((WARN_COUNT++))
 			else
 				echo "ERROR: [$ROH_DIR] -- missing or inacccessible." >&2
