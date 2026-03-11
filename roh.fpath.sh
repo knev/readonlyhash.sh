@@ -49,7 +49,6 @@ usage() {
 #TODO: on rebase, use the rebase string to rename output .roh.txt file; create a roh.copy command that accepts a rebase string; accepts export output too
 
 #BUGS
-#TODO: roh.copy: needs to deal with the .ro endings
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 
 
