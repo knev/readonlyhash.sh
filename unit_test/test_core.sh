@@ -233,7 +233,7 @@ run_test "$FPATH_BIN verify $TEST-empty" "0" "$(escape_expected "WARN: [test-emp
 
 # we don't care about empty directories
 run_test "$FPATH_BIN write $TEST-empty" "0" "$(escape_expected "Done.")"
-run_test "ls -al test-empty/.roh.git" "0" "$(escape_expected "total 0")"
+run_test "ls test-empty/.roh.git" "0" "$(escape_expected " ")" "true"
 rm -rf "$TEST-empty"
 
 echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.$HASH"
