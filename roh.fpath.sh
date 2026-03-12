@@ -5,37 +5,38 @@ shopt -s nullglob
 #set -x
 
 usage() {
+	echo "Usage:" 
+	echo "      $(basename "$0") <COMMAND|[<write|show|hide> --force]|[verify --export]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
+	echo "      $(basename "$0") <write|verify> -- <PATH/GLOBSPEC>"
+	echo "      $(basename "$0") <query [--db PATH] [ROOT] -- <HASH>"
 	echo
-	echo "Usage: $(basename "$0") <COMMAND|[<write|show|hide> --force]|[verify --export]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
-	echo "       $(basename "$0") <write|verify> -- <PATH/GLOBSPEC>"
-	echo "       $(basename "$0") <query [--db PATH] [ROOT] -- <HASH>"
 	echo "Commands:"
 	echo "      v|verify         Verify computed hashes against stored hashes; check for orphaned hashes"
-	echo "      w|write          Write SHA256 hashes for existing files"
+	echo "      w|write          Write SHA256 hashes (hidden by default) for existing files"
 	echo "      i|index          Index hash files in a DB (sqlite3 required), including orphaned hashes"
-	echo "      verify index     ..."
-	echo "      write index      .."
-	echo "      d|delete         Delete hash related to files"
-	echo "      h|hide           Move hash files from the files location to .roh"
-	echo "      s|show           Move hash files from .roh to the file's location"
-	echo "      write show       ."
-	echo "      write hide       ."
-	echo "      q|query          ..."
-	echo "      index query      .."
+	echo "      verify index     Verify by processing files and create index by maintaining hashes"
+	echo "      write index      Write hashes by processing files and create index by maintaining hashes"
+	echo "      d|delete         Delete all hashes with a corresponding file"
+	echo "      h|hide           Move hash files from the files location to ROH_DIR"
+	echo "      s|show           Move hash files from ROH_DIR to next to the file's location"
+	echo "      write show       Write and show hashes by processing files"
+	echo "      write hide       Write and hide hashes by processing files"
+	echo "      q|query          Query an existing index for the existence of a hash"
+	echo "      index query      Create an index and then query that index"
 	echo "      r|recover        Write/index files with hashes found in the DB; remove orphaned duplicates"
-	echo "      index recover    ..."
-	echo "      e|sweep          Remove all orphaned hashes"
-	echo "      write sweep      ..."
-	echo "      delete sweep     ..."
+	echo "      index recover    Create an index, recover by processing files and recover orphaned hashes in maintenance"
+	echo "      e|sweep          Remove all orphaned and mismatched hashes"
+	echo "      write sweep      Write hashes by processing files and sweep by maintaining hashes"
+	echo "      delete sweep     Delete hash by processing files and sweep remain hashes during maintanence"
 	echo
 	echo "Options:"
 	echo "      --verbose      Verbose operational output"
 	echo "      --force        Force operation even if hash files do not match"
 	echo "      --roh-dir      Specify the readonly hash path"
-	echo "      --db           ..."
-	echo "      --only-files   ..."
-	echo "      --only-hashes  ..."
-	echo "      --export       ..."
+	echo "      --db           Explicity specify the location of the database file"
+	echo "      --only-files   Only process files, do not run hash maintanence"
+	echo "      --only-hashes  Do not process files, only run hash maintanence"
+	echo "      --export       Export to file all files and hashes with issues (beta)"
     echo "      --version      Display the version and exit"
 	echo "  -h, --help         Display this help and exit"
 	echo
@@ -43,6 +44,8 @@ usage() {
 
 #BUGS
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
+#TODO: if some of the hashes are partially hidden, doing a "write show" does or does not correct them?
+#TODO: what does sweep do on mismatched hashes? update the README
 
 # readonlyhash
 #TODO: reinstate ability to verify without extracting?
@@ -53,6 +56,7 @@ usage() {
 # roh.copy
 #TODO: on rebase, use the rebase string to rename output .roh.txt file; create a roh.copy command that accepts a rebase string; accepts export output too
 
+#TODO: update --export (beta tag)
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
 #TODO: prune all index hashes that point to files that no longer exist

@@ -1,10 +1,11 @@
 #!/bin/bash
 
 usage() {
+    echo "Usage:"
+	echo "      $(basename "$0") < --rebase [\"]BASEPATH:TARGET_BASEPATH[\"]> [OPTIONS] <PATHSPEC>"
 	echo
-    echo "Usage: $(basename "$0") < --rebase BASEPATH:TARGET_BASEPATH> [OPTIONS] <PATHSPEC>"
     echo "Options:"
-	echo "      --rebase        ..."
+	echo "      --rebase        Replace the BASEPATH prefix of the PATHSPEC with the TARGET_BASEPATH"
     echo "      --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
     echo

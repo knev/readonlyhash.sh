@@ -3,7 +3,9 @@
 #set -x
 
 usage() {
-    echo "Usage: $(basename "$0") [--force] <[-i|-z|-x] -[i|z|x]C PATHSPEC> [ARGUMENTS]"
+    echo "Usage:"
+	echo "      $(basename "$0") [--force] <[-i|-z|-x] -[i|z|x]C PATHSPEC> [ARGUMENTS]"
+	echo
     echo "Options:"
 	echo "  -i             Initialize the roh.git storage"
 	echo "  -z             Archive the roh.git storage"
@@ -14,11 +16,11 @@ usage() {
     echo "  -h, --help     Display this help and exit"
 	echo
 	echo "Examples:"
-	echo "  \$ $(basename "$0") -zC <PATH>"
-	echo "  \$ $(basename "$0") -C <PATH> add \"*\""
+	echo "      \$ $(basename "$0") -zC <PATH>"
+	echo "      \$ $(basename "$0") -C <PATH> add \"*\""
 	echo
 	echo "Other operations: "
-	echo "  git restore --staged \$(git diff --cached --name-only --diff-filter=D) # unstage deleted files"
+	echo "      git restore --staged \$(git diff --cached --name-only --diff-filter=D) # unstage deleted files"
 	echo
 }
 

@@ -7,15 +7,18 @@ GIT_BIN="roh.git"
 HASH="sha256"
 
 usage() {
-	echo
-    echo "Usage: $(basename "$0") <C|COMMAND> [OPTIONS|--resume-at STRING] < <FN.roh.txt>"
-	echo "      v|verify              ..."
-	echo "      a|archive             ..."
-	echo "      x|extract             ..."
+    echo "Usage:" 
+	echo "      $(basename "$0") <C|COMMAND> [OPTIONS|--resume-at STRING] < <FN.roh.txt>"
+	echo 
+    echo "Commands:"
+	echo "      v|verify     Verify files and make sure git repo is clean"
+	echo "      a|archive    Achive ROH_DIR and remove an existing index file"
+	echo "      x|extract    Extract _.roh.git.zip as ROH_DIR"
+	echo 
     echo "Options:"
-	echo "      --resume-at <STRING>  ..."
-    echo "      --version       Display the version and exit"
-    echo "  -h, --help          Display this help and exit"
+	echo "      --resume-at <STRING>    Resume on directory with STRING as suffix"
+    echo "      --version               Display the version and exit"
+    echo "  -h, --help                  Display this help and exit"
 	echo 
 	echo "whie;do:"
 	echo "      while IFS= read -r line; do echo \"\$line\"; done < FILENAME.roh.txt"
