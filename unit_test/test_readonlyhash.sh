@@ -51,7 +51,7 @@ rm "$fpath" >/dev/null 2>&1
 echo
 echo "# init"
 
-run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "0" "$(escape_expected "Initialized empty Git repository in /Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003/.roh.git/.git/")"
+run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "0" "$(escape_expected "Initialized empty Git repository in $PWD/Fotos [space]/2003/.roh.git/.git/")"
 run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "1" "$(escape_expected "ERROR: [Fotos [space]/2003/.roh.git/.git] exists already.*Abort.")"
 rm -rf 'Fotos [space]/2003/.roh.git' >/dev/null 2>&1
 
@@ -80,8 +80,8 @@ run_test "$ROH_BIN verify --resume-at Fotos\ \[space\]/1999 < Fake.roh.txt" "0" 
 rm "Fake.roh.txt"
 
 run_test "$ROH_BIN verify --resume_at 2002 < $fpath" "1" "$(escape_expected "ERROR: invalid option [--resume_at]")"
-run_test "$ROH_BIN verify --resume-at 2002 < $fpath" "0" "$(escape_expected "Looping on: [/Users/dev/Project-@knev/readonlyhash.sh.git/2002].* -- SKIPPING")" "true"
-run_test "$ROH_BIN verify --resume-at 2002.ro < $fpath" "0" "$(escape_expected "Looping on: [/Users/dev/Project-@knev/readonlyhash.sh.git/2002].* -- SKIPPING")" "true"
+run_test "$ROH_BIN verify --resume-at 2002 < $fpath" "0" "$(escape_expected "Looping on: [$PWD/2002].* -- SKIPPING")" "true"
+run_test "$ROH_BIN verify --resume-at 2002.ro < $fpath" "0" "$(escape_expected "Looping on: [$PWD/2002].* -- SKIPPING")" "true"
 
 #run_test "ls -al $fpath_ro_ro" "1" "ls: $fpath_ro_ro: No such file or directory" 
 #run_test "$ROH_BIN init $fpath_ro" "0" "Archived .roh.git to.* _.roh.git.zip" "true"
@@ -121,7 +121,7 @@ echo "# extract"
 # run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
 # run_test "$ROH_BIN verify $fpath_ro" "0" "$(escape_expected "On branch master.*nothing to commit, working tree clean.*Removed [/var/folders/.*/tmp.*].*On branch master.*nothing to commit, working tree clean.*Removed [/var/folders/.*/tmp.*]")"
 
-run_test "$ROH_BIN extract < $fpath" "0" "$(escape_expected "Extracted [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003/.roh.git] from [_.roh.git.zip].*Removed [/Users/dev/Project-@knev/readonlyhash.sh.git/Fotos [space]/2003/_.roh.git.zip]")"
+run_test "$ROH_BIN extract < $fpath" "0" "$(escape_expected "Extracted [$PWD/Fotos [space]/2003/.roh.git] from [_.roh.git.zip].*Removed [$PWD/Fotos [space]/2003/_.roh.git.zip]")"
 
 
 # verify
@@ -134,7 +134,7 @@ run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: hash mismatch
 echo "816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4" > "2002.ro/$ROH_DIR/2002_FIRE!/Untitled-001.jpg.$HASH"
 
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_DIR/2002_FIRE!/.HIDDEN_FILE"
-run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: directory [/Users/dev/Project-@knev/readonlyhash.sh.git/2002.ro/.roh.git/2002_FIRE!] contains hidden entries")"
+run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: directory [$PWD/2002.ro/.roh.git/2002_FIRE!] contains hidden entries")"
 rm "2002.ro/$ROH_DIR/2002_FIRE!/.HIDDEN_FILE"
 
 echo "NOT CLEAN" > "2002.ro/not-clean.txt"
