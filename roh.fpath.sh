@@ -1779,7 +1779,8 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 		run_directory_process "$ROOT" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
 	fi
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
-	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_NEW]"
+	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_NEW" ] && echo " >> [$EXPORT_FN_NEW]"
+	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_HIDDEN" ] && echo " >> [$EXPORT_FN_HIDDEN]"
 fi
 
 if [ "$only_files" = "true" ]; then
@@ -1788,7 +1789,7 @@ elif contains "verify" || contains "recover" || contains "sweep" || contains "in
 	echo "# Hash maintanence ... [${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}]"
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
-	[ "$EXPORT_MODE" = "true" ] && echo " >> [$EXPORT_FN_DELETED]"
+	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_DELETED" ] && echo " >> [$EXPORT_FN_DELETED]"
 fi
 
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
