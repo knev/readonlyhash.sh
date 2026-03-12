@@ -31,9 +31,9 @@ run_test "$FPATH_BIN vwidhsqre ." "1" "$(escape_expected "ERROR: invalid command
 # echo "ERROR: unknown short operation '$c' in '$arg'" >&2 # should never happen unless the code is defined wrong
 run_test "$FPATH_BIN query test/.roh.sqlite3 -- d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af" "1" "$(escape_expected "ERROR: failed to query db [test/.roh.sqlite3/.roh.sqlite3]")"
 
-run_test "$FPATH_BIN" "1" "Usage: roh.fpath.sh"
+run_test "$FPATH_BIN" "1" "Usage:.*roh.fpath.sh"
 run_test "$FPATH_BIN shablam" "1" "$(escape_expected "ERROR: invalid command [shablam]")"
-run_test "$FPATH_BIN -h" "0" "Usage: roh.fpath.sh"
+run_test "$FPATH_BIN -h" "0" "Usage:.*roh.fpath.sh"
 run_test "$FPATH_BIN write --gobbligook" "1" "$(escape_expected "ERROR: invalid option: [--gobbligook]")"
 run_test "$FPATH_BIN write -g" "1" "$(escape_expected "ERROR: invalid option: [-]")" #TODO: should print [-g]
 
@@ -44,7 +44,7 @@ run_test "$FPATH_BIN delete --force ." "1" "$(escape_expected "ERROR: [--force] 
 run_test "$FPATH_BIN index --force ." "1" "$(escape_expected "ERROR: [--force] can only be used with: write|show|hide")"
 run_test "$FPATH_BIN query --force ." "1" "$(escape_expected "ERROR: [--force] can only be used with: write|show|hide")"
 #run_test "$FPATH_BIN recover --force ." "1" "$(escape_expected "ERROR: --force can only be used with: write|show|hide")"
-run_test "$FPATH_BIN -h --force ." "0" "Usage: roh.fpath.sh"
+run_test "$FPATH_BIN -h --force ." "0" "Usage:.*roh.fpath.sh"
 
 run_test "$FPATH_BIN verify SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST" "1" "$(escape_expected "ERROR: Directory [SPECIFYING_A_DIR_THAT_SHOULD_NOT_EXIST] does not exist")"
 
