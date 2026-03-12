@@ -861,7 +861,7 @@ process_entry()
 
 	if [ -L "$entry" ]; then
 		[ "$VERBOSE_MODE" = "true" ] && echo "Avoiding symlink [$entry] like the Plague"
-		continue
+		return 0
 
 	# If the entry is a directory, process it recursively
     elif [ -d "$entry" ]; then
