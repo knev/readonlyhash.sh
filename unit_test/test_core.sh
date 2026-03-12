@@ -335,6 +335,10 @@ rmdir  "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH"
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
 
+mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/sub-empty" 
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
+rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/sub-empty" 
+
 touch "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
 run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"

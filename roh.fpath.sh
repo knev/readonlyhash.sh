@@ -884,15 +884,14 @@ process_entry()
 			# echo "ROH_HASH_PATH(entry) is [$roh_hash_path]"
 
 			if [ ! -d "$roh_hash_path" ]; then
-				if ! find "$entry" -mindepth 1 -not -name '.*' ! -type l | read; then
-					: # echo "Directory '$entry' is completely empty"
-				else
-					hash_found=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
-					if [ -z "$hash_found" ]; then
-						echo "WARN: [$entry] -- NEW DIRECTORY!?"
-						((WARN_COUNT++))
-						return 0
-					fi
+				# Stuff that is NOT REAL: symlinks (files or dirs), hidden files, empty subdirs (any depth)
+				has_real_files=$(find "$entry" -mindepth 1 -not -name '.*' ! -type l ! -type d -print | head -n 1)
+				has_hashes=$(find "$entry" -type f -name '*.sha256' -print | head -n 1)
+				
+				if [ -n "$has_real_files" ] && [ -z "$has_hashes" ]; then
+				    echo "WARN: [$entry] -- NEW DIRECTORY!?"
+				    ((WARN_COUNT++))
+				    return 0
 				fi
 			fi
 
