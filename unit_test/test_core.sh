@@ -355,8 +355,8 @@ run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK:.*sub-sub
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: [test/sub-directory with spaces/sub-sub-directory-empty] -- NEW DIRECTORY!?")" "true"
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR-empty"
 
-$GIT_BIN -iC "$TEST" >/dev/null 2>&1
-$GIT_BIN -zC "$TEST" >/dev/null 2>&1
+run_test "$GIT_BIN -iC $TEST status" "0" "$(escape_expected "nothing to commit, working tree clean")"
+run_test "$GIT_BIN -zC $TEST status" "0" "$(escape_expected "Archived [.roh.git] to [test/_.roh.git.zip]")"
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: found archived ROH_DIR [test/_.roh.git.zip] at [test]")"
 $GIT_BIN -xC "$TEST" >/dev/null 2>&1
 
