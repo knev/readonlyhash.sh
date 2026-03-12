@@ -258,10 +258,13 @@ roh_sqlite3_db_insert() {
     local abs_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
     local enc_abs_roh_hash_fpath=$(hex_encode "$abs_roh_hash_fpath")
 
-    local abs_fpath=$(readlink -f "$fpath")
-	if [ -z "$abs_fpath" ]; then
+	# readlink of missing file on linux returns a path, on macOS returns empty string
+	if ! stat "$fpath" >/dev/null 2>&1; then
+		echo "roh_sqlite3_db_insert: abs_fpath NULL" >&2
 		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', NULL, '$enc_abs_roh_hash_fpath');"
 	else
+		echo "roh_sqlite3_db_insert: abs_fpath $abs_fpath" >&2
+    	local abs_fpath=$(readlink -f "$fpath")
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
 		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', '$enc_abs_fpath', '$enc_abs_roh_hash_fpath');"
 	fi
@@ -310,10 +313,11 @@ roh_sqlite3_db_fpath_exists() {
 		exit 1
 	fi
 
-	local abs_fpath=$(readlink -f "$fpath")
-	if [ -z "$abs_fpath" ]; then
+	# readlink of missing file on linux returns a path, on macOS returns empty string
+	if ! stat "$fpath" >/dev/null 2>&1; then
 		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE hash = '$stored' AND fpath IS NULL;"
 	else
+		local abs_fpath=$(readlink -f "$fpath")
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
 		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE fpath = '$enc_abs_fpath';"	
 	fi
@@ -330,10 +334,11 @@ roh_sqlite3_db_get_1fpath_hash() {
 		exit 1
 	fi
 
-	local abs_fpath=$(readlink -f "$fpath")
-	if [ -z "$abs_fpath" ]; then
+	# readlink of missing file on linux returns a path, on macOS returns empty string
+	if ! stat "$fpath" >/dev/null 2>&1; then
 		return "0000000000000000000000000000000000000000000000000000000000000000";
 	else
+		local abs_fpath=$(readlink -f "$fpath")
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
 		sqlite3 "$db" "SELECT hash FROM hashes WHERE fpath = '$enc_abs_fpath';"
 		# '$stored'
