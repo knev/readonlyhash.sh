@@ -33,16 +33,6 @@ fi
 
 # ----
 
-# Enforce stdin redirection
-if [[ -t 0 ]]; then 
-    echo "ERROR: missing input redirection of '.roh.txt' file"
-	echo "Abort."
-	echo
-	exit 1
-fi
-
-# ----
-
 # Compatible with bash 3.2+ (macOS default) and bash 4+
 
 # List of valid full commands
@@ -178,6 +168,16 @@ done
 
 # capture all remaining arguments after the options have been processed
 shift $((OPTIND-1))
+
+# ----
+
+# Enforce stdin redirection
+if [[ -t 0 ]]; then 
+    echo "ERROR: missing input redirection of '.roh.txt' file"
+	echo "Abort."
+	echo
+	exit 1
+fi
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 # captured output : NO spurious echo/printf outputs!

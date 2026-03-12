@@ -40,6 +40,7 @@ echo
 echo "# args"
 
 run_test "$GIT_BIN Fotos\ \[space\]/2003" "1" "$(escape_expected "ERROR: invalid working directory [].")"
+run_test "$ROH_BIN --version" "0" "$(escape_expected "readonlyhash.sh version:")"
 run_test "$ROH_BIN extract THIS_FILE_DOES_NOT_EXIST.roh.txt" "1" "$(escape_expected "ERROR: missing input redirection of '.roh.txt' file")"
 
 touch "$fpath"
