@@ -1220,7 +1220,7 @@ fi
 EXPORT_FN_NEW="$ROH_DIR/../.roh.new-files.txt"
 EXPORT_FN_DELETED="$ROH_DIR/../.roh.deleted-files.txt"
 EXPORT_FN_HIDDEN="roh-hidden-files.exported.txt"
-rm "$EXPORT_FN_HIDDEN"
+[ -f "$EXPORT_FN_HIDDEN" ] && rm "$EXPORT_FN_HIDDEN"
 
 if [ -z "$db" ]; then
     DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array
