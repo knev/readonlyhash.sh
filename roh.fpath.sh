@@ -1483,7 +1483,7 @@ run_directory_process() {
 				echo "ERROR: [$ROH_DIR] -- missing or inacccessible." >&2
 				echo "Abort."
 				echo
-				return 1
+				exit 1
 			fi
 		fi 
 	fi
