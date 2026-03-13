@@ -214,6 +214,11 @@ run_test "ls -al backup-target/Fotos\ [space]/1999/$ROH_DIR" "0" "$(escape_expec
 rm -rf "backup-target"
 
 # backup
+run_test "$ROH_COPY --rebase blammy/cheeze:backup-target blammy/cheeze/2002.ro" "0" "$(escape_expected "Copied [blammy/cheeze/2002.ro/.roh.git] to [backup-target/2002.ro/.]")"
+run_test "ls -al backup-target/2002.ro/$ROH_DIR" "0" "$(escape_expected "No such file or directory")" "true"
+rm -rf "backup-target"
+
+# backup
 $GIT_BIN -zC "blammy/cheeze/Fotos [space]/1999" >/dev/null 2>&1
 run_test "$ROH_COPY --rebase blammy/cheeze:backup-target blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/_.roh.git.zip] to [backup-target/Fotos [space]/1999/.]")"
 run_test "ls -al backup-target/Fotos\ [space]/1999/_.roh.git.zip" "0" "$(escape_expected "No such file or directory")" "true"

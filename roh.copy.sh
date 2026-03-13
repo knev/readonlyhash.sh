@@ -125,11 +125,6 @@ rebase_directory() {
     if [[ "$dir" == *"$rebase_origin"* ]]; then
         # Replace rebase_origin with rebase_target
         dir_rebased="${dir/$rebase_origin/$rebase_target}"
-
-		# Remove '.ro' from the end of the suffix if it exists
-		if [[ "$dir_rebased" = *.ro ]]; then
-			dir_rebased="${dir_rebased%.ro}"
-		fi
 		echo "$dir_rebased"
     else
         # Return original path if rebase_origin not found
@@ -154,8 +149,18 @@ copy_to_target() {
  		echo
  		exit 1
 	fi
-	if [ -d "$dir_rebased".ro ]; then
+
+	# rebased *.not, *.not exists -AND rebased *.ro, *.ro exists
+	if [ -d "$dir_rebased" ]; then
+		:
+	# rebased *.ro, *.not exists
+	elif [[ "$dir_rebased" = *.ro ]] && [ -d "${dir_rebased%.ro}" ]; then
+		dir_rebased="${dir_rebased%.ro}" # Remove '.ro' from the end of the suffix
+	# rebased X, *.ro exists
+	elif [ -d "$dir_rebased".ro ]; then
 		dir_rebased="$dir_rebased.ro"
+	else
+		:
 	fi
 	# echo "* [$rebase_string] => [$dir_rebased]"
 
