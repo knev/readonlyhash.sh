@@ -872,9 +872,7 @@ process_entry()
     elif [ -d "$entry" ]; then
 
 		if find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
-			echo "WARN: directory [$entry] contains hidden entries"
-			((WARN_COUNT++))
-			[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FN_HIDDEN"
+			echo "$entry" >> "$EXPORT_FN_HIDDEN"
 		fi
 	
 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
@@ -1217,6 +1215,7 @@ fi
 EXPORT_FN_NEW="$ROH_DIR/../.roh.new-files.txt"
 EXPORT_FN_DELETED="$ROH_DIR/../.roh.deleted-files.txt"
 EXPORT_FN_HIDDEN="roh-hidden-files.exported.txt"
+rm "$EXPORT_FN_HIDDEN"
 
 if [ -z "$db" ]; then
     DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array
@@ -1788,7 +1787,11 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 	fi
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_NEW" ] && echo " >> [$EXPORT_FN_NEW]"
-	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_HIDDEN" ] && echo " >> [$EXPORT_FN_HIDDEN]"
+	if [ -f "$EXPORT_FN_HIDDEN" ]; then
+		echo "WARN: directories with hidden entries were detected and exported"
+		echo " >> [$EXPORT_FN_HIDDEN]"
+		((WARN_COUNT++))
+	fi
 fi
 
 if [ "$only_files" = "true" ]; then

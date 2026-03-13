@@ -255,8 +255,9 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: hashes not excl
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 touch "$TEST/.HIDDEN_FILE"
-run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: directory [test] contains hidden entries")" 
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported.*[roh-hidden-files.exported.txt]")"
 rm "$TEST/.HIDDEN_FILE"
+rm "roh-hidden-files.exported.txt"
 
 run_test "$FPATH_BIN verify index --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 rm "$TEST/.roh.sqlite3"
@@ -341,12 +342,12 @@ rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/sub-empty"
 
 touch "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
-run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"
+run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported")"
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
 
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
-run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directory [test/sub-directory with spaces/sub-sub-directory/tmp-empty] contains hidden entries")"
+run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported")"
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
 
