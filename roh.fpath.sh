@@ -12,6 +12,8 @@ usage() {
 	echo
 	echo "Commands:"
 	echo "      v|verify         Verify computed hashes against stored hashes; check for orphaned hashes"
+	echo "      verify show      ..."
+	echo "      verify hide      ... (default)"
 	echo "      w|write          Write SHA256 hashes (hidden by default) for existing files"
 	echo "      i|index          Index hash files in a DB (sqlite3 required), including orphaned hashes"
 	echo "      verify index     Verify by processing files and create index by maintaining hashes"
@@ -56,6 +58,7 @@ usage() {
 # roh.copy
 #TODO: on rebase, use the rebase string to rename output .roh.txt file; create a roh.copy command that accepts a rebase string; accepts export output too
 
+#TODO: implement verify show|hide
 #TODO: update --export (beta tag)
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
@@ -1174,7 +1177,9 @@ if [ ${#commands[@]} -eq 2 ]; then
 	fi
 
 
-	if contains "index" && ( contains "query" || contains "recover" || contains "verify" || contains "write"); then
+	if contains "verify" && ( contains "show" || contains "hide" ); then
+		:
+	elif contains "index" && ( contains "query" || contains "recover" || contains "verify" || contains "write"); then
 		:
 	elif contains "sweep" && ( contains "write" || contains "delete" ); then
 		:
@@ -1476,7 +1481,7 @@ run_directory_process() {
 		fi
 
 		if [ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ]; then
-			if contains "verify"; then
+			if contains "verify" && contains "show"; then
 				echo "WARN: [$ROH_DIR] missing or inacccessible" >&2
 				((WARN_COUNT++))
 			else

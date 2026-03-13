@@ -37,7 +37,7 @@ run_test "$FPATH_BIN -h" "0" "Usage:.*roh.fpath.sh"
 run_test "$FPATH_BIN write --gobbligook" "1" "$(escape_expected "ERROR: invalid option: [--gobbligook]")"
 run_test "$FPATH_BIN write -g" "1" "$(escape_expected "ERROR: invalid option: [-]")" #TODO: should print [-g]
 
-run_test "$FPATH_BIN verify --roh-dir DOES_NOT_EXIST ." "0" "$(escape_expected "Using ROH_DIR [DOES_NOT_EXIST]")"
+run_test "$FPATH_BIN verify --roh-dir DOES_NOT_EXIST ." "1" "$(escape_expected "Using ROH_DIR [DOES_NOT_EXIST]")"
 
 run_test "$FPATH_BIN verify --force ." "1" "$(escape_expected "ERROR: [--force] can only be used with: write|show|hide")"
 run_test "$FPATH_BIN delete --force ." "1" "$(escape_expected "ERROR: [--force] can only be used with: write|show|hide")"
@@ -229,7 +229,8 @@ echo
 echo "# verify"
 
 mkdir "$TEST-empty"
-run_test "$FPATH_BIN verify $TEST-empty" "0" "$(escape_expected "WARN: [test-empty/.roh.git] missing or inacccessible")"
+run_test "$FPATH_BIN verify show $TEST-empty" "0" "$(escape_expected "WARN: [test-empty/.roh.git] missing or inacccessible")"
+#TODO: verify show
 
 # we don't care about empty directories
 run_test "$FPATH_BIN write $TEST-empty" "0" "$(escape_expected "Done.")"
