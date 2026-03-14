@@ -401,6 +401,18 @@ find_matching_fn()
 				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
 				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
 				# echo "[$found_hash] [$found_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
+				
+                if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
+                	# we found the original file
+                	if (( original_found > 0 )); then
+                	    echo "ERROR: this should not happen, should only be one original"
+                	    echo "Abort."
+                	    echo 
+                	    exit 1
+                	fi
+                	((original_found++))
+                	continue
+                fi
 
 				(( total_found == 0 )) && echo "    : FILENAME matches ..."
 				((total_found++))
