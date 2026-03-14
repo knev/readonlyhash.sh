@@ -263,10 +263,10 @@ roh_sqlite3_db_insert() {
 
 	# readlink of missing file on linux returns a path, on macOS returns empty string
 	if ! stat "$fpath" >/dev/null 2>&1; then
-		echo "roh_sqlite3_db_insert: abs_fpath NULL" >&2
+		# echo "roh_sqlite3_db_insert: abs_fpath NULL" >&2
 		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', NULL, '$enc_abs_roh_hash_fpath');"
 	else
-		echo "roh_sqlite3_db_insert: abs_fpath $abs_fpath" >&2
+		# echo "roh_sqlite3_db_insert: abs_fpath $abs_fpath" >&2
     	local abs_fpath=$(readlink -f "$fpath")
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
 		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', '$enc_abs_fpath', '$enc_abs_roh_hash_fpath');"
