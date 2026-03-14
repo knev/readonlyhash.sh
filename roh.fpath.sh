@@ -1304,7 +1304,7 @@ recover_hash() {
 				if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
 					if [ -f "$found_abs_roh_hash_fpath" ]; then
 						# we found the original file
-						if [ "$original_found" -gt 1 ]; then
+						if (( original_found > 0 )); then
 							echo "ERROR: this should not happen, should only be one original"
 							echo "Abort."
 							echo 
