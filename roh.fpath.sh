@@ -1384,7 +1384,7 @@ recover_hash() {
 	# no matching hash found, file identical file names
 
 	if [ "$VERBOSE_MODE" = "true" ]; then
-	   	echo " ERR: hash not in IDX [$fpath] -- file DELETED !?"
+	   	echo " ERR: orphaned hash not in IDX [$fpath] -- file DELETED !?"
 	else
 		echo "ERROR: [$stored] -- hash not in IDX [$fpath] -- file DELETED !?"
 	fi
