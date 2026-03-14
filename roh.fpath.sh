@@ -387,8 +387,7 @@ find_matching_fn()
 		# echo "$list_roh_hash_fpaths"
 		# echo "...]"
 
-		echo "    : FILENAME matches ..."
-
+		local original_found=0
 		local files_displayed=0
 		local orphans_displayed=0
 		local missing_displayed=0
@@ -399,11 +398,12 @@ find_matching_fn()
 			if [ -n "$found" ]; then
 				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
 
-				((total_found++))
-
 				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
 				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
 				# echo "[$found_hash] [$found_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
+
+				(( total_found == 0 )) && echo "    : FILENAME matches ..."
+				((total_found++))
 
 				# file is missing, indexed as file not found, so fpath == NULL
 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
