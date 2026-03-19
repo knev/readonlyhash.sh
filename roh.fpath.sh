@@ -1587,7 +1587,7 @@ process_hash_entry()
  					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
  					((ERROR_COUNT++))
  				else
- 					echo "  OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
+ 					[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
 					return 0
  				fi
 			fi
