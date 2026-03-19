@@ -124,7 +124,7 @@ run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "Avoiding sym
 rm "$TEST/X11"
 
 chmod 000 "$TEST/file with spaces.txt"
-run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "ERROR: [test/file with spaces.txt] file -- not readable or permission denied.*computed [0000000000000000000000000000000000000000000000000000000000000000][test/file with spaces.txt]")"
+run_test "$FPATH_BIN write --verbose --force $TEST" "0" "$(escape_expected "ERROR: [test/file with spaces.txt] file -- not readable or permission denied.*computed [0000000000000000000000000000000000000000000000000000000000000000][test/file with spaces.txt]")"
 chmod 644 "$TEST/file with spaces.txt"
 
 echo "#NEW_FILE#" >> "$TEST/new-file.txt"
@@ -135,7 +135,7 @@ rm "$TEST/.roh.git/new-file.txt.$HASH"
 
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "$ROH_DIR/file with spaces.txt.$HASH"
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/file with spaces.txt.$HASH"
-run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "WARN:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$ROH_DIR/file with spaces.txt.sha256].*WARN:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$TEST/file with spaces.txt.sha256]")"
+run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK: [0000000000000000000000000000000000000000000000000000000000000000][test/.roh.git/file with spaces.txt.sha256] hash exists -- SKIPPING")"
 run_test "$FPATH_BIN write --force $TEST" "0" "$(escape_expected "  OK:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$ROH_DIR/file with spaces.txt.sha256] -- removed (FORCED)!.*OK:.* computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69][test/file with spaces.txt].* stored [0000000000000000000000000000000000000000000000000000000000000000][$TEST/file with spaces.txt.sha256] -- removed (FORCED)!")"
 
 $FPATH_BIN delete "$TEST" >/dev/null 2>&1
@@ -149,14 +149,14 @@ rm -rf "$TEST/.roh.sqlite3"
 # exist-R=T (eq-R=T), exist-D=F          // sh= F
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK: [test/file with spaces.txt]: [test/.roh.git/file with spaces.txt.sha256] hash file -- moved(hidden)")"
+run_test "$FPATH_BIN write --verbose --force $TEST" "0" "$(escape_expected "OK: [test/file with spaces.txt]: [test/.roh.git/file with spaces.txt.sha256] hash file -- moved(hidden)")"
 run_test "ls -al $TEST/file\ with\ spaces.txt.sha256" "1" "$TEST/file with spaces.txt.sha256.?: No such file or directory"
 
 rm "$ROH_DIR/file with spaces.txt.sha256"
 run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected " OK: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST/file with spaces.txt] -- file hash written")"
 
 cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$FPATH_BIN write $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not hidden).* destination [test/.roh.git/file with spaces.txt.sha256] -- exists.* for source [test/file with spaces.txt.sha256]")"
+#run_test "$FPATH_BIN write $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not hidden).* destination [test/.roh.git/file with spaces.txt.sha256] -- exists.* for source [test/file with spaces.txt.sha256]")"
 run_test "$FPATH_BIN write --verbose --force $TEST" "0" "$(escape_expected "OK: [test/file with spaces.txt]: [test/.roh.git/file with spaces.txt.sha256] hash file -- moved(hidden)")"
  
 run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "ERROR: ")" "true"
@@ -176,7 +176,7 @@ run_test "ls -al $TEST/file\ with\ spaces.txt.sha256" "0" "$TEST/file with space
 
 mkdir -p "$ROH_DIR"
 cp "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256" 
-run_test "$FPATH_BIN write show $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not shown).*destination [test/file with spaces.txt.sha256] -- exists.* for source [test/.roh.git/file with spaces.txt.sha256]")"
+#run_test "$FPATH_BIN write show $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not shown).*destination [test/file with spaces.txt.sha256] -- exists.* for source [test/.roh.git/file with spaces.txt.sha256]")"
 run_test "$FPATH_BIN write show --verbose --force $TEST" "0" "$(escape_expected "OK: [test/file with spaces.txt]: [test/file with spaces.txt.sha256] hash file -- moved(shown)")"
  
 run_test "$FPATH_BIN write show $TEST" "0" "$(escape_expected "ERROR: ")" "true"
@@ -187,12 +187,12 @@ run_test "$FPATH_BIN hide $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
 # OLD write tests
 
-echo "c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
-run_test "$FPATH_BIN write $TEST" "1" "$(escape_expected "ERROR: [test/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt] -- not moving/(not hidden).*destination [test/.roh.git/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.sha256] -- exists.*for source [test/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.sha256]")"
-rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
+# echo "c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
+# run_test "$FPATH_BIN write $TEST" "1" "$(escape_expected "ERROR: [test/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt] -- not moving/(not hidden).*destination [test/.roh.git/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.sha256] -- exists.*for source [test/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.sha256]")"
+# rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH"
 
 echo "ZYXW" > "$TEST/file with spaces.txt"
-run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "WARN: hash mismatch:.* computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff][test/file with spaces.txt].*  stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69][test/.roh.git/file with spaces.txt.sha256]")"
+run_test "$FPATH_BIN write --force $TEST" "0" "$(escape_expected "OK: hash mismatch:.* computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff][test/file with spaces.txt].*  stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69][test/.roh.git/file with spaces.txt.sha256] -- removed (FORCED)!")"
 
 rm "$ROH_DIR/file with spaces.txt.$HASH" 
 run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "  OK: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- file hash written")"

@@ -635,55 +635,47 @@ write_hash() {
 	# exist-R=T (eq-R=T), exist-D=T (eq-D=T)
 	# exist-R=T (eq-R=T), exist-D=F
 
-	local computed_hash=$(generate_hash "$fpath")
+	local computed_hash="0000000000000000000000000000000000000000000000000000000000000000"
+	if [ "$force_mode" = "true" ] || ( ! [ -f "$dir_hash_fpath" ] && ! [ -f "$roh_hash_fpath" ] ); then
+		computed_hash=$(generate_hash "$fpath")
+	fi
 
-	local exists_and_not_eq="false"
+	if [ -f "$dir_hash_fpath" ] || [ -f "$roh_hash_fpath" ]; then
+		# exist-R=T
+	    if [ -f "$roh_hash_fpath" ]; then
+			local stored=$(stored_hash "$roh_hash_fpath")
+			if [ "$force_mode" = "false" ]; then
+	 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored][$roh_hash_fpath] hash exists -- SKIPPING"
+				return 0
+			fi
 
-	# exist-R=T
-    if [ -f "$roh_hash_fpath" ]; then
-		local stored=$(stored_hash "$roh_hash_fpath")
-		if [ "$computed_hash" != "$stored" ]; then
-			# exist-R=T (eq-R=F)
-			if [ "$force_mode" = "true" ]; then
+			if [ "$computed_hash" != "$stored" ]; then
+				# exist-R=T (eq-R=F)
 				rm "$roh_hash_fpath"
 				echo "  OK: hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
 				echo "      ...   stored [$stored][$roh_hash_fpath] -- removed (FORCED)!"
-			else
-				echo "WARN: hash mismatch: ..."
-				echo "      ... computed [$computed_hash][$fpath]"
-				echo "      ...   stored [$stored][$roh_hash_fpath]"
-				((WARN_COUNT++))
-
-				exists_and_not_eq="true"
 			fi
 		fi
-	fi
+	
+		# exist-D=T
+		if [ -f "$dir_hash_fpath" ]; then
+			local stored=$(stored_hash "$dir_hash_fpath")
+			if [ "$force_mode" = "false" ]; then
+	 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored][$dir_hash_fpath] hash exists -- SKIPPING"
+				return 0
+			fi
 
-	# exist-D=T
-	if [ -f "$dir_hash_fpath" ]; then
-		local stored=$(stored_hash "$dir_hash_fpath")
-		if [ "$computed_hash" != "$stored" ]; then
-			# exist-D=T (eq-D=F)
-			if [ "$force_mode" = "true" ]; then
+			if [ "$computed_hash" != "$stored" ]; then
+				# exist-D=T (eq-D=F)
 				rm "$dir_hash_fpath"
 				echo "  OK: hash mismatch: ..."
 				echo "      ... computed [$computed_hash][$fpath]"
 				echo "      ...   stored [$stored][$dir_hash_fpath] -- removed (FORCED)!"
-			else
-				echo "WARN: hash mismatch: ..."
-				echo "      ... computed [$computed_hash][$fpath]"
-				echo "      ...   stored [$stored][$dir_hash_fpath]"
-				((WARN_COUNT++))
-
-				exists_and_not_eq="true"
 			fi
 		fi
 	fi
 
-	if [ "$exists_and_not_eq" = "true" ]; then
-		return 0
-	fi
 	# echo "* \"$(basename "$fpath")\" "
 
 	# exist-R=F         , exist-D=T (eq-D=T) // sh= T, nop
@@ -701,16 +693,14 @@ write_hash() {
 	# exist-R=F         , exist-D=F
 	if ! [ -f "$dir_hash_fpath" ] && ! [ -f "$roh_hash_fpath" ]; then
 		# write to R
-		local new_hash=$(generate_hash "$fpath")
-	
 		if [ "$visibility_mode" = "show" ]; then
 			# write to $dir_hash_fpath, because it exist, then let visibility handle the move
-			echo "$new_hash" > "$dir_hash_fpath"
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$fpath] -- file hash written"
+			echo "$computed_hash" > "$dir_hash_fpath"
+			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath] -- file hash written"
 		else
 			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
-			if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$new_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-				[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$new_hash]: [$fpath] -- file hash written"
+			if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
+				[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath] -- file hash written"
 			else
 				echo "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
 				((ERROR_COUNT++))
@@ -741,35 +731,6 @@ write_hash() {
 	# else
 	#	echo "  OK: [$computed_hash]: [$dir] \"$(basename "$fpath")\""
 	fi
-
-	#------
-
-    # if [ -f "$roh_hash_fpath" ]; then
-	# 	if [ "$force_mode" = "true" ]; then
-	# 		local computed_hash=$(generate_hash "$fpath")
-	#         local stored=$(stored_hash "$roh_hash_fpath")
-	# 
-	#         if [ "$computed_hash" = "$stored" ]; then
-	# 			# echo "  OK: [$computed_hash]: [$dir] $(basename "$fpath") -- SKIPPING"
-	# 			return 0
-	# 		else
-	# 			if { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-	# 				echo "  OK: [$dir] \"$(basename "$fpath")\" -- hash mismatch: -- ..."
-	# 				echo "      ...   stored [$stored]: [$roh_hash_fpath]"
-	# 				echo "      ... computed [$computed_hash]: [$fpath] -- new hash stored -- FORCED!"
-	# 				return 0  # No error
-	#  			else
-	#  				echo "ERROR: [$dir] \"$(basename "$fpath")\" -- failed to write hash to [$roh_hash_fpath] -- (FORCED)"
-	#  				((ERROR_COUNT++))
-	#  				return 1  # Signal that an error occurred
-	# 			fi
-	# 		fi
-	# 	else
-	# 		# echo "WARN: [$dir] \"$(basename "$fpath")\" -- hash file [$dir_hash_fpath] exists -- SKIPPED!"
-	#		((WARN_COUNT++))
-	# 		return 0  
-	# 	fi
-	# fi
 
 	return 0
 }
