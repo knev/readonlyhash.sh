@@ -2,9 +2,10 @@
 
 usage() {
     echo "Usage:"
-	echo "      $(basename "$0") < --rebase [\"]BASEPATH:TARGET_BASEPATH[\"]> [OPTIONS] <PATHSPEC>"
+	echo "      $(basename "$0") <[OPTIONS]|--rebase [\"]BASEPATH:TARGET_BASEPATH[\"]> <PATHSPEC>"
 	echo
     echo "Options:"
+	echo "  -n, --dry-run		Display output result without any operations"
 	echo "      --rebase        Replace the BASEPATH prefix of the PATHSPEC with the TARGET_BASEPATH"
     echo "      --version       Display the version and exit"
     echo "  -h, --help          Display this help and exit"
@@ -19,12 +20,16 @@ fi
 
 # ----
 
+dry_run_mode="false"
 rebase_mode="false"
 rebase_string="_INVALID_"
 
-while getopts "dh-:" opt; do
+while getopts "nh-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
+	n)
+	  dry_run_mode="true"
+	  ;;
     h)
       usage
       exit 0
@@ -41,6 +46,9 @@ while getopts "dh-:" opt; do
 			exit 1
           fi
           ;;	
+		dry-run)
+		  dry_run_mode="true"
+		  ;;
         help)
           usage
           exit 0
@@ -167,7 +175,16 @@ copy_to_target() {
 	# parent_dir="blammy/cheeze"
 	# echo "ECHO ${parent_dir}/${dir#*${parent_dir}/}"
 
-	mkdir -p "$dir_rebased"
+	if [ "$dry_run_mode" = "true" ]; then
+		if [ -d "$dir_rebased" ]; then
+			echo "DRY-RUN: rebased directory [$dir_rebased] -- exists"
+		else
+			echo "DRY-RUN: rebased directory [$dir_rebased] -- make NEW directory"
+		fi
+	else
+		mkdir -p "$dir_rebased"
+	fi
+
 	if [ -d "$dir_rebased/.roh.git" ] || [ -f "$dir_rebased/_.roh.git.zip" ]; then
 		echo "Error: Directory [$dir_rebased] already ROH; [.roh.git] or [_.roh.git.zip] exists"
 		exit 1
@@ -175,23 +192,32 @@ copy_to_target() {
 
 	if [ -d "$dir/.roh.git" ]; then
 		ROH_DIR="$dir/.roh.git"
-	 	if cp -R "$ROH_DIR" "$dir_rebased/."; then
-	 		# echo "Copied [$ROH_DIR] to [$dir_rebased/.]"
-			echo "Copied [${rebase_origin}/${ROH_DIR#*${rebase_origin}/}] to [${rebase_target}/${dir_rebased#*${rebase_target}/}/.]"
+
+		if [ "$dry_run_mode" = "true" ]; then
+			echo "DRY-RUN: copied [$ROH_DIR] to [$dir_rebased/.]"
 		else
-			exit 1
-	 	fi
+		 	if cp -R "$ROH_DIR" "$dir_rebased/."; then
+		 		# echo "Copied [$ROH_DIR] to [$dir_rebased/.]"
+				echo "Copied [${rebase_origin}/${ROH_DIR#*${rebase_origin}/}] to [${rebase_target}/${dir_rebased#*${rebase_target}/}/.]"
+			else
+				exit 1
+		 	fi
+		fi
 	fi
 
 	if [ -f "$dir/_.roh.git.zip" ]; then
 		ROH_DIR="$dir/_.roh.git.zip"
 
-	 	if cp "$ROH_DIR" "$dir_rebased/."; then
-	 		# echo "Copied [$ROH_DIR] to [$dir_rebased/.]"
-			echo "Copied [${rebase_origin}/${ROH_DIR#*${rebase_origin}/}] to [${rebase_target}/${dir_rebased#*${rebase_target}/}/.]"
+		if [ "$dry_run_mode" = "true" ]; then
+			echo "DRY-RUN: copied [$ROH_DIR] to [$dir_rebased/.]"
 		else
-			exit 1
-	 	fi
+		 	if cp "$ROH_DIR" "$dir_rebased/."; then
+		 		# echo "Copied [$ROH_DIR] to [$dir_rebased/.]"
+				echo "Copied [${rebase_origin}/${ROH_DIR#*${rebase_origin}/}] to [${rebase_target}/${dir_rebased#*${rebase_target}/}/.]"
+			else
+				exit 1
+		 	fi
+		fi
 	fi
 
 # 	dir_rebased_ro=$(rename_to_ro "$dir_rebased")

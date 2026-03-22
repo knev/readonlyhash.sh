@@ -183,6 +183,7 @@ run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/Fotos\ \[space\
 
 # if PATHSPEC ends NOT in .ro
 # - if REBASE_TARGET ends NOT in .ro
+run_test "$ROH_COPY -n --rebase blammy/cheeze:$TARGET blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "DRY-RUN: rebased directory [_target~/Fotos [space]/1999] -- exists.*DRY-RUN: copied [blammy/cheeze/Fotos [space]/1999/.roh.git] to [_target~/Fotos [space]/1999/.]")"
 run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/.roh.git] to [$TARGET/Fotos [space]/1999/.]")"
 run_test "ls -al $PWD/_target~/Fotos\ [space]/1999/$ROH_DIR" "0" "$(escape_expected "No such file or directory")" "true"
 run_test "$FPATH_BIN verify _target~/Fotos\ \[space\]/1999" "0" "ERROR:" "true"
@@ -190,6 +191,7 @@ rm -rf "$TARGET/Fotos [space]/1999/.roh.git"
 
 # if PATHSPEC ends in .ro 
 # - if REBASE_TARGET ends NOT in .ro
+run_test "$ROH_COPY --dry-run --rebase blammy/cheeze:$TARGET blammy/cheeze/2002.ro" "0" "$(escape_expected "DRY-RUN: rebased directory [_target~/2002] -- exists.*DRY-RUN: copied [blammy/cheeze/2002.ro/.roh.git] to [_target~/2002/.]")"
 run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/2002.ro" "0" "$(escape_expected "Copied [blammy/cheeze/2002.ro/.roh.git] to [$TARGET/2002/.]")"
 run_test "$FPATH_BIN verify _target~/2002" "0" "ERROR:" "true"
 rm -rf "$TARGET/2002/.roh.git"
@@ -197,6 +199,7 @@ rm -rf "$TARGET/2002/.roh.git"
 # if PATHSPEC ends in .ro 
 # - if REBASE_TARGET ends in .ro
 mv "$TARGET/2002" "$TARGET/2002.ro"
+run_test "$ROH_COPY --dry-run --rebase blammy/cheeze:$TARGET blammy/cheeze/2002.ro" "0" "$(escape_expected "DRY-RUN: rebased directory [_target~/2002.ro] -- exists.*DRY-RUN: copied [blammy/cheeze/2002.ro/.roh.git] to [$TARGET/2002.ro/.]")"
 run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/2002.ro" "0" "$(escape_expected "Copied [blammy/cheeze/2002.ro/.roh.git] to [$TARGET/2002.ro/.]")"
 run_test "$FPATH_BIN verify _target~/2002.ro" "0" "ERROR:" "true"
 rm -rf "$TARGET/2002.ro/.roh.git"
@@ -204,11 +207,13 @@ rm -rf "$TARGET/2002.ro/.roh.git"
 # if PATHSPEC ends NOT in .ro
 # - if REBASE_TARGET ends in .ro
 mv "blammy/cheeze/2002.ro" "blammy/cheeze/2002"
+run_test "$ROH_COPY --dry-run --rebase blammy/cheeze:$TARGET blammy/cheeze/2002" "0" "$(escape_expected "DRY-RUN: rebased directory [_target~/2002.ro] -- exists.*DRY-RUN: copied [blammy/cheeze/2002/.roh.git] to [_target~/2002.ro/.]")"
 run_test "$ROH_COPY --rebase blammy/cheeze:$TARGET blammy/cheeze/2002" "0" "$(escape_expected "Copied [blammy/cheeze/2002/.roh.git] to [_target~/2002.ro/.]")"
 run_test "$FPATH_BIN verify _target~/2002.ro" "0" "ERROR:" "true"
 mv "blammy/cheeze/2002" "blammy/cheeze/2002.ro"
 
 # backup
+run_test "$ROH_COPY --dry-run --rebase blammy/cheeze:backup-target blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "DRY-RUN: rebased directory [backup-target/Fotos [space]/1999] -- make NEW directory.*DRY-RUN: copied [blammy/cheeze/Fotos [space]/1999/.roh.git] to [backup-target/Fotos [space]/1999/.]")"
 run_test "$ROH_COPY --rebase blammy/cheeze:backup-target blammy/cheeze/Fotos\ \[space\]/1999" "0" "$(escape_expected "Copied [blammy/cheeze/Fotos [space]/1999/.roh.git] to [backup-target/Fotos [space]/1999/.]")"
 run_test "ls -al backup-target/Fotos\ [space]/1999/$ROH_DIR" "0" "$(escape_expected "No such file or directory")" "true"
 rm -rf "backup-target"
