@@ -199,7 +199,7 @@ archive_roh() {
 	fi
 
 	# searching for hashes, because .git exists
-	if [ -n "$(find "$dir" -path "*/.roh.git/*" -prune -o -name "*.sha256" -mindepth 1 -print -quit)" ]; then
+	if [ -n "$(find "$dir" -mindepth 1 -path "*/.roh.git/*" -prune -o -name "*.sha256" -print -quit)" ]; then
 		echo "ERROR: hashes not exclusively hidden in [$dir/$ROH_DIR]"
 		echo "Abort."
 		echo
