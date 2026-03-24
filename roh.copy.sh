@@ -175,16 +175,6 @@ copy_to_target() {
 	# parent_dir="blammy/cheeze"
 	# echo "ECHO ${parent_dir}/${dir#*${parent_dir}/}"
 
-	if [ "$dry_run_mode" = "true" ]; then
-		if [ -d "$dir_rebased" ]; then
-			echo "DRY-RUN: rebased directory [$dir_rebased] -- exists"
-		else
-			echo "DRY-RUN: rebased directory [$dir_rebased] -- make NEW directory"
-		fi
-	else
-		mkdir -p "$dir_rebased"
-	fi
-
 	if [ -d "$dir_rebased/.roh.git" ] || [ -f "$dir_rebased/_.roh.git.zip" ]; then
 		echo "Error: Directory [$dir_rebased] already ROH; [.roh.git] or [_.roh.git.zip] exists"
 		exit 1
@@ -194,8 +184,13 @@ copy_to_target() {
 		ROH_DIR="$dir/.roh.git"
 
 		if [ "$dry_run_mode" = "true" ]; then
-			echo "DRY-RUN: copied [$ROH_DIR] to [$dir_rebased/.]"
+			if [ -d "$dir_rebased" ]; then
+				echo "DRY-RUN: copied [$ROH_DIR] to [$dir_rebased/.] -- existing"
+			else
+				echo "DRY-RUN: copied [$ROH_DIR] to [$dir_rebased/.] -- NEW!"
+			fi
 		else
+			mkdir -p "$dir_rebased"
 		 	if cp -R "$ROH_DIR" "$dir_rebased/."; then
 		 		# echo "Copied [$ROH_DIR] to [$dir_rebased/.]"
 				echo "Copied [${rebase_origin}/${ROH_DIR#*${rebase_origin}/}] to [${rebase_target}/${dir_rebased#*${rebase_target}/}/.]"
@@ -209,8 +204,13 @@ copy_to_target() {
 		ROH_DIR="$dir/_.roh.git.zip"
 
 		if [ "$dry_run_mode" = "true" ]; then
-			echo "DRY-RUN: copied [$ROH_DIR] to [$dir_rebased/.]"
+			if [ -d "$dir_rebased" ]; then
+				echo "DRY-RUN: copied [$ROH_DIR] to [$dir_rebased/.] -- existing"
+			else
+				echo "DRY-RUN: copied [$ROH_DIR] to [$dir_rebased/.] -- NEW!"
+			fi
 		else
+			mkdir -p "$dir_rebased"
 		 	if cp "$ROH_DIR" "$dir_rebased/."; then
 		 		# echo "Copied [$ROH_DIR] to [$dir_rebased/.]"
 				echo "Copied [${rebase_origin}/${ROH_DIR#*${rebase_origin}/}] to [${rebase_target}/${dir_rebased#*${rebase_target}/}/.]"
