@@ -12,6 +12,7 @@ usage() {
 	echo 
     echo "Commands:"
 	echo "      v|verify     Verify files and make sure git repo is clean"
+	echo "      i|index      Index while verifying"
 	echo "      a|archive    Achive ROH_DIR and remove an existing index file"
 	echo "      x|extract    Extract _.roh.git.zip as ROH_DIR"
 	echo 
@@ -36,12 +37,13 @@ fi
 # Compatible with bash 3.2+ (macOS default) and bash 4+
 
 # List of valid full commands
-valid_long="verify archive extract"
+valid_long="verify index archive extract"
 
 # Short to long mapping (using case statement instead of assoc array)
 get_long() {
     case "$1" in
         v) echo "verify" ;;
+		i) echo "index" ;;
         a) echo "archive" ;;
         x) echo "extract" ;;
         *) echo "" ;;  # empty = invalid
@@ -241,7 +243,11 @@ verify_directory() {
 	else
 		ROH_DIR="$dir/.roh.git"
 
-		$FPATH_BIN verify "$dir"
+		if contains "index"; then
+			$FPATH_BIN verify index "$dir"
+		else
+			$FPATH_BIN verify "$dir"
+		fi
 		if [ $? -ne 0 ]; then
 	        echo "ERROR: [$FPATH_BIN verify] failed for directory: [$dir]"
 			echo

@@ -128,6 +128,7 @@ run_test "$ROH_BIN extract < $fpath" "0" "$(escape_expected "Extracted [$PWD/Fot
 echo
 echo "# verify"
 run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
+run_test "$ROH_BIN verify index < $fpath" "0" "$(escape_expected "DB_SQL:.*roh.sqlite3] -- initialized")"
 
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/$ROH_DIR/2002_FIRE!/Untitled-001.jpg.$HASH"
 run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: hash mismatch:.*stored [0000000000000000000000000000000000000000000000000000000000000000][$PWD/2002.ro/.roh.git/2002_FIRE!/Untitled-001.jpg.sha256].* computed [816d2fd63482855aaadd92294ef84c4a415945df194734c8834e06dd57538dc4][$PWD/2002.ro/2002_FIRE!/Untitled-001.jpg]")"
