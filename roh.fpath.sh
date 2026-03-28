@@ -1530,7 +1530,7 @@ process_hash_entry()
 					echo "ERROR: Failed to remove directory [$recursive_dir]"
 					((ERROR_COUNT++))
 				else
-					[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash directory [$recursive_dir] -- removed"
+					[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash directory [$recursive_dir] -- REMOVED"
 				fi
 			fi
 		fi
@@ -1548,12 +1548,16 @@ process_hash_entry()
  					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
  					((ERROR_COUNT++))
  				else
- 					[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
+ 					[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored]: [$roh_hash_fpath] orphaned hash -- REMOVED"
 					return 0
  				fi
 			fi
 			if contains "verify"; then
- 				echo "ERROR: [$stored]: [$roh_hash_fpath] -- orphaned hash"
+				if contains "index"; then
+					echo "ERROR: [$stored]: [$roh_hash_fpath] orphaned hash -- indexing"
+				else
+					echo "ERROR: [$stored]: [$roh_hash_fpath] orphaned hash"
+				fi
  				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$roh_hash_fpath] -- orphaned hash"
  				[ "$VERBOSE_MODE" = "true" ] && echo "       ...                                          NO corresponding file: [$fpath]"
  				((ERROR_COUNT++))
@@ -1572,7 +1576,7 @@ process_hash_entry()
 		        local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
 		        if [ "$fpath_exists" -eq 0 ]; then
 					roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-					if [ "$VERBOSE_MODE" = "true" ] || contains "verify"; then
+					if [ "$VERBOSE_MODE" = "true" ]; then
 						echo " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
 					fi
 					[ "$VERBOSE_MODE" = "true" ] && echo "      ...                                          NO corresponding file: [$fpath]"

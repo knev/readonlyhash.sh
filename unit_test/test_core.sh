@@ -206,8 +206,10 @@ $FPATH_BIN write "$TEST" >/dev/null 2>&1
 run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "  OK: ")" "true"
 
 mv "$TEST/$SUBDIR_WITH_SPACES/omn's_.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/OMG.txt"
-run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "OK: orphaned hash [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: [test/.roh.git/$SUBDIR_WITH_SPACES/omn's_.txt.sha256] -- removed")"
+run_test "$FPATH_BIN verify index $TEST" "1" "$(escape_expected "ERROR: [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: [test/.roh.git/$SUBDIR_WITH_SPACES/omn's_.txt.sha256] orphaned hash -- indexing")"
+run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "OK: [20562d3970dd399e658eaca0a7a6ff1bacd9cd4fbb67328b6cd805dc3c2ce1b1]: [test/.roh.git/$SUBDIR_WITH_SPACES/omn's_.txt.sha256] orphaned hash -- REMOVED")"
 mv "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/OMG.txt" "$TEST/$SUBDIR_WITH_SPACES/omn's_.txt"
+rm "$TEST/.roh.sqlite3"
 
 # delete
 echo
@@ -299,7 +301,7 @@ mkdir "$ROH_DIR/this_is_a_directory.sha256"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "$ROH_DIR/this_is_a_directory.sha256")" "true"
 # rmdir "$ROH_DIR/this_is_a_directory.sha256" # gets removed automagically now (on delete and write)
 run_test "ls -al $ROH_DIR" "0" "this_is_a_directory.sha256"
-run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "OK: orphaned hash directory [test/.roh.git/this_is_a_directory.sha256] -- removed")"
+run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "OK: orphaned hash directory [test/.roh.git/this_is_a_directory.sha256] -- REMOVED")"
 
 echo "DS_Store" > "$ROH_DIR/.DS_Store"
 run_test "$FPATH_BIN verify $TEST" "1" ".DS_Store.$HASH" "true"
@@ -397,7 +399,7 @@ run_test "$FPATH_BIN write index --verbose $TEST" "1" "$(escape_expected "ERROR:
 rm "$TEST/.roh.sqlite3"
 
 run_test "$FPATH_BIN write index --verbose $TEST" "0" "$(escape_expected "OK: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [test/.roh.git/file with spaces.txt.sha256] -- written.*IDX: >349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff<: [test/.roh.git/file with spaces.txt.sha256] -- INDEXED")" "true"
-run_test "$FPATH_BIN verify --only-hashes --verbose $TEST" "1" "$(escape_expected "[test/.roh.git/file with spaces.txt.sha256] -- orphaned hash")"
+run_test "$FPATH_BIN verify --only-hashes --verbose $TEST" "1" "$(escape_expected "[test/.roh.git/file with spaces.txt.sha256] orphaned hash")"
 echo "ZYXW" > "$TEST/file with spaces.txt"
 rm "$TEST/.roh.sqlite3"
 
