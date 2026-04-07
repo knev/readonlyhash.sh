@@ -1,38 +1,21 @@
 #!/usr/bin/env bash
-# Fake snap-style download progress bar
+# snap-progress.sh — snap-style terminal progress bar
+# Source this file to use the functions, or run directly for a demo.
 
-pkg_name="core22"
-pkg_rev="1564"
-total_mb="67.25"
-speed_base=2
+# ── Internal helpers ─────────────────────────────────────────────
 
-printf "\033[?25l" # hide cursor
-trap 'printf "\033[?25l\n"; exit' INT TERM
-trap 'printf "\033[?25h"' EXIT
-
-# Simulated tasks with sizes in MB
-tasks=(
-  "Ensure prerequisites for \"${pkg_name}\" are available"
-  "Download snap \"${pkg_name}\" (${pkg_rev}) from channel \"latest/stable\""
-  "Fetch and check assertions for snap \"${pkg_name}\" (${pkg_rev})"
-  "Mount snap \"${pkg_name}\" (${pkg_rev})"
-  "Run install hook of \"${pkg_name}\" snap if present"
-  "Start snap \"${pkg_name}\" (${pkg_rev}) services"
-)
-
-human_size() {
-  awk -v bytes="$1" 'BEGIN {
-    if (bytes >= 1048576)      printf "%.2f TB", bytes / 1048576
-    else if (bytes >= 1024)    printf "%.2f GB", bytes / 1024
-    else                       printf "%.2f MB", bytes
+_prog_human_size() {
+  awk -v mb="$1" 'BEGIN {
+    if (mb >= 1048576)      printf "%.2f TB", mb / 1048576
+    else if (mb >= 1024)    printf "%.2f GB", mb / 1024
+    else                    printf "%.2f MB", mb
   }'
 }
 
-draw_bar() {
+_prog_draw_bar() {
   local pct=$1 suffix_len=$2
   local cols=$(tput cols)
-  # " [" (2) + "] " (2) + suffix
-  local bar_width=$(( cols - suffix_len - 4 ))
+  local bar_width=$(( cols - suffix_len - 4 ))  # 4 = " [" + "] "
   (( bar_width < 10 )) && bar_width=10
   local filled=$(( pct * bar_width / 100 ))
   local empty=$(( bar_width - filled ))
@@ -42,44 +25,110 @@ draw_bar() {
   printf "%s" "$bar"
 }
 
-# Phase 1: download with progress bar
-task="${tasks[1]}"
-printf "%s\n" "$task"
-pct=0
-downloaded=0
-total_val=67.25
+# ── Public API ───────────────────────────────────────────────────
 
-while (( pct < 100 )); do
-  # Variable speed
-  increment=$(( RANDOM % 4 + 1 ))
-  pct=$(( pct + increment ))
-  (( pct > 100 )) && pct=100
+# progress_init <total_mb> [label]
+#   Call once before updates. Hides cursor, prints label.
+progress_init() {
+  _PROG_TOTAL="${1:?usage: progress_init <total_mb> [label]}"
+  _PROG_LABEL="${2:-Downloading...}"
+  _PROG_PREV_MB=0
+  _PROG_PREV_SEC=$(date +%s)
 
-  down_mb=$(awk "BEGIN { printf \"%.2f\", ${total_val} * ${pct} / 100 }")
-  speed_mb=$(awk "BEGIN { printf \"%.1f\", ${speed_base} + (${RANDOM} % 30) / 10.0 }")
+  printf "\033[?25l"  # hide cursor
+  printf "%s\n" "$_PROG_LABEL"
+}
 
-  down_h=$(human_size "$down_mb")
-  total_h=$(human_size "$total_val")
-  speed_h=$(human_size "$speed_mb")
+# progress_update <current_mb>
+#   Call repeatedly with the current downloaded amount.
+progress_update() {
+  local cur_mb="${1:?usage: progress_update <current_mb>}"
 
-  suffix=$(printf "%3d%%  %s/%s  %s/s" "$pct" "$down_h" "$total_h" "$speed_h")
+  local pct=$(awk "BEGIN { p=int(${cur_mb}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
+
+  # Speed calc (MB since last call / seconds since last call)
+  local now=$(date +%s)
+  local elapsed=$(( now - _PROG_PREV_SEC ))
+  (( elapsed < 1 )) && elapsed=1
+  local speed_mb=$(awk "BEGIN { printf \"%.1f\", (${cur_mb} - ${_PROG_PREV_MB}) / ${elapsed} }")
+  _PROG_PREV_MB="$cur_mb"
+  _PROG_PREV_SEC="$now"
+
+  local down_h=$(_prog_human_size "$cur_mb")
+  local total_h=$(_prog_human_size "$_PROG_TOTAL")
+  local speed_h=$(_prog_human_size "$speed_mb")
+
+  local suffix=$(printf "%3d%%  %s/%s  %s/s" "$pct" "$down_h" "$total_h" "$speed_h")
 
   printf "\r [%s] %s" \
-    "$(draw_bar "$pct" "${#suffix}")" "$suffix"
+    "$(_prog_draw_bar "$pct" "${#suffix}")" "$suffix"
+}
 
-  sleep 0.$(( RANDOM % 8 + 2 ))
-done
-printf "\n\n"
+# progress_log <message>
+#   Print a message above the progress bar without disturbing it.
+progress_log() {
+  # Clear the current bar line, print the message, then redraw the bar
+  printf "\r\033[2K%s\n" "$*"
+  # Redraw bar on the new current line
+  progress_update "$_PROG_PREV_MB"
+}
 
-# Phase 2: run remaining tasks quickly (snap "done" style)
-cols=$(tput cols)
-for i in 0 2 3 4 5; do
-  task_text="${tasks[$i]}"
-  pad=$(( cols - ${#task_text} - 6 ))
-  (( pad < 1 )) && pad=1
-  printf " %s%*s" "$task_text" "$pad" ""
-  sleep 0.$(( RANDOM % 5 + 3 ))
-  printf "Done\n"
-done
+# progress_done
+#   Fills bar to 100%, prints newline, restores cursor.
+progress_done() {
+  progress_update "$_PROG_TOTAL"
+  printf "\n"
+  printf "\033[?25h"  # show cursor
+}
 
-printf "\n${pkg_name} (${pkg_rev}) installed\n"
+# ── Demo (only runs when executed directly) ──────────────────────
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  trap 'printf "\033[?25h"; exit' INT TERM
+
+  total=500
+
+  progress_init "$total" "Download snap \"core22\" (1564) from channel \"latest/stable\""
+
+  # Simulate work in chunks
+  current=0
+  messages=(
+    "file 1 done"
+    "file 2 done"
+    "file 3 failed — retrying..."
+    "file 3 done"
+    "file 4 done"
+    "file 5 done"
+  )
+  steps=( 80 45 120 60 95 100 )
+
+  for i in "${!steps[@]}"; do
+    sleep 0.$(( RANDOM % 6 + 3 ))
+    current=$(( current + steps[i] ))
+    (( current > total )) && current=$total
+
+    progress_log "${messages[$i]}"
+    progress_update "$current"
+  done
+
+  progress_done
+
+  # Phase 2: post-install tasks
+  snap_tasks=(
+    "Ensure prerequisites for \"core22\" are available"
+    "Fetch and check assertions for snap \"core22\" (1564)"
+    "Mount snap \"core22\" (1564)"
+    "Run install hook of \"core22\" snap if present"
+    "Start snap \"core22\" (1564) services"
+  )
+  cols=$(tput cols)
+  for task in "${snap_tasks[@]}"; do
+    pad=$(( cols - ${#task} - 6 ))
+    (( pad < 1 )) && pad=1
+    printf " %s%*s" "$task" "$pad" ""
+    sleep 0.$(( RANDOM % 5 + 3 ))
+    printf "Done\n"
+  done
+
+  printf "\ncore22 (1564) installed\n"
+fi
