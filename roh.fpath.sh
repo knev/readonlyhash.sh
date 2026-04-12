@@ -518,14 +518,14 @@ find_matching_fn()
                 	continue
                 fi
 
-				(( total_found == 0 )) && echo "    : FILENAME matches ..."
+				(( total_found == 0 )) && progress_log "    : FILENAME matches ..."
 				((total_found++))
 
 				# file is missing, indexed as file not found, so fpath == NULL
 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
 					if [ "$VERBOSE_MODE" = "true" ] || [ "$orphans_displayed" -lt 2 ]; then
 						((orphans_displayed++))
-						echo "      ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
+						progress_log "      ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
 					fi
 					continue # found_enc_abs_fpath == NULL, so found_abs_fpath is INVALID
 				fi
@@ -545,14 +545,14 @@ find_matching_fn()
 
 					if [ "$VERBOSE_MODE" = "true" ] || [ "$files_displayed" -lt 2 ]; then
 						((files_displayed++))
-						echo "      ... [$found_hash]: [$found_abs_fpath]"
+						progress_log "      ... [$found_hash]: [$found_abs_fpath]"
 					fi
 
 				# file is missing, but it was indexed as having a valid fpath
 				else
 					if [ "$VERBOSE_MODE" = "true" ]; then
 						((missing_displayed++))
-						echo "      ... [$found_abs_fpath] -- indexed, but missing"
+						progress_log "      ... [$found_abs_fpath] -- indexed, but missing"
 					fi
 				fi
 
@@ -561,10 +561,10 @@ find_matching_fn()
 
 		local displayed=$((files_displayed + orphans_displayed + missing_displayed))
 		if [ ! "$VERBOSE_MODE" = "true" ] && [ "$total_found" -gt 3 ]; then
-			echo "          ... $((total_found - displayed)) more ..."
+			progress_log "          ... $((total_found - displayed)) more ..."
 		fi
 
-		[ "$VERBOSE_MODE" = "true" ] && echo "   ■: NOOP!"
+		[ "$VERBOSE_MODE" = "true" ] && progress_log "   ■: NOOP!"
 	fi
 
 	return 0
@@ -594,9 +594,9 @@ recover_file() {
 		local fpath_exists=$(roh_sqlite3_db_fpath_exists "$db" "$fpath" "$stored") || return 1
 		if [ "$fpath_exists" -eq 0 ]; then
 			roh_sqlite3_db_insert "$db" "$fpath" "$roh_hash_fpath" "$stored"
-			echo " IDX: >$stored<: [$fpath] -- written INDEXED"
+			progress_log " IDX: >$stored<: [$fpath] -- written INDEXED"
 		else
-			[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$fpath] -- already indexed, skipping"
+			[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: [$stored]: [$fpath] -- already indexed, skipping"
 		fi
 
 		# ----
@@ -604,13 +604,13 @@ recover_file() {
 		return 0
 	fi
 
-	# echo "  OK: [$computed_hash]: [$fpath] -- NEW!?"
-	# [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath] -- NEW!?"
+	# progress_log "  OK: [$computed_hash]: [$fpath] -- NEW!?"
+	# [ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$computed_hash]: [$fpath] -- NEW!?"
 
 	# else
 	# no matching hash found, file identical file names
 
-	echo "WARN: [$computed_hash]: [$fpath] -- NEW!?"
+	progress_log "WARN: [$computed_hash]: [$fpath] -- NEW!?"
 	((WARN_COUNT++))
 
 	find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"
@@ -1361,7 +1361,7 @@ recover_hash() {
     local roh_hash_fpath="$3"
     local stored="$4"
 
-	[ "$VERBOSE_MODE" = "true" ] && echo "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash ..."
+	[ "$VERBOSE_MODE" = "true" ] && progress_log "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash ..."
 	
     local fn=$(basename "$fpath")
     local enc_fn=$(hex_encode "$fn")
@@ -1443,13 +1443,13 @@ recover_hash() {
 						((duplicates_found++))
 						# duplicate FOUND
 						if [ "$VERBOSE_MODE" = "true" ]; then
-							echo "         ... [$found_abs_fpath] -- duplicate FOUND"
+							progress_log "         ... [$found_abs_fpath] -- duplicate FOUND"
 						fi
 					else
 						if [ "$VERBOSE_MODE" = "true" ]; then
-							echo "         ... [$found_abs_fpath] -- hash mismatch: ..."
-							echo "             ... computed [$found_computed]"
-							echo "             ...   stored [$stored]"
+							progress_log "         ... [$found_abs_fpath] -- hash mismatch: ..."
+							progress_log "             ... computed [$found_computed]"
+							progress_log "             ...   stored [$stored]"
 						fi
 					fi
 				else
@@ -1465,12 +1465,12 @@ recover_hash() {
  			if rm "$roh_hash_fpath"; then
  				if [ "$VERBOSE_MODE" = "true" ]; then
  					#echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
- 					echo "      ■: REMOVED!"
+ 					progress_log "      ■: REMOVED!"
  				else
- 					echo "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash -- REMOVED!"
+ 					progress_log "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash -- REMOVED!"
  				fi
  			else
- 				echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
+ 				progress_log "ERROR: Failed to remove hash [$roh_hash_fpath]"
  				((ERROR_COUNT++))
  			fi			
 			return 0
@@ -1482,9 +1482,9 @@ recover_hash() {
 	# no matching hash found, file identical file names
 
 	if [ "$VERBOSE_MODE" = "true" ]; then
-	   	echo " ERR: orphaned hash not in IDX [$fpath] -- file DELETED !?"
+	   	progress_log " ERR: orphaned hash not in IDX [$fpath] -- file DELETED !?"
 	else
-		echo "ERROR: [$stored] -- orphaned hash not in IDX [$fpath] -- file DELETED !?"
+		progress_log "ERROR: [$stored] -- orphaned hash not in IDX [$fpath] -- file DELETED !?"
 	fi
 	((ERROR_COUNT++))
 
@@ -1629,7 +1629,7 @@ process_hash_entry()
 	# echo "* roh_hash_fpath: [$roh_hash_fpath]"
 
 	if [ -L "$roh_hash_fpath" ]; then
-		[ "$VERBOSE_MODE" = "true" ] && echo "Avoiding symlink [$roh_hash_fpath] like the Plague"
+		[ "$VERBOSE_MODE" = "true" ] && progress_log "Avoiding symlink [$roh_hash_fpath] like the Plague"
 		return 0
 
 	# if the fpath is a directory AND empty, remove it on delete|sweep
@@ -1638,7 +1638,7 @@ process_hash_entry()
 
 		if contains "verify"; then
 			if find "$roh_hash_fpath" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.git*' -print -quit | grep -q .; then
-				echo "ERROR: directory [$roh_hash_fpath] contains hidden entries"
+				progress_log "ERROR: directory [$roh_hash_fpath] contains hidden entries"
 				((ERROR_COUNT++))
 			fi
 		fi
@@ -1657,7 +1657,7 @@ process_hash_entry()
  
  				if [ ! -d "$dir_fpath" ]; then
 					[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$recursive_dir" >> "$EXPORT_FN_DELETED"
-					echo "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
+					progress_log "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
 					((ERROR_COUNT++))
 					return 0
  				fi
@@ -1672,13 +1672,13 @@ process_hash_entry()
 		if [ -z "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 			if contains "delete" || contains "sweep" || contains "recover"; then
 				if ! rmdir "$recursive_dir"; then
-					echo "ERROR: Failed to remove directory [$recursive_dir]"
+					progress_log "ERROR: Failed to remove directory [$recursive_dir]"
 					((ERROR_COUNT++))
 				else
 					if [ "$recursive_dir" = "$ROH_DIR" ]; then
-						echo "ROH_DIR: [$ROH_DIR] -- REMOVED"
+						progress_log "ROH_DIR: [$ROH_DIR] -- REMOVED"
 					else
-						[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash directory [$recursive_dir] -- REMOVED"
+						[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: orphaned hash directory [$recursive_dir] -- REMOVED"
 					fi
 				fi
 			fi
@@ -1694,21 +1694,21 @@ process_hash_entry()
  		if ! stat "$fpath" >/dev/null 2>&1; then
  			if contains "sweep"; then
  				if ! rm "$roh_hash_fpath"; then
- 					echo "ERROR: Failed to remove hash [$roh_hash_fpath]"
+ 					progress_log "ERROR: Failed to remove hash [$roh_hash_fpath]"
  					((ERROR_COUNT++))
  				else
- 					[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored]: [$roh_hash_fpath] orphaned hash -- REMOVED"
+ 					[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored]: [$roh_hash_fpath] orphaned hash -- REMOVED"
 					return 0
  				fi
 			fi
 			if contains "verify"; then
 				if contains "index"; then
-					echo "ERROR: [$stored]: [$roh_hash_fpath] orphaned hash -- indexing"
+					progress_log "ERROR: [$stored]: [$roh_hash_fpath] orphaned hash -- indexing"
 				else
-					echo "ERROR: [$stored]: [$roh_hash_fpath] orphaned hash"
+					progress_log "ERROR: [$stored]: [$roh_hash_fpath] orphaned hash"
 				fi
  				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$roh_hash_fpath] -- orphaned hash"
- 				[ "$VERBOSE_MODE" = "true" ] && echo "       ...                                          NO corresponding file: [$fpath]"
+ 				[ "$VERBOSE_MODE" = "true" ] && progress_log "       ...                                          NO corresponding file: [$fpath]"
  				((ERROR_COUNT++))
 				[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$fpath" >> "$EXPORT_FN_DELETED"
  			fi
@@ -1717,7 +1717,7 @@ process_hash_entry()
 				# IDX consistency
 				local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
 		        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
-					echo "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
+					progress_log "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
  					((ERROR_COUNT++))
 					return 0
 				fi
@@ -1726,11 +1726,11 @@ process_hash_entry()
 		        if [ "$fpath_exists" -eq 0 ]; then
 					roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 					if [ "$VERBOSE_MODE" = "true" ]; then
-						echo " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
+						progress_log " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
 					fi
-					[ "$VERBOSE_MODE" = "true" ] && echo "      ...                                          NO corresponding file: [$fpath]"
+					[ "$VERBOSE_MODE" = "true" ] && progress_log "      ...                                          NO corresponding file: [$fpath]"
 		        else
-					[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
+					[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
 		        fi
 			fi
  			if contains "recover"; then
@@ -1742,7 +1742,7 @@ process_hash_entry()
 				# IDX consistency
 				local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
 		        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
-					echo "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
+					progress_log "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
  					((ERROR_COUNT++))
 					return 0
 				fi
@@ -1750,9 +1750,9 @@ process_hash_entry()
 				local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
 	 			if [ "$fpath_exists" -eq 0 ]; then
 	 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-	 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
+	 				[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
 	 			else
-	 				[ "$VERBOSE_MODE" = "true" ] && echo " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
+	 				[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
 	 			fi
 	 		fi
 		fi
