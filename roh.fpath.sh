@@ -21,8 +21,10 @@ usage() {
 	echo "      d|delete         Delete all hashes with a corresponding file"
 	echo "      h|hide           Move hash files from the files location to ROH_DIR"
 	echo "      s|show           Move hash files from ROH_DIR to next to the file's location"
-	echo "      write show       Write and show hashes by processing files"
+	echo "      show sweep       Show hashes by processing files, and sweep for empty directories afterwards"
 	echo "      write hide       Write and hide hashes by processing files"
+	echo "      write show       Write and show hashes by processing files"
+	echo "      write show sweep Write, show hashes by processing files, and sweep for empty directories afterwards"
 	echo "      q|query          Query an existing index for the existence of a hash"
 	echo "      index query      Create an index and then query that index"
 	echo "      r|recover        Write/index files with hashes found in the DB; remove orphaned duplicates"
@@ -1147,19 +1149,26 @@ fi
 
 visibility_mode="none"
 
-if [ ${#commands[@]} -eq 2 ]; then
+if [ ${#commands[@]} -eq 3 ]; then
+	if contains "write" && contains "show" && contains "sweep"; then
+		visibility_mode="show"
+	else
+		echo "ERROR: invalid triple command combination [${commands[@]}]" >&2
+		usage
+		exit 1	
+	fi
+elif [ ${#commands[@]} -eq 2 ]; then
 	if [ "$globspec_mode" = "true" ] && ! contains "query"; then 
 		echo "ERROR: invalid globspec command combination [${commands[@]}]" >&2
 		usage
 		exit 1	
 	fi
 
-
 	if contains "verify" && ( contains "show" || contains "hide" ); then
 		:
 	elif contains "index" && ( contains "query" || contains "recover" || contains "verify" || contains "write"); then
 		:
-	elif contains "sweep" && ( contains "write" || contains "delete" ); then
+	elif contains "sweep" && ( contains "write" || contains "delete" || contains "show" ); then
 		:
 	elif contains "write" && contains "show"; then
 		visibility_mode="show"

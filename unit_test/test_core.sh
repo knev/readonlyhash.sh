@@ -170,6 +170,12 @@ mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
 run_test "$FPATH_BIN write show $TEST" "0" "$(escape_expected "OK: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test] \"file with spaces.txt\"")" "true"
 run_test "ls -al $ROH_DIR/file\ with\ spaces.txt.sha256" "1" "$ROH_DIR/file with spaces.txt.sha256.*: No such file or directory"
 
+run_test "$FPATH_BIN sweep $TEST" "0" "$(escape_expected "ERROR:")" "true"
+run_test "ls -alR $ROH_DIR" "1" "$ROH_DIR.?: No such file or directory"
+
+# hashes_found=$(find "$TEST/.roh.git" -mindepth 1 -name "*.sha256" -print -quit)
+# echo $hashes_found
+
 rm "$TEST/file with spaces.txt.sha256"
 run_test "$FPATH_BIN write show --verbose $TEST" "0" "$(escape_expected " OK: [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [test/file with spaces.txt] -- file hash written")"
 run_test "ls -al $TEST/file\ with\ spaces.txt.sha256" "0" "$TEST/file with spaces.txt.sha256: No such file or directory" "true"
@@ -179,8 +185,7 @@ cp "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256"
 #run_test "$FPATH_BIN write show $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not shown).*destination [test/file with spaces.txt.sha256] -- exists.* for source [test/.roh.git/file with spaces.txt.sha256]")"
 run_test "$FPATH_BIN write show --verbose --force $TEST" "0" "$(escape_expected "OK: [test/file with spaces.txt]: [test/file with spaces.txt.sha256] hash file -- moved(shown)")"
  
-run_test "$FPATH_BIN write show $TEST" "0" "$(escape_expected "ERROR: ")" "true"
-run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
+run_test "$FPATH_BIN wse $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 run_test "ls -al $ROH_DIR" "1" "$ROH_DIR.?: No such file or directory"
 
 run_test "$FPATH_BIN hide $TEST" "0" "$(escape_expected "ERROR: ")" "true"
@@ -393,6 +398,7 @@ run_test "$FPATH_BIN query --db $TEST/.roh.sqlite3 -- c5a8fb450fb0b568fc69a9485b
 run_test "$FPATH_BIN query --db $TEST/.roh.sqlite3 -- c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65" "0" "$(escape_expected "query hash: [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65].*OK: found -- hash path [$PWD/test/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256].*absolute fpath [$PWD/test/sub-directory with spaces/sub-sub-directory/jkl.txt]")"
 
 run_test "$FPATH_BIN delete sweep --verbose $TEST" "0" "$(escape_expected "Removing DB_SQL [test/.roh.sqlite3]")"
+run_test "ls -alR $ROH_DIR" "1" "$ROH_DIR.?: No such file or directory"
 $FPATH_BIN write index --verbose "$TEST" >/dev/null 2>&1
 # removing the indexed file, should not write a hash (since there is no file) and also not index
 rm "$TEST/file with spaces.txt"
@@ -782,7 +788,8 @@ chmod 755 "$ROH_DIR"
 
 cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
 run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not shown).*destination [test/file with spaces.txt.sha256] -- exists.*for source [test/.roh.git/file with spaces.txt.sha256]")"
-run_test "$FPATH_BIN show --verbose --force $TEST" "0" "$(escape_expected "OK: [$TEST/file with spaces.txt]: [test/file with spaces.txt.sha256] hash file -- moved(shown)")"
+run_test "$FPATH_BIN show sweep --verbose --force $TEST" "0" "$(escape_expected "OK: [$TEST/file with spaces.txt]: [test/file with spaces.txt.sha256] hash file -- moved(shown)")"
+run_test "ls -alR $ROH_DIR" "1" "$ROH_DIR.?: No such file or directory"
 
 run_test "$FPATH_BIN index $TEST" "1" "$(escape_expected "ERROR: nothing to index [test/.roh.git]")"
 
