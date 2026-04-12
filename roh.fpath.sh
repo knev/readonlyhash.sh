@@ -248,7 +248,7 @@ progress_init() {
 progress_update() {
   local cur_bytes="${1:?usage: progress_update <current_bytes>}"
 
-  local pct=$(awk "BEGIN { p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
+  local pct=$(awk "BEGIN { if(${_PROG_TOTAL}==0) p=100; else p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
 
   # Speed calc (bytes since last call / seconds since last call)
   local now=$(date +%s)
@@ -278,7 +278,7 @@ progress_log() {
   fi
   # Clear bar, print message, redraw bar — all in one write to minimize flicker
   local cur_bytes="${_PROG_PREV_BYTES:-0}"
-  local pct=$(awk "BEGIN { p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
+  local pct=$(awk "BEGIN { if(${_PROG_TOTAL}==0) p=100; else p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
   local now=$(date +%s)
   local elapsed=$(( now - _PROG_PREV_SEC ))
   (( elapsed < 1 )) && elapsed=1
