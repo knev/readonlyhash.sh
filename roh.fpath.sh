@@ -271,6 +271,11 @@ progress_update() {
 # progress_log <message>
 #   Print a message above the progress bar without disturbing it.
 progress_log() {
+  # If progress bar isn't active, just echo
+  if [ -z "$_PROG_TOTAL" ]; then
+    printf "%s\n" "$*"
+    return
+  fi
   # Clear bar, print message, redraw bar — all in one write to minimize flicker
   local cur_bytes="${_PROG_PREV_BYTES:-0}"
   local pct=$(awk "BEGIN { p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
