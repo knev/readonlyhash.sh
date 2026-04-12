@@ -75,6 +75,7 @@ usage() {
 #TODO: when using --roh-dir, perhaps the output paths should show that the roh-dir is different than the file location.
 #TODO: rm -rf .roh.git.rslsc
 
+KEEP_PROGRESS_BAR="false"
 
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
@@ -292,8 +293,12 @@ progress_log() {
 # progress_done
 #   Fills bar to 100%, prints newline, restores cursor.
 progress_done() {
-  progress_update "$_PROG_TOTAL"
-  printf "\n"
+  if [ "$KEEP_PROGRESS_BAR" = "true" ]; then
+    progress_update "$_PROG_TOTAL"
+    printf "\n"
+  else
+    printf "\r\033[2K"
+  fi
   printf "\033[?25h"  # show cursor
 }
 
