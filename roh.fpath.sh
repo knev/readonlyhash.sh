@@ -1599,8 +1599,22 @@ run_directory_process() {
 		return 0
 	fi
 
+	_PROG_CURRENT_BYTES=0
+	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
+
+	if [ "$_STAT_FMT" = "bsd" ]; then
+		total_bytes=$(find "$entry" -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+	else
+		total_bytes=$(find "$entry" -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+	fi
+
+	trap 'printf "\033[?25h"; exit' INT TERM
+	progress_init "$total_bytes" "# Processing files ... [$entry]"
+
 	#process_directory "$@" || return 1
 	process_entry "$ROOT" "$entry" "$visibility_mode" "$force_mode" || return 1
+
+	progress_done
 	return 0
 }
 
@@ -1891,20 +1905,6 @@ if [ "$only_hashes" = "true" ]; then
 	:
 elif contains "write" || contains "delete" || contains "show" || contains "hide" || contains "verify" || contains "recover"; then
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
-	#echo "# Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
-
-	_PROG_CURRENT_BYTES=0
-	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
-
-	if [ "$_STAT_FMT" = "bsd" ]; then
-		total_bytes=$(find "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
-	else
-		total_bytes=$(find "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
-	fi
-
-	trap 'printf "\033[?25h"; exit' INT TERM
-	progress_init "$total_bytes" "# Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
-
 	if [ -z "$PATHSPEC" ]; then
 		run_directory_process "$ROOT" "$ROOT" "$visibility_mode" "$force_mode"
 	else
@@ -1917,8 +1917,6 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 		echo " >> [$EXPORT_FN_HIDDEN]"
 		((WARN_COUNT++))
 	fi
-
-	progress_done
 fi
 
 if [ "$only_files" = "true" ]; then
