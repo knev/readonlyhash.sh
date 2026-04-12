@@ -1508,7 +1508,7 @@ process_hash_entry()
 		# save to local variable, because $roh_hash_fpath gets trash during recursion
 		local recursive_dir="$roh_hash_fpath"
 
-		# echo "Directory '$entry' is empty (including hidden files)"
+		# echo "Directory '$recursive_dir' is NOT empty (including hidden files)"
 		if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
 
 			local hashes_found=$(find "$recursive_dir" -mindepth 1 -name "*.$HASH" -print -quit)
