@@ -271,10 +271,19 @@ progress_update() {
 # progress_log <message>
 #   Print a message above the progress bar without disturbing it.
 progress_log() {
-  # Clear the current bar line, print the message, then redraw the bar
-  printf "\r\033[2K%s\n" "$*"
-  # Redraw bar on the new current line
-  progress_update "$_PROG_PREV_BYTES"
+  # Clear bar, print message, redraw bar — all in one write to minimize flicker
+  local cur_bytes="${_PROG_PREV_BYTES:-0}"
+  local pct=$(awk "BEGIN { p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
+  local now=$(date +%s)
+  local elapsed=$(( now - _PROG_PREV_SEC ))
+  (( elapsed < 1 )) && elapsed=1
+  local speed_bytes=$(awk "BEGIN { printf \"%.0f\", (${cur_bytes} - ${_PROG_PREV_BYTES}) / ${elapsed} }")
+  local down_h=$(_prog_human_size "$cur_bytes")
+  local total_h=$(_prog_human_size "$_PROG_TOTAL")
+  local speed_h=$(_prog_human_size "$speed_bytes")
+  local suffix=$(printf "%3d%%  %s/%s  %s/s" "$pct" "$down_h" "$total_h" "$speed_h")
+  local bar=$(_prog_draw_bar "$pct" "${#suffix}")
+  printf "\r\033[2K%s\n\r [%s] %s" "$*" "$bar" "$suffix"
 }
 
 # progress_done
