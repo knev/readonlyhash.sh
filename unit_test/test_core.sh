@@ -364,6 +364,8 @@ run_test "$GIT_BIN -iC $TEST status" "0" "$(escape_expected "nothing to commit, 
 run_test "$GIT_BIN -zC $TEST status" "0" "$(escape_expected "Archived [.roh.git] to [test/_.roh.git.zip]")"
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: found archived ROH_DIR [test/_.roh.git.zip] at [test]")"
 $GIT_BIN -xC "$TEST" >/dev/null 2>&1
+rm -rf "$ROH_DIR/.git"
+rm "$ROH_DIR/.gitignore"
 
 # verify_hash, process_directory()
 rm -v "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
