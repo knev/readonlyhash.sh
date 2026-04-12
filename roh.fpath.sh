@@ -207,9 +207,12 @@ hash_fpath_to_fpath() {
 _prog_human_size() {
   awk -v bytes="$1" 'BEGIN {
     mb = bytes / 1048576
-    if (mb >= 1048576)      printf "%.2f TB", mb / 1048576
-    else if (mb >= 1024)    printf "%.2f GB", mb / 1024
-    else                    printf "%.2f MB", mb
+    if      (mb >= 1048576) { v = mb / 1048576; u = "TB" }
+    else if (mb >= 1024)    { v = mb / 1024;    u = "GB" }
+    else                    { v = mb;           u = "MB" }
+    if      (v >= 100) printf "%.0f %s", v, u
+    else if (v >= 10)  printf "%.1f %s", v, u
+    else               printf "%.2f %s", v, u
   }'
 }
 
