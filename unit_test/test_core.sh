@@ -266,7 +266,7 @@ $FPATH_BIN write "$TEST" >/dev/null 2>&1
 touch "$TEST/.HIDDEN_FILE"
 run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported.*[test/.roh.git/../.roh.logs/hidden-files.exported.txt]")"
 rm "$TEST/.HIDDEN_FILE"
-rm "roh-hidden-files.exported.txt"
+rm "$TEST/.roh.logs/hidden-files.exported.txt"
 
 run_test "$FPATH_BIN verify index --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 rm "$TEST/.roh.sqlite3"
@@ -353,12 +353,14 @@ touch "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
 run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported")"
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
+rm -rf "$TEST/.roh.logs"
 
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
 run_test "$FPATH_BIN verify --export $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported")"
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
+rm -rf "$TEST/.roh.logs"
 
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR-empty"
 run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK:.*sub-sub-directory-empty.*-- written")" "true"
@@ -825,6 +827,7 @@ run_test "$GIT_BIN -C FAKE_FPATH" "1" "$(escape_expected "ERROR: not enough argu
 run_test "$GIT_BIN -C ." "1" "$(escape_expected "ERROR: not enough arguments.")" 
 run_test "$GIT_BIN -C FAKE_FPATH status" "1" "$(escape_expected "ERROR: invalid working directory [FAKE_FPATH].")" 
 
+$GIT_BIN -C "$TEST" init >/dev/null 2>&1
 $GIT_BIN -C "$TEST" add "*" >/dev/null 2>&1
 $GIT_BIN -C "$TEST" commit -m "Initial hashes" >/dev/null 2>&1
 run_test "$GIT_BIN -C $TEST status" "0" "nothing to commit, working tree clean"
