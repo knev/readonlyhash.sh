@@ -67,6 +67,10 @@ You can instruct `readonlyhash` to continue at a particular line by providing a 
 
 Verify each listed directory, with the added check to see if the git repository for each is also clean.
 
+### Command: `v|index`
+
+Indexing while verifying is basically free, so allow for `verify index` in `readonlyhash`.
+
 ### Command: `a|archive`
 
 `readonlyhash archive ...`
