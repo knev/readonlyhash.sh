@@ -1201,7 +1201,7 @@ fi
 
 if [ "$roh_dir_mode" = "true" ]; then
 	ROH_DIR="$roh_dir"
-	echo "Using ROH_DIR [$ROH_DIR]"
+	echo "ROH_DIR: using [$ROH_DIR]"
 else 
 	ROH_DIR="$ROOT/.roh.git"
 fi
@@ -1548,7 +1548,11 @@ process_hash_entry()
 					echo "ERROR: Failed to remove directory [$recursive_dir]"
 					((ERROR_COUNT++))
 				else
-					[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash directory [$recursive_dir] -- REMOVED"
+					if [ "$recursive_dir" = "$ROH_DIR" ]; then
+						echo "ROH_DIR: [$ROH_DIR] -- REMOVED"
+					else
+						[ "$VERBOSE_MODE" = "true" ] && echo "  OK: orphaned hash directory [$recursive_dir] -- REMOVED"
+					fi
 				fi
 			fi
 		fi
