@@ -1599,6 +1599,8 @@ run_directory_process() {
 		return 0
 	fi
 
+	#----
+
 	_PROG_CURRENT_BYTES=0
 	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
 
@@ -1615,6 +1617,9 @@ run_directory_process() {
 	process_entry "$ROOT" "$entry" "$visibility_mode" "$force_mode" || return 1
 
 	progress_done
+
+	#----
+
 	return 0
 }
 
@@ -1776,7 +1781,25 @@ hash_maintanence() {
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
 
+	#----
+
+	_PROG_CURRENT_BYTES=0
+	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
+
+	if [ "$_STAT_FMT" = "bsd" ]; then
+		total_bytes=$(find "$entry" -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+	else
+		total_bytes=$(find "$entry" -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+	fi
+
+	trap 'printf "\033[?25h"; exit' INT TERM
+	progress_init "$total_bytes" "# Processing files ... [$entry]"
+
 	process_hash_entry "$dir"
+
+	progress_done
+
+	#----
 
 	# This will fail if git is being used
 
