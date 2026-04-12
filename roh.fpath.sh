@@ -60,6 +60,9 @@ usage() {
 # roh.copy
 #TODO: on rebase, use the rebase string to rename output .roh.txt file; create a roh.copy command that accepts a rebase string; accepts export output too
 
+#TODO: .roh if git is not applied and .roh.git if git has been applied!?
+#TODO: ? roh.git is -z ZIP ... readonlyhash is a (archive); two different commans for the same thing
+#TODO: when reading a hash, read out only the hash length of bytes and ignore any characters trailing the hash
 #TODO: implement verify show|hide
 #TODO: update --export (beta tag)
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
