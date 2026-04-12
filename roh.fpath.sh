@@ -894,13 +894,16 @@ process_entry()
 				((ERROR_COUNT++))
 				return 0
 			fi
+
 			if contains "verify" || contains "recover"; then
 				verify_hash "$parent" "$entry" || return 1
 			elif contains "write"; then
 				write_hash "$parent" "$entry" "$visibility_mode" "$force_mode" || return 1
-			elif [ ${#commands[@]} -eq 1 ] && contains "hide"; then
+			fi
+
+			if contains "hide"; then
 				manage_hash_visibility "$parent" "$entry" "hide" "$force_mode" || return 1
-			elif [ ${#commands[@]} -eq 1 ] && contains "show"; then 
+			elif contains "show"; then 
 				manage_hash_visibility "$parent" "$entry" "show" "$force_mode" || return 1
 			fi
 		else
