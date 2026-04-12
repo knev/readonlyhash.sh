@@ -205,7 +205,8 @@ hash_fpath_to_fpath() {
 # ── Internal helpers ─────────────────────────────────────────────
 
 _prog_human_size() {
-  awk -v mb="$1" 'BEGIN {
+  awk -v bytes="$1" 'BEGIN {
+    mb = bytes / 1048576
     if (mb >= 1048576)      printf "%.2f TB", mb / 1048576
     else if (mb >= 1024)    printf "%.2f GB", mb / 1024
     else                    printf "%.2f MB", mb
@@ -227,36 +228,36 @@ _prog_draw_bar() {
 
 # ── Public API ───────────────────────────────────────────────────
 
-# progress_init <total_mb> [label]
+# progress_init <total_bytes> [label]
 #   Call once before updates. Hides cursor, prints label.
 progress_init() {
-  _PROG_TOTAL="${1:?usage: progress_init <total_mb> [label]}"
-  _PROG_LABEL="${2:-Downloading...}"
-  _PROG_PREV_MB=0
+  _PROG_TOTAL="${1:?usage: progress_init <total_bytes> [label]}"
+  _PROG_LABEL="${2:-Processing...}"
+  _PROG_PREV_BYTES=0
   _PROG_PREV_SEC=$(date +%s)
 
   printf "\033[?25l"  # hide cursor
   printf "%s\n" "$_PROG_LABEL"
 }
 
-# progress_update <current_mb>
-#   Call repeatedly with the current downloaded amount.
+# progress_update <current_bytes>
+#   Call repeatedly with the current processed byte count.
 progress_update() {
-  local cur_mb="${1:?usage: progress_update <current_mb>}"
+  local cur_bytes="${1:?usage: progress_update <current_bytes>}"
 
-  local pct=$(awk "BEGIN { p=int(${cur_mb}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
+  local pct=$(awk "BEGIN { p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
 
-  # Speed calc (MB since last call / seconds since last call)
+  # Speed calc (bytes since last call / seconds since last call)
   local now=$(date +%s)
   local elapsed=$(( now - _PROG_PREV_SEC ))
   (( elapsed < 1 )) && elapsed=1
-  local speed_mb=$(awk "BEGIN { printf \"%.1f\", (${cur_mb} - ${_PROG_PREV_MB}) / ${elapsed} }")
-  _PROG_PREV_MB="$cur_mb"
+  local speed_bytes=$(awk "BEGIN { printf \"%.0f\", (${cur_bytes} - ${_PROG_PREV_BYTES}) / ${elapsed} }")
+  _PROG_PREV_BYTES="$cur_bytes"
   _PROG_PREV_SEC="$now"
 
-  local down_h=$(_prog_human_size "$cur_mb")
+  local down_h=$(_prog_human_size "$cur_bytes")
   local total_h=$(_prog_human_size "$_PROG_TOTAL")
-  local speed_h=$(_prog_human_size "$speed_mb")
+  local speed_h=$(_prog_human_size "$speed_bytes")
 
   local suffix=$(printf "%3d%%  %s/%s  %s/s" "$pct" "$down_h" "$total_h" "$speed_h")
 
@@ -270,7 +271,7 @@ progress_log() {
   # Clear the current bar line, print the message, then redraw the bar
   printf "\r\033[2K%s\n" "$*"
   # Redraw bar on the new current line
-  progress_update "$_PROG_PREV_MB"
+  progress_update "$_PROG_PREV_BYTES"
 }
 
 # progress_done
@@ -982,7 +983,7 @@ process_entry()
 			entry_bytes=$(stat -c%s "$entry")
 		fi
 		_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + entry_bytes ))
-		progress_update "$(( _PROG_CURRENT_BYTES / 1048576 ))"
+		progress_update "$_PROG_CURRENT_BYTES"
 
 		if ! contains "delete"; then
 			if check_extension "$entry"; then
@@ -1875,13 +1876,17 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 	# append a folder to ROOT without having a double /; and if the folder is "", no trailing slash on ROOT
 	#echo "# Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
 
-	total_mb=$(du -sm "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" 2>/dev/null | awk '{print $1}')
-	echo "$total_mb"
-
 	_PROG_CURRENT_BYTES=0
 	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
+
+	if [ "$_STAT_FMT" = "bsd" ]; then
+		total_bytes=$(find "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+	else
+		total_bytes=$(find "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+	fi
+
 	trap 'printf "\033[?25h"; exit' INT TERM
-	progress_init "$total_mb" "# Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
+	progress_init "$total_bytes" "# Processing files ... [${ROOT%/}${PATHSPEC:+/$PATHSPEC}]"
 
 	if [ -z "$PATHSPEC" ]; then
 		run_directory_process "$ROOT" "$ROOT" "$visibility_mode" "$force_mode"
@@ -1896,7 +1901,7 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 		((WARN_COUNT++))
 	fi
 
-	#progress_done
+	progress_done
 fi
 
 if [ "$only_files" = "true" ]; then
