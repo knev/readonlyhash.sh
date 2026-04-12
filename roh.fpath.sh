@@ -623,10 +623,10 @@ verify_hash() {
 		local stored_roh=$(stored_hash "$roh_hash_fpath")
 		local stored_dir=$(stored_hash "$dir_hash_fpath")
 
-        echo "ERROR: two hash files exist ..."
-		echo "         ... hidden [$stored_roh][$roh_hash_fpath]"
-		echo "          ... shown [$stored_dir][$dir_hash_fpath]"
-		echo "       ... computed [$computed_hash][$fpath]"
+        progress_log "ERROR: two hash files exist ..."
+		progress_log "         ... hidden [$stored_roh][$roh_hash_fpath]"
+		progress_log "          ... shown [$stored_dir][$dir_hash_fpath]"
+		progress_log "       ... computed [$computed_hash][$fpath]"
 
 		x_roh_hash="false"
         ((ERROR_COUNT++))
@@ -637,28 +637,28 @@ verify_hash() {
 		local stored=$(stored_hash "$roh_hash_fpath")
 
 		if [ "$computed_hash" = "$stored" ]; then
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath]"
+			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$computed_hash]: [$fpath]"
 			return 0
 		else
-			echo "ERROR: hash mismatch: ..."
-			echo "         ... stored [$stored][$roh_hash_fpath]"
-			echo "       ... computed [$computed_hash][$fpath]"
+			progress_log "ERROR: hash mismatch: ..."
+			progress_log "         ... stored [$stored][$roh_hash_fpath]"
+			progress_log "       ... computed [$computed_hash][$fpath]"
 			((ERROR_COUNT++))
 			return 0
 		fi
 
     elif [ -f "$dir_hash_fpath" ]; then
 		local stored=$(stored_hash "$dir_hash_fpath")
-	        
+
 		x_roh_hash="false"
-	        
+
 		if [ "$computed_hash" = "$stored" ]; then
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath]"
+			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$computed_hash]: [$fpath]"
 			return 0
 		else
-			echo "ERROR: hash mismatch: ..."
-			echo "         ... stored [$stored][$dir_hash_fpath]"
-			echo "       ... computed [$computed_hash][$fpath]"
+			progress_log "ERROR: hash mismatch: ..."
+			progress_log "         ... stored [$stored][$dir_hash_fpath]"
+			progress_log "       ... computed [$computed_hash][$fpath]"
 			((ERROR_COUNT++))
 			return 0
 		fi 
@@ -668,7 +668,7 @@ verify_hash() {
 		recover_file "$DB_SQL" "$fpath" "$roh_hash_fpath" "$computed_hash"
 		return $?
 	else
-		echo "WARN: [$computed_hash]: [$fpath] -- NEW!?"
+		progress_log "WARN: [$computed_hash]: [$fpath] -- NEW!?"
 		((WARN_COUNT++))
 		[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$fpath" >> "$EXPORT_FN_NEW"
 	fi
