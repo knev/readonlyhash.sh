@@ -1692,6 +1692,15 @@ process_hash_entry()
 
     elif [ -f "$roh_hash_fpath" ]; then
 
+		local entry_bytes
+		if [ "$_STAT_FMT" = "bsd" ]; then
+			entry_bytes=$(stat -f%z "$roh_hash_fpath")
+		else
+			entry_bytes=$(stat -c%s "$roh_hash_fpath")
+		fi
+		_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + entry_bytes ))
+		progress_update "$_PROG_CURRENT_BYTES"
+
 		local stored=$(stored_hash "$roh_hash_fpath")
 		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
 		# echo "   * fpath: [$fpath]"
@@ -1793,13 +1802,13 @@ hash_maintanence() {
 	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
 
 	if [ "$_STAT_FMT" = "bsd" ]; then
-		total_bytes=$(find "$entry" -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+		total_bytes=$(find "$dir" -name ".git" -prune -o -type f -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
 	else
-		total_bytes=$(find "$entry" -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+		total_bytes=$(find "$dir" -name ".git" -prune -o -type f -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
 	fi
 
 	trap 'printf "\033[?25h"; exit' INT TERM
-	progress_init "$total_bytes" "# Processing files ... [$entry]"
+	progress_init "$total_bytes" echo "# Hash maintanence ... [$dir]"
 
 	process_hash_entry "$dir"
 
@@ -1951,7 +1960,6 @@ fi
 if [ "$only_files" = "true" ]; then
 	:
 elif contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
-	echo "# Hash maintanence ... [${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}]"
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
 	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_DELETED" ] && mkdir -p "$ROH_LOGS" && echo " >> [$EXPORT_FN_DELETED]"
