@@ -206,6 +206,45 @@ roh.fpath we ...
 
 Currently `ir` is the only operation that adds a third phase to the execution, namely indexing, processing files and maintaining hashes. The other double commands operate on their respective phases as listed above.
 
+#### Example: identify duplicates
+If you have a folder of spurious files e.g., `2013-restored`
+You can `write index` that directory to obtain the `.roh.sqlite3` index.
+```
+roh.fpath wi 2013-restored // will output 2013-restored/.roh.sqlite3
+```
+
+If you then have a folder that contains new files ...
+```
+roh.fpath v johndoe/Fotos/2015.ro
+...
+WARN: [johndoe/Fotos/2015.ro/sub-sub-directory] -- NEW DIRECTORY!?
+...
+Number of ERRORs encountered: [0]
+Number of ...       WARNings: [1]
+```
+
+Then recovering using the index of the restored files will write hashes (in the `johndoe/Fotos/2015.ro` repo) for those files found i the `restored` directory.
+```
+roh.fpath r --only-files --db 2013-restored/.roh.sqlite3 johndoe/Fotos/2015.ro
+roh.fpath i johndoe/Fotos/2015.ro // outputs johndoe/Fotos/2015.ro/.roh.sqlite3
+```
+Verifying `johndoe/Fotos/2015.ro` hereafter will still identify files that were not found in the restored directory. Now we need to identify those files in the `restored` directory that were not found in the `2015` directory. 
+```
+cd 2013-restored
+mkdir tmp
+mv .roh.git tmp/.
+roh.fpath r --only-hashes --db johndoe/Fotos/2015.ro/.roh.sqlite3 tmp
+```
+The last line will remove all the orphaned hashes of the files that were found in the `2015` directory. Verifying `tmp` will list all files that are still "orphaned" (files that were NOT found in the 2015 directory). In other words, keep the files corresponding to the orphaned hashes. If the repo is move back out of `tmp`.
+```
+cd 2013-restored
+mv tmp/.roh.git .
+rmdir tmp
+cd ..
+roh.fpath v 2013-restored
+```
+Every file that is listed as NEW by the last verify line above has been found in the `2015` directory.
+
 ---
 ### `roh.git`
 
