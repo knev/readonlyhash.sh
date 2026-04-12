@@ -868,6 +868,7 @@ process_entry()
 				has_hashes=$(find "$entry" -type f -name '*.sha256' -print | head -n 1)
 				
 				if [ -n "$has_real_files" ] && [ -z "$has_hashes" ]; then
+					[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FN_NEW"
 				    echo "WARN: [$entry] -- NEW DIRECTORY!?"
 				    ((WARN_COUNT++))
 				    return 0
@@ -1190,10 +1191,9 @@ else
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
-EXPORT_FN_NEW="$ROH_DIR/../.roh.new-files.txt"
-EXPORT_FN_DELETED="$ROH_DIR/../.roh.deleted-files.txt"
-EXPORT_FN_HIDDEN="roh-hidden-files.exported.txt"
-[ -f "$EXPORT_FN_HIDDEN" ] && rm "$EXPORT_FN_HIDDEN"
+EXPORT_FN_NEW="$ROH_DIR/../.roh.logs/new-files.exported.txt"
+EXPORT_FN_DELETED="$ROH_DIR/../.roh.logs/deleted-files.exported.txt"
+EXPORT_FN_HIDDEN="$ROH_DIR/../.roh.logs/hidden-files.exported.txt"
 
 if [ -z "$db" ]; then
     DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array
@@ -1512,6 +1512,7 @@ process_hash_entry()
 				# echo "   * fpath DIRECTORY: [$dir_fpath]"
  
  				if [ ! -d "$dir_fpath" ]; then
+					[ "$EXPORT_MODE" = "true" ] && echo "$recursive_dir" >> "$EXPORT_FN_DELETED"
 					echo "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
 					((ERROR_COUNT++))
 					return 0
