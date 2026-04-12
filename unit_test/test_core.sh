@@ -135,7 +135,7 @@ rm "$TEST/.roh.git/new-file.txt.$HASH"
 
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "$ROH_DIR/file with spaces.txt.$HASH"
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/file with spaces.txt.$HASH"
-run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK: [0000000000000000000000000000000000000000000000000000000000000000][test/.roh.git/file with spaces.txt.sha256] hash exists -- SKIPPING")"
+run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "OK: [0000000000000000000000000000000000000000000000000000000000000000][test/.roh.git/file with spaces.txt.sha256] hidden hash exists -- SKIPPING")"
 run_test "$FPATH_BIN write --force $TEST" "0" "$(escape_expected "  OK:.* stored [0000000000000000000000000000000000000000000000000000000000000000][$ROH_DIR/file with spaces.txt.sha256] -- removed (FORCED)!.*OK:.* computed [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69][test/file with spaces.txt].* stored [0000000000000000000000000000000000000000000000000000000000000000][$TEST/file with spaces.txt.sha256] -- removed (FORCED)!")"
 
 $FPATH_BIN delete "$TEST" >/dev/null 2>&1

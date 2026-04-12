@@ -647,7 +647,7 @@ write_hash() {
 	    if [ -f "$roh_hash_fpath" ]; then
 			local stored=$(stored_hash "$roh_hash_fpath")
 			if [ "$force_mode" = "false" ]; then
-	 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored][$roh_hash_fpath] hash exists -- SKIPPING"
+	 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored][$roh_hash_fpath] hidden hash exists -- SKIPPING"
 				return 0
 			fi
 
@@ -664,7 +664,7 @@ write_hash() {
 		if [ -f "$dir_hash_fpath" ]; then
 			local stored=$(stored_hash "$dir_hash_fpath")
 			if [ "$force_mode" = "false" ]; then
-	 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored][$dir_hash_fpath] hash exists -- SKIPPING"
+	 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored][$dir_hash_fpath] shown hash exists -- SKIPPING"
 				return 0
 			fi
 
