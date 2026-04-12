@@ -78,7 +78,7 @@ while [ $i -le $# ]; do
     fi
 
     # 2. Try short letters (consecutive, no separators)
-    if echo "$arg" | grep -qE '^[vax]+$'; then
+    if echo "$arg" | grep -qE '^[viax]+$'; then
         invalid=0
         for ((j=0; j<${#arg}; j++)); do
             c="${arg:$j:1}"
