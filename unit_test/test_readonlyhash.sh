@@ -29,7 +29,7 @@ rm -rf "Fotos [space]" >/dev/null 2>&1
 rm -rf "blammy"
 rm -rf "backup-target"
 rm -rf "$TARGET"
-unzip Fotos.zip >/dev/null 2>&1
+unzip unit_test/Fotos.zip >/dev/null 2>&1
 rm -rf "__MACOSX"
 
 rm "$fpath" >/dev/null 2>&1
@@ -179,7 +179,7 @@ mv "$PWD/Fotos [space]" "$PWD/blammy/cheeze/."
 mv "$PWD/2002.ro" "$PWD/blammy/cheeze/." 
 echo "$PWD/blammy/cheeze/Fotos [space]/1999.ro" > "$fpath_ro"
 echo "$PWD/blammy/cheeze/2002.ro" >> "$fpath_ro"
-unzip Fotos.zip -d $TARGET >/dev/null 2>&1
+unzip unit_test/Fotos.zip -d $TARGET >/dev/null 2>&1
 rm -rf "$TARGET/__MACOSX"
 
 run_test "$ROH_COPY --rebase blammy/cheeze $fpath_ro" "1" "$(escape_expected "ERROR: invalid rebase string [blammy/cheeze]" )"
