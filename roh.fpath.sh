@@ -118,6 +118,7 @@ check_extension() {
 generate_hash() {
     local file="$1"
 	if [ ! -r "$file" ]; then
+        echo >&2
         echo "ERROR: [$file] file -- not readable or permission denied" >&2
 		echo "0000000000000000000000000000000000000000000000000000000000000000"
 		return
@@ -509,10 +510,11 @@ find_matching_fn()
                 if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
                 	# we found the original file
                 	if (( original_found > 0 )); then
-                	    echo "ERROR: this should not happen, should only be one original"
-                	    echo "Abort."
-                	    echo 
-                	    exit 1
+						echo
+						echo "ERROR: this should not happen, should only be one original"
+						echo "Abort."
+						echo
+						exit 1
                 	fi
                 	((original_found++))
                 	continue
@@ -535,6 +537,7 @@ find_matching_fn()
 					# verify IDX
 					local found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
 					if [ "$found_hash" != "$found_stored" ]; then
+						echo
 						echo "ERROR: [$found_abs_roh_hash_fpath] -- IDX inconsistency: ..."
 						echo "       ... indexed [$found_hash]"
 						echo "       ...  stored [$found_stored]"
@@ -703,7 +706,8 @@ write_hash() {
 	# optimization for if we run "write index" more than once
 	if contains "index"; then
 		# fpath must exist for roh_sqlite3_db_fpath_exists() to succeed here
-		if [ ! -f "$fpath" ]; then 
+		if [ ! -f "$fpath" ]; then
+			echo
 			echo "ERROR"
 			echo "Abort."
 			echo
@@ -717,6 +721,7 @@ write_hash() {
 			progress_log " IDX: [$stored]: [$fpath] -- already exists, skipping"
 			return
 		else
+			echo
 			echo "ERROR"
 			echo "Abort."
 			echo
@@ -879,6 +884,7 @@ manage_hash_visibility() {
 		src_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
 		dest_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
     else
+        echo
         echo "ERROR: invalid hash visibility action"
 		echo "Abort."
 		echo
@@ -1403,17 +1409,19 @@ recover_hash() {
 					if [ -f "$found_abs_roh_hash_fpath" ]; then
 						# we found the original file
 						if (( original_found > 0 )); then
+							echo
 							echo "ERROR: this should not happen, should only be one original"
 							echo "Abort."
-							echo 
+							echo
 							exit 1
 						fi
 						((original_found++))
 						continue
 					else
+						echo
 						echo "ERROR: this should not happen, because we are processing orphans that exist"
 						echo "Abort."
-						echo 
+						echo
 						exit 1
 					fi
 				fi
@@ -1430,6 +1438,7 @@ recover_hash() {
 					# verify IDX
 					local found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
 					if [ "$stored" != "$found_stored" ]; then
+						echo
 						echo "ERROR: [$found_abs_roh_hash_fpath] -- IDX inconsistency: ..."
 						echo "       ... indexed [$stored]"
 						echo "       ...  stored [$found_stored]"
