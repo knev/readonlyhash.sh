@@ -218,7 +218,7 @@ _prog_human_size() {
 _prog_draw_bar() {
   local pct=$1 suffix_len=$2
   local cols=$(tput cols)
-  local bar_width=$(( cols - suffix_len - 4 ))  # 4 = " [" + "] "
+  local bar_width=$(( cols - suffix_len - 3 ))  # 3 = "[" + "] "
   (( bar_width < 10 )) && bar_width=10
   local filled=$(( pct * bar_width / 100 ))
   local empty=$(( bar_width - filled ))
@@ -263,7 +263,7 @@ progress_update() {
 
   local suffix=$(printf "%3d%%  %s/%s  %s/s" "$pct" "$down_h" "$total_h" "$speed_h")
 
-  printf "\r [%s] %s" \
+  printf "\r[%s] %s" \
     "$(_prog_draw_bar "$pct" "${#suffix}")" "$suffix"
 }
 
@@ -287,7 +287,7 @@ progress_log() {
   local speed_h=$(_prog_human_size "$speed_bytes")
   local suffix=$(printf "%3d%%  %s/%s  %s/s" "$pct" "$down_h" "$total_h" "$speed_h")
   local bar=$(_prog_draw_bar "$pct" "${#suffix}")
-  printf "\r\033[2K%s\n\r [%s] %s" "$*" "$bar" "$suffix"
+  printf "\r\033[2K%s\n\r[%s] %s" "$*" "$bar" "$suffix"
 }
 
 # progress_done
