@@ -85,18 +85,16 @@ Extract each listed directory
 
 ### while; done
 The script `readonlyhash` is actually just sugar coating for a `while;do` statement using the underlying tools. However! `readonlyhash` has an added feature to allow for resuming at a particular line in the `roh.txt` file.
-
 ```
 while IFS= read -r line; do <COMMAND> "$line"; done < FILENAME.roh.txt
 ```
 
 #### Example: index all hashes to a single database
-
 ```
 while IFS= read -r line; do roh.fpath index --db all.sqlite3 "$line"; done < johndoe.roh.txt
 ```
-#### Example: make a backup of all hash zips
 
+#### Example: make a backup of all hash zips
 ```
 while IFS= read -r line; do echo "$line"; roh.copy --rebase "johndoe:backup/johndoe" "$line"; done < /home/Fractal/johndoe.roh.txt
 ```
