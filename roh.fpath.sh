@@ -714,7 +714,7 @@ write_hash() {
 			:
 		elif [ "$fpath_exists" -eq 1 ]; then
 			local stored=$(roh_sqlite3_db_get_1fpath_hash "$DB_SQL" "$fpath") || return 1
-			echo " IDX: [$stored]: [$fpath] -- already exists, skipping"
+			progress_log " IDX: [$stored]: [$fpath] -- already exists, skipping"
 			return
 		else
 			echo "ERROR"
@@ -749,16 +749,16 @@ write_hash() {
 	    if [ -f "$roh_hash_fpath" ]; then
 			local stored=$(stored_hash "$roh_hash_fpath")
 			if [ "$force_mode" = "false" ]; then
-	 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored][$roh_hash_fpath] hidden hash exists -- SKIPPING"
+	 			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored][$roh_hash_fpath] hidden hash exists -- SKIPPING"
 				return 0
 			fi
 
 			if [ "$computed_hash" != "$stored" ]; then
 				# exist-R=T (eq-R=F)
 				rm "$roh_hash_fpath"
-				echo "  OK: hash mismatch: ..."
-				echo "      ... computed [$computed_hash][$fpath]"
-				echo "      ...   stored [$stored][$roh_hash_fpath] -- removed (FORCED)!"
+				progress_log "  OK: hash mismatch: ..."
+				progress_log "      ... computed [$computed_hash][$fpath]"
+				progress_log "      ...   stored [$stored][$roh_hash_fpath] -- removed (FORCED)!"
 			fi
 		fi
 	
@@ -766,16 +766,16 @@ write_hash() {
 		if [ -f "$dir_hash_fpath" ]; then
 			local stored=$(stored_hash "$dir_hash_fpath")
 			if [ "$force_mode" = "false" ]; then
-	 			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$stored][$dir_hash_fpath] shown hash exists -- SKIPPING"
+	 			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored][$dir_hash_fpath] shown hash exists -- SKIPPING"
 				return 0
 			fi
 
 			if [ "$computed_hash" != "$stored" ]; then
 				# exist-D=T (eq-D=F)
 				rm "$dir_hash_fpath"
-				echo "  OK: hash mismatch: ..."
-				echo "      ... computed [$computed_hash][$fpath]"
-				echo "      ...   stored [$stored][$dir_hash_fpath] -- removed (FORCED)!"
+				progress_log "  OK: hash mismatch: ..."
+				progress_log "      ... computed [$computed_hash][$fpath]"
+				progress_log "      ...   stored [$stored][$dir_hash_fpath] -- removed (FORCED)!"
 			fi
 		fi
 	fi
@@ -800,13 +800,13 @@ write_hash() {
 		if [ "$visibility_mode" = "show" ]; then
 			# write to $dir_hash_fpath, because it exist, then let visibility handle the move
 			echo "$computed_hash" > "$dir_hash_fpath"
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath] -- file hash written"
+			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$computed_hash]: [$fpath] -- file hash written"
 		else
 			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 			if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
-				[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$computed_hash]: [$fpath] -- file hash written"
+				[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$computed_hash]: [$fpath] -- file hash written"
 			else
-				echo "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
+				progress_log "ERROR: [$fpath] -- failed to write hash to [$roh_hash_fpath]"
 				((ERROR_COUNT++))
 				return 0  # Signal that an error occurred
 			fi
@@ -850,12 +850,12 @@ delete_hash() {
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
     if [ -f "$dir_hash_fpath" ]; then
 		rm "$dir_hash_fpath"
-		[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$dir_hash_fpath] -- deleted"
+		[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$fpath] -- hash file [$dir_hash_fpath] -- deleted"
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
 		rm "$roh_hash_fpath"
-		[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath] -- hash file [$roh_hash_fpath] -- deleted"
+		[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$fpath] -- hash file [$roh_hash_fpath] -- deleted"
     fi
 
 	return 0
@@ -894,9 +894,9 @@ manage_hash_visibility() {
 
 	if [ -f "$src_fpath" ]; then
 		if [ -f "$dest_fpath" ] && [ "$force_mode" = "false" ]; then
-			echo "ERROR: [$fpath] -- not moving/(not $past_tense) ..." 
-			echo "       ... destination [$dest_fpath] -- exists"
-			echo "        ... for source [$src_fpath]"
+			progress_log "ERROR: [$fpath] -- not moving/(not $past_tense) ..."
+			progress_log "       ... destination [$dest_fpath] -- exists"
+			progress_log "        ... for source [$src_fpath]"
 			((ERROR_COUNT++))
 			return 0
 		fi
@@ -904,28 +904,28 @@ manage_hash_visibility() {
 		if [ "$action" = "hide" ]; then
 			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
 			if ! mkdir -p "$roh_hash_just_path" 2>/dev/null; then
-				echo "ERROR: [$fpath] -- failed to make (hash) directory [$roh_hash_just_path]"
+				progress_log "ERROR: [$fpath] -- failed to make (hash) directory [$roh_hash_just_path]"
 				((ERROR_COUNT++))
 				return 0
 			fi
 		fi
 		if ! mv -- "$src_fpath" "$dest_fpath" 2>/dev/null; then
-			echo "ERROR: [$fpath]: [$src_fpath] to [$dest_fpath] -- failed to move hash file"
+			progress_log "ERROR: [$fpath]: [$src_fpath] to [$dest_fpath] -- failed to move hash file"
 			((ERROR_COUNT++))
 			return 0
 		fi
-        [ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath]: [$dest_fpath] hash file -- moved($past_tense)"
+        [ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$fpath]: [$dest_fpath] hash file -- moved($past_tense)"
         return 0
 	else
 		if [ -f "$dest_fpath" ]; then
 		# 	local stored=$(stored_hash "$dest_fpath")
 		# 	if [ "$computed_hash" = "$stored" ]; then
-			[ "$VERBOSE_MODE" = "true" ] && echo "  OK: [$fpath]: [$dest_fpath] hash file already exists($past_tense) -- nothing to move($action), NOOP"
+			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$fpath]: [$dest_fpath] hash file already exists($past_tense) -- nothing to move($action), NOOP"
 			return 0  # No error
 		# 	fi
 		fi
 
-        echo "ERROR: [$fpath]: [$src_fpath] hash file -- NOT found, not $past_tense"
+        progress_log "ERROR: [$fpath]: [$src_fpath] hash file -- NOT found, not $past_tense"
         ((ERROR_COUNT++))
         return 0
     fi
@@ -945,7 +945,7 @@ process_entry()
     local force_mode="$4"
 
 	if [ -L "$entry" ]; then
-		[ "$VERBOSE_MODE" = "true" ] && echo "Avoiding symlink [$entry] like the Plague"
+		[ "$VERBOSE_MODE" = "true" ] && progress_log "Avoiding symlink [$entry] like the Plague"
 		return 0
 
 	# If the entry is a directory, process it recursively
@@ -957,7 +957,7 @@ process_entry()
 		fi
 	
 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
-			echo "WARN: [$entry] is a readonlyhash directory -- SKIPPING"
+			progress_log "WARN: [$entry] is a readonlyhash directory -- SKIPPING"
 			((WARN_COUNT++))
 			return 0
 		fi
@@ -974,7 +974,7 @@ process_entry()
 				
 				if [ -n "$has_real_files" ] && [ -z "$has_hashes" ]; then
 					[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$entry" >> "$EXPORT_FN_NEW"
-				    echo "WARN: [$entry] -- NEW DIRECTORY!?"
+				    progress_log "WARN: [$entry] -- NEW DIRECTORY!?"
 				    ((WARN_COUNT++))
 				    return 0
 				fi
@@ -1004,7 +1004,7 @@ process_entry()
 
 		if ! contains "delete"; then
 			if check_extension "$entry"; then
-				echo "ERROR: [$parent] \"$(basename "$entry")\" -- file with restricted extension"
+				progress_log "ERROR: [$parent] \"$(basename "$entry")\" -- file with restricted extension"
 				((ERROR_COUNT++))
 				return 0
 			fi
