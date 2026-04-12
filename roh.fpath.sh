@@ -580,7 +580,7 @@ verify_hash() {
 	else
 		echo "WARN: [$computed_hash]: [$fpath] -- NEW!?"
 		((WARN_COUNT++))
-		[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_NEW"
+		[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$fpath" >> "$EXPORT_FN_NEW"
 	fi
 	return 0
 }
@@ -848,6 +848,7 @@ process_entry()
     elif [ -d "$entry" ]; then
 
 		if find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
+			mkdir -p "$ROH_LOGS"
 			echo "$entry" >> "$EXPORT_FN_HIDDEN"
 		fi
 	
@@ -868,7 +869,7 @@ process_entry()
 				has_hashes=$(find "$entry" -type f -name '*.sha256' -print | head -n 1)
 				
 				if [ -n "$has_real_files" ] && [ -z "$has_hashes" ]; then
-					[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FN_NEW"
+					[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$entry" >> "$EXPORT_FN_NEW"
 				    echo "WARN: [$entry] -- NEW DIRECTORY!?"
 				    ((WARN_COUNT++))
 				    return 0
@@ -1194,9 +1195,10 @@ else
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
-EXPORT_FN_NEW="$ROH_DIR/../.roh.logs/new-files.exported.txt"
-EXPORT_FN_DELETED="$ROH_DIR/../.roh.logs/deleted-files.exported.txt"
-EXPORT_FN_HIDDEN="$ROH_DIR/../.roh.logs/hidden-files.exported.txt"
+ROH_LOGS="$ROH_DIR/../.roh.logs"
+EXPORT_FN_NEW="$ROH_LOGS/new-files.exported.txt"
+EXPORT_FN_DELETED="$ROH_LOGS/deleted-files.exported.txt"
+EXPORT_FN_HIDDEN="$ROH_LOGS/hidden-files.exported.txt"
 
 if [ -z "$db" ]; then
     DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array
@@ -1515,7 +1517,7 @@ process_hash_entry()
 				# echo "   * fpath DIRECTORY: [$dir_fpath]"
  
  				if [ ! -d "$dir_fpath" ]; then
-					[ "$EXPORT_MODE" = "true" ] && echo "$recursive_dir" >> "$EXPORT_FN_DELETED"
+					[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$recursive_dir" >> "$EXPORT_FN_DELETED"
 					echo "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
 					((ERROR_COUNT++))
 					return 0
@@ -1565,7 +1567,7 @@ process_hash_entry()
  				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$roh_hash_fpath] -- orphaned hash"
  				[ "$VERBOSE_MODE" = "true" ] && echo "       ...                                          NO corresponding file: [$fpath]"
  				((ERROR_COUNT++))
-				[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FN_DELETED"
+				[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$fpath" >> "$EXPORT_FN_DELETED"
  			fi
 
  			if contains "index"; then
@@ -1772,7 +1774,7 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 		run_directory_process "$ROOT" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
 	fi
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
-	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_NEW" ] && echo " >> [$EXPORT_FN_NEW]"
+	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_NEW" ] && mkdir -p "$ROH_LOGS" && echo " >> [$EXPORT_FN_NEW]"
 	if [ -f "$EXPORT_FN_HIDDEN" ]; then
 		echo "WARN: directories with hidden entries were detected and exported"
 		echo " >> [$EXPORT_FN_HIDDEN]"
@@ -1786,7 +1788,7 @@ elif contains "verify" || contains "recover" || contains "sweep" || contains "in
 	echo "# Hash maintanence ... [${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}]"
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
-	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_DELETED" ] && echo " >> [$EXPORT_FN_DELETED]"
+	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_DELETED" ] && mkdir -p "$ROH_LOGS" && echo " >> [$EXPORT_FN_DELETED]"
 fi
 
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then

@@ -259,7 +259,7 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: hashes not excl
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 touch "$TEST/.HIDDEN_FILE"
-run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported.*[roh-hidden-files.exported.txt]")"
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported.*[test/.roh.git/../.roh.logs/hidden-files.exported.txt]")"
 rm "$TEST/.HIDDEN_FILE"
 rm "roh-hidden-files.exported.txt"
 

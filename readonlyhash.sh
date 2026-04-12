@@ -288,6 +288,11 @@ archive_directory() {
 		rm -r "$dir/.roh.sqlite3"
 		echo "DB_SQL [$dir/.roh.sqlite3] -- removed"
 	fi
+
+	if [ -d "$dir/.roh.logs" ]; then
+		rm -r "$dir/.roh.logs"
+		echo "OK: [$dir/.roh.logs] -- removed"
+	fi
 }
 
 extract_directory() {
