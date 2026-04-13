@@ -260,7 +260,17 @@ progress_init() {
 progress_update() {
   local cur_bytes="${1:?usage: progress_update <current_bytes>}"
 
-  local pct=$(awk "BEGIN { if(${_PROG_TOTAL}==0) p=100; else p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
+  local pct=$(awk "BEGIN {
+    byte_pct = 0; file_pct = 0
+    if (${_PROG_TOTAL} > 0) byte_pct = ${cur_bytes} * 100 / ${_PROG_TOTAL}
+    if (${_PROG_TOTAL_FILES} > 0) file_pct = ${_PROG_CURRENT_FILES} * 100 / ${_PROG_TOTAL_FILES}
+    if (${_PROG_TOTAL} == 0 && ${_PROG_TOTAL_FILES} == 0) p = 100
+    else if (${_PROG_TOTAL} == 0) p = int(file_pct)
+    else if (${_PROG_TOTAL_FILES} == 0) p = int(byte_pct)
+    else p = int((byte_pct + file_pct) / 2)
+    if (p > 100) p = 100
+    print p
+  }")
 
   _PROG_PREV_BYTES="$cur_bytes"
 
@@ -285,7 +295,17 @@ progress_log() {
   fi
   # Clear bar, print message, redraw bar — all in one write to minimize flicker
   local cur_bytes="${_PROG_PREV_BYTES:-0}"
-  local pct=$(awk "BEGIN { if(${_PROG_TOTAL}==0) p=100; else p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
+  local pct=$(awk "BEGIN {
+    byte_pct = 0; file_pct = 0
+    if (${_PROG_TOTAL} > 0) byte_pct = ${cur_bytes} * 100 / ${_PROG_TOTAL}
+    if (${_PROG_TOTAL_FILES} > 0) file_pct = ${_PROG_CURRENT_FILES} * 100 / ${_PROG_TOTAL_FILES}
+    if (${_PROG_TOTAL} == 0 && ${_PROG_TOTAL_FILES} == 0) p = 100
+    else if (${_PROG_TOTAL} == 0) p = int(file_pct)
+    else if (${_PROG_TOTAL_FILES} == 0) p = int(byte_pct)
+    else p = int((byte_pct + file_pct) / 2)
+    if (p > 100) p = 100
+    print p
+  }")
   local down_h=$(_prog_human_size "$cur_bytes")
   local total_h=$(_prog_human_size "$_PROG_TOTAL")
   local cur_files_h=$(_prog_human_count "$_PROG_CURRENT_FILES")
