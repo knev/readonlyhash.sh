@@ -250,6 +250,7 @@ progress_init() {
   _PROG_LABEL="${3:-Processing...}"
   _PROG_PREV_BYTES=0
   _PROG_CURRENT_FILES=0
+  _PROG_START_SEC=$(date +%s)
 
   printf "\033[?25l"  # hide cursor
   printf "%s\n" "$_PROG_LABEL"
@@ -260,7 +261,11 @@ progress_init() {
 progress_update() {
   local cur_bytes="${1:?usage: progress_update <current_bytes>}"
 
-  local pct=$(awk "BEGIN {
+  local now=$(date +%s)
+  local elapsed=$(( now - _PROG_START_SEC ))
+  (( elapsed < 1 )) && elapsed=1
+
+  local pct_eta=$(awk "BEGIN {
     byte_pct = 0; file_pct = 0
     if (${_PROG_TOTAL} > 0) byte_pct = ${cur_bytes} * 100 / ${_PROG_TOTAL}
     if (${_PROG_TOTAL_FILES} > 0) file_pct = ${_PROG_CURRENT_FILES} * 100 / ${_PROG_TOTAL_FILES}
@@ -269,8 +274,20 @@ progress_update() {
     else if (${_PROG_TOTAL_FILES} == 0) p = int(byte_pct)
     else p = int((byte_pct + file_pct) / 2)
     if (p > 100) p = 100
-    print p
+
+    byte_eta = 0; file_eta = 0; n = 0
+    if (${cur_bytes} > 0) { byte_eta = (${_PROG_TOTAL} - ${cur_bytes}) * ${elapsed} / ${cur_bytes}; n++ }
+    if (${_PROG_CURRENT_FILES} > 0 && ${_PROG_TOTAL_FILES} > 0) { file_eta = (${_PROG_TOTAL_FILES} - ${_PROG_CURRENT_FILES}) * ${elapsed} / ${_PROG_CURRENT_FILES}; n++ }
+    if (n == 0) { printf \"%d --:--\", p }
+    else {
+      rem = (byte_eta + file_eta) / n
+      if (rem < 0) rem = 0
+      m = int(rem / 60); s = int(rem) % 60
+      printf \"%d %02dm%02ds\", p, m, s
+    }
   }")
+  local pct=${pct_eta%% *}
+  local eta=${pct_eta#* }
 
   _PROG_PREV_BYTES="$cur_bytes"
 
@@ -279,7 +296,7 @@ progress_update() {
 
   local cur_files_h=$(_prog_human_count "$_PROG_CURRENT_FILES")
   local total_files_h=$(_prog_human_count "$_PROG_TOTAL_FILES")
-  local suffix=$(printf "%3d%%  %s/%s  %s/%s" "$pct" "$cur_files_h" "$total_files_h" "$down_h" "$total_h")
+  local suffix=$(printf "%3d%%  %s/%s  %s/%s  %s" "$pct" "$cur_files_h" "$total_files_h" "$down_h" "$total_h" "$eta")
 
   printf "\r[%s] %s" \
     "$(_prog_draw_bar "$pct" "${#suffix}")" "$suffix"
@@ -295,7 +312,11 @@ progress_log() {
   fi
   # Clear bar, print message, redraw bar — all in one write to minimize flicker
   local cur_bytes="${_PROG_PREV_BYTES:-0}"
-  local pct=$(awk "BEGIN {
+  local now=$(date +%s)
+  local elapsed=$(( now - _PROG_START_SEC ))
+  (( elapsed < 1 )) && elapsed=1
+
+  local pct_eta=$(awk "BEGIN {
     byte_pct = 0; file_pct = 0
     if (${_PROG_TOTAL} > 0) byte_pct = ${cur_bytes} * 100 / ${_PROG_TOTAL}
     if (${_PROG_TOTAL_FILES} > 0) file_pct = ${_PROG_CURRENT_FILES} * 100 / ${_PROG_TOTAL_FILES}
@@ -304,13 +325,26 @@ progress_log() {
     else if (${_PROG_TOTAL_FILES} == 0) p = int(byte_pct)
     else p = int((byte_pct + file_pct) / 2)
     if (p > 100) p = 100
-    print p
+
+    byte_eta = 0; file_eta = 0; n = 0
+    if (${cur_bytes} > 0) { byte_eta = (${_PROG_TOTAL} - ${cur_bytes}) * ${elapsed} / ${cur_bytes}; n++ }
+    if (${_PROG_CURRENT_FILES} > 0 && ${_PROG_TOTAL_FILES} > 0) { file_eta = (${_PROG_TOTAL_FILES} - ${_PROG_CURRENT_FILES}) * ${elapsed} / ${_PROG_CURRENT_FILES}; n++ }
+    if (n == 0) { printf \"%d --:--\", p }
+    else {
+      rem = (byte_eta + file_eta) / n
+      if (rem < 0) rem = 0
+      m = int(rem / 60); s = int(rem) % 60
+      printf \"%d %02dm%02ds\", p, m, s
+    }
   }")
+  local pct=${pct_eta%% *}
+  local eta=${pct_eta#* }
+
   local down_h=$(_prog_human_size "$cur_bytes")
   local total_h=$(_prog_human_size "$_PROG_TOTAL")
   local cur_files_h=$(_prog_human_count "$_PROG_CURRENT_FILES")
   local total_files_h=$(_prog_human_count "$_PROG_TOTAL_FILES")
-  local suffix=$(printf "%3d%%  %s/%s  %s/%s" "$pct" "$cur_files_h" "$total_files_h" "$down_h" "$total_h")
+  local suffix=$(printf "%3d%%  %s/%s  %s/%s  %s" "$pct" "$cur_files_h" "$total_files_h" "$down_h" "$total_h" "$eta")
   local bar=$(_prog_draw_bar "$pct" "${#suffix}")
   printf "\r\033[2K%s\n\r[%s] %s" "$*" "$bar" "$suffix"
 }
