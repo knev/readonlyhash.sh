@@ -1813,7 +1813,7 @@ hash_maintanence() {
 	fi
 
 	trap 'printf "\033[?25h"; exit' INT TERM
-	progress_init "$total_bytes" echo "# Hash maintanence ... [$dir]"
+	progress_init "$total_bytes" "# Hash maintanence ... [$dir]"
 
 	process_hash_entry "$dir"
 
