@@ -215,6 +215,18 @@ _prog_human_size() {
   }'
 }
 
+_prog_human_count() {
+  awk -v n="$1" 'BEGIN {
+    if      (n >= 1000000000) { v = n / 1000000000; u = "B" }
+    else if (n >= 1000000)    { v = n / 1000000;    u = "M" }
+    else if (n >= 1000)       { v = n / 1000;       u = "K" }
+    else                      { printf "%d", n; exit }
+    if      (v >= 100) printf "%.0f%s", v, u
+    else if (v >= 10)  printf "%.1f%s", v, u
+    else               printf "%.2f%s", v, u
+  }'
+}
+
 _prog_draw_bar() {
   local pct=$1 suffix_len=$2
   local cols=$(tput cols)
@@ -230,13 +242,14 @@ _prog_draw_bar() {
 
 # ── Public API ───────────────────────────────────────────────────
 
-# progress_init <total_bytes> [label]
+# progress_init <total_bytes> <total_files> [label]
 #   Call once before updates. Hides cursor, prints label.
 progress_init() {
-  _PROG_TOTAL="${1:?usage: progress_init <total_bytes> [label]}"
-  _PROG_LABEL="${2:-Processing...}"
+  _PROG_TOTAL="${1:?usage: progress_init <total_bytes> <total_files> [label]}"
+  _PROG_TOTAL_FILES="${2:-0}"
+  _PROG_LABEL="${3:-Processing...}"
   _PROG_PREV_BYTES=0
-  _PROG_PREV_SEC=$(date +%s)
+  _PROG_CURRENT_FILES=0
 
   printf "\033[?25l"  # hide cursor
   printf "%s\n" "$_PROG_LABEL"
@@ -249,19 +262,14 @@ progress_update() {
 
   local pct=$(awk "BEGIN { if(${_PROG_TOTAL}==0) p=100; else p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
 
-  # Speed calc (bytes since last call / seconds since last call)
-  local now=$(date +%s)
-  local elapsed=$(( now - _PROG_PREV_SEC ))
-  (( elapsed < 1 )) && elapsed=1
-  local speed_bytes=$(awk "BEGIN { printf \"%.0f\", (${cur_bytes} - ${_PROG_PREV_BYTES}) / ${elapsed} }")
   _PROG_PREV_BYTES="$cur_bytes"
-  _PROG_PREV_SEC="$now"
 
   local down_h=$(_prog_human_size "$cur_bytes")
   local total_h=$(_prog_human_size "$_PROG_TOTAL")
-  local speed_h=$(_prog_human_size "$speed_bytes")
 
-  local suffix=$(printf "%3d%%  %s/%s  %s/s" "$pct" "$down_h" "$total_h" "$speed_h")
+  local cur_files_h=$(_prog_human_count "$_PROG_CURRENT_FILES")
+  local total_files_h=$(_prog_human_count "$_PROG_TOTAL_FILES")
+  local suffix=$(printf "%3d%%  %s/%s  %s/%s" "$pct" "$cur_files_h" "$total_files_h" "$down_h" "$total_h")
 
   printf "\r[%s] %s" \
     "$(_prog_draw_bar "$pct" "${#suffix}")" "$suffix"
@@ -278,14 +286,11 @@ progress_log() {
   # Clear bar, print message, redraw bar — all in one write to minimize flicker
   local cur_bytes="${_PROG_PREV_BYTES:-0}"
   local pct=$(awk "BEGIN { if(${_PROG_TOTAL}==0) p=100; else p=int(${cur_bytes}*100/${_PROG_TOTAL}); if(p>100)p=100; print p }")
-  local now=$(date +%s)
-  local elapsed=$(( now - _PROG_PREV_SEC ))
-  (( elapsed < 1 )) && elapsed=1
-  local speed_bytes=$(awk "BEGIN { printf \"%.0f\", (${cur_bytes} - ${_PROG_PREV_BYTES}) / ${elapsed} }")
   local down_h=$(_prog_human_size "$cur_bytes")
   local total_h=$(_prog_human_size "$_PROG_TOTAL")
-  local speed_h=$(_prog_human_size "$speed_bytes")
-  local suffix=$(printf "%3d%%  %s/%s  %s/s" "$pct" "$down_h" "$total_h" "$speed_h")
+  local cur_files_h=$(_prog_human_count "$_PROG_CURRENT_FILES")
+  local total_files_h=$(_prog_human_count "$_PROG_TOTAL_FILES")
+  local suffix=$(printf "%3d%%  %s/%s  %s/%s" "$pct" "$cur_files_h" "$total_files_h" "$down_h" "$total_h")
   local bar=$(_prog_draw_bar "$pct" "${#suffix}")
   printf "\r\033[2K%s\n\r[%s] %s" "$*" "$bar" "$suffix"
 }
@@ -300,6 +305,34 @@ progress_done() {
     printf "\r\033[2K"
   fi
   printf "\033[?25h"  # show cursor
+}
+
+# Count total bytes of non-hash files in a directory (skip hidden dirs)
+_prog_entry_bytes() {
+  if [ "$_STAT_FMT" = "bsd" ]; then
+    find "$1" -name '.*' -prune -o -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}'
+  else
+    find "$1" -name '.*' -prune -o -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}'
+  fi
+}
+
+# Count total non-hash files in a directory (skip all hidden)
+_prog_entry_count() {
+  find "$1" -name '.*' -prune -o -type f ! -name "*.${HASH}" -print 2>/dev/null | wc -l | tr -d ' '
+}
+
+# Count total bytes of hash files in a directory (prune .git)
+_prog_hash_bytes() {
+  if [ "$_STAT_FMT" = "bsd" ]; then
+    find "$1" -name ".git" -prune -o -type f -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}'
+  else
+    find "$1" -name ".git" -prune -o -type f -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}'
+  fi
+}
+
+# Count total hash files in a directory (prune .git)
+_prog_hash_count() {
+  find "$1" -name ".git" -prune -o -type f -name "*.${HASH}" -print 2>/dev/null | wc -l | tr -d ' '
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -943,6 +976,33 @@ manage_hash_visibility() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
+# Count total bytes for progress bar — mirrors process_entry skip logic
+# count_entry_bytes() {
+# 	local entry="$1"
+# 
+# 	if [ -L "$entry" ]; then
+# 		return 0
+# 	elif [ -d "$entry" ]; then
+# 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
+# 			return 0
+# 		fi
+# 		for sub_entry in "$entry"/*; do
+# 			count_entry_bytes "$sub_entry"
+# 		done
+# 	elif [ -f "$entry" ]; then
+# 		if [[ $(basename "$entry") =~ \.${HASH}$ ]]; then
+# 			return 0
+# 		fi
+# 		local entry_bytes
+# 		if [ "$_STAT_FMT" = "bsd" ]; then
+# 			entry_bytes=$(stat -f%z "$entry")
+# 		else
+# 			entry_bytes=$(stat -c%s "$entry")
+# 		fi
+# 		_COUNT_TOTAL_BYTES=$(( _COUNT_TOTAL_BYTES + entry_bytes ))
+# 	fi
+# }
+
 # Function to process entries contents recursively
 process_entry() 
 {
@@ -967,6 +1027,9 @@ process_entry()
 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
 			progress_log "WARN: [$entry] is a readonlyhash directory -- SKIPPING"
 			((WARN_COUNT++))
+			_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_entry_bytes "$entry") ))
+			_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_entry_count "$entry") ))
+			progress_update "$_PROG_CURRENT_BYTES"
 			return 0
 		fi
 
@@ -984,6 +1047,9 @@ process_entry()
 					[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$entry" >> "$EXPORT_FN_NEW"
 				    progress_log "WARN: [$entry] -- NEW DIRECTORY!?"
 				    ((WARN_COUNT++))
+					_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_entry_bytes "$entry") ))
+					_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_entry_count "$entry") ))
+					progress_update "$_PROG_CURRENT_BYTES"
 				    return 0
 				fi
 			fi
@@ -1008,6 +1074,7 @@ process_entry()
 			entry_bytes=$(stat -c%s "$entry")
 		fi
 		_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + entry_bytes ))
+		(( _PROG_CURRENT_FILES++ ))
 		progress_update "$_PROG_CURRENT_BYTES"
 
 		if ! contains "delete"; then
@@ -1615,14 +1682,11 @@ run_directory_process() {
 	_PROG_CURRENT_BYTES=0
 	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
 
-	if [ "$_STAT_FMT" = "bsd" ]; then
-		total_bytes=$(find "$entry" -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
-	else
-		total_bytes=$(find "$entry" -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
-	fi
+	total_bytes=$(_prog_entry_bytes "$entry")
+	total_files=$(_prog_entry_count "$entry")
 
 	trap 'printf "\033[?25h"; exit' INT TERM
-	progress_init "$total_bytes" "# Processing files ... [$entry]"
+	progress_init "$total_bytes" "$total_files" "# Processing files ... [$entry]"
 
 	#process_directory "$@" || return 1
 	process_entry "$ROOT" "$entry" "$visibility_mode" "$force_mode" || return 1
@@ -1633,6 +1697,30 @@ run_directory_process() {
 
 	return 0
 }
+
+# Count total bytes for progress bar — mirrors process_hash_entry skip logic
+# count_hash_entry_bytes() {
+# 	local roh_hash_fpath="$1"
+# 
+# 	if [ -L "$roh_hash_fpath" ]; then
+# 		return 0
+# 	elif [ -d "$roh_hash_fpath" ]; then
+# 		local recursive_dir="$roh_hash_fpath"
+# 		if [ -n "$(find "$recursive_dir" -mindepth 1 -print -quit)" ]; then
+# 			for sub_roh_hash_fpath in "$recursive_dir"/*; do
+# 				count_hash_entry_bytes "$sub_roh_hash_fpath"
+# 			done
+# 		fi
+# 	elif [ -f "$roh_hash_fpath" ]; then
+# 		local entry_bytes
+# 		if [ "$_STAT_FMT" = "bsd" ]; then
+# 			entry_bytes=$(stat -f%z "$roh_hash_fpath")
+# 		else
+# 			entry_bytes=$(stat -c%s "$roh_hash_fpath")
+# 		fi
+# 		_COUNT_TOTAL_BYTES=$(( _COUNT_TOTAL_BYTES + entry_bytes ))
+# 	fi
+# }
 
 process_hash_entry()
 {
@@ -1670,6 +1758,9 @@ process_hash_entry()
 					[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$recursive_dir" >> "$EXPORT_FN_DELETED"
 					progress_log "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
 					((ERROR_COUNT++))
+					_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_hash_bytes "$recursive_dir") ))
+					_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_hash_count "$recursive_dir") ))
+					progress_update "$_PROG_CURRENT_BYTES"
 					return 0
  				fi
  
@@ -1704,6 +1795,7 @@ process_hash_entry()
 			entry_bytes=$(stat -c%s "$roh_hash_fpath")
 		fi
 		_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + entry_bytes ))
+		(( _PROG_CURRENT_FILES++ ))
 		progress_update "$_PROG_CURRENT_BYTES"
 
 		local stored=$(stored_hash "$roh_hash_fpath")
@@ -1806,14 +1898,11 @@ hash_maintanence() {
 	_PROG_CURRENT_BYTES=0
 	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
 
-	if [ "$_STAT_FMT" = "bsd" ]; then
-		total_bytes=$(find "$dir" -name ".git" -prune -o -type f -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
-	else
-		total_bytes=$(find "$dir" -name ".git" -prune -o -type f -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
-	fi
+	total_bytes=$(_prog_hash_bytes "$dir")
+	total_files=$(_prog_hash_count "$dir")
 
 	trap 'printf "\033[?25h"; exit' INT TERM
-	progress_init "$total_bytes" "# Hash maintanence ... [$dir]"
+	progress_init "$total_bytes" "$total_files" "# Hash maintanence ... [$dir]"
 
 	process_hash_entry "$dir"
 
