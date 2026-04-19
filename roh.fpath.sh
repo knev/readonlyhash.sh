@@ -1439,7 +1439,11 @@ fi
 if [ "$roh_dir_mode" = "true" ]; then
 	ROH_DIR="$roh_dir"
 	echo "ROH_DIR: using [$ROH_DIR]"
-else 
+	if [ ! -d "$ROH_DIR" ] || [ ! -x "$ROH_DIR" ]; then
+		echo "ERROR: --roh-dir [$ROH_DIR] does not exist or is not accessible" >&2
+		exit 1
+	fi
+else
 	ROH_DIR="$ROOT/.roh.git"
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
