@@ -6,7 +6,7 @@ shopt -s nullglob
 
 usage() {
 	echo "Usage:" 
-	echo "      $(basename "$0") <COMMAND|[<write|show|hide> --force]|[verify --export]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
+	echo "      $(basename "$0") <COMMAND|[<write|show|hide> --force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
 	echo "      $(basename "$0") <write|verify> -- <PATH/GLOBSPEC>"
 	echo "      $(basename "$0") <query [--db PATH] [ROOT] -- <HASH>"
 	echo
@@ -40,7 +40,6 @@ usage() {
 	echo "      --db           Explicity specify the location of the database file"
 	echo "      --only-files   Only process files, do not run hash maintanence"
 	echo "      --only-hashes  Do not process files, only run hash maintanence"
-	echo "      --export       Export to file all files and hashes with issues (beta)"
     echo "      --version      Display the version and exit"
 	echo "  -h, --help         Display this help and exit"
 	echo
@@ -90,8 +89,8 @@ HASH="sha256"
 ERROR_COUNT=0
 WARN_COUNT=0
 
+EXPORT_MODE="true"
 VERBOSE_MODE="false"
-EXPORT_MODE="false"
 
 # Function to check if a file's extension is in the list to avoid
 check_extension() {
@@ -404,7 +403,7 @@ roh_sqlite3_db_init() {
 
     # Remove existing database file if it exists (no point if using mktemp)
 	if [ -f "$db" ]; then
-		# rm "$db"; echo "db: [$db] -- removed"
+		# rm "$db"; echo "db: [$db] -- deleted"
 		return 0
 	fi
 
@@ -704,6 +703,7 @@ recover_file() {
 
 	progress_log "WARN: [$computed_hash]: [$fpath] -- NEW!?"
 	((WARN_COUNT++))
+	[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
 
 	# find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"
 	return 0
@@ -776,7 +776,7 @@ verify_hash() {
 	else
 		progress_log "WARN: [$computed_hash]: [$fpath] -- NEW!?"
 		((WARN_COUNT++))
-		[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$fpath" >> "$EXPORT_FN_NEW"
+		[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
 	fi
 	return 0
 }
@@ -852,7 +852,7 @@ write_hash() {
 				rm "$roh_hash_fpath"
 				progress_log "  OK: hash mismatch: ..."
 				progress_log "      ... computed [$computed_hash][$fpath]"
-				progress_log "      ...   stored [$stored][$roh_hash_fpath] -- removed (FORCED)!"
+				progress_log "      ...   stored [$stored][$roh_hash_fpath] -- deleted (FORCED)!"
 			fi
 		fi
 	
@@ -869,7 +869,7 @@ write_hash() {
 				rm "$dir_hash_fpath"
 				progress_log "  OK: hash mismatch: ..."
 				progress_log "      ... computed [$computed_hash][$fpath]"
-				progress_log "      ...   stored [$stored][$dir_hash_fpath] -- removed (FORCED)!"
+				progress_log "      ...   stored [$stored][$dir_hash_fpath] -- deleted (FORCED)!"
 			fi
 		fi
 	fi
@@ -905,6 +905,7 @@ write_hash() {
 				return 0  # Signal that an error occurred
 			fi
 		fi
+		[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
 		return 0
 	fi
 
@@ -945,11 +946,13 @@ delete_hash() {
     if [ -f "$dir_hash_fpath" ]; then
 		rm "$dir_hash_fpath"
 		[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$fpath] -- hash file [$dir_hash_fpath] -- deleted"
+		[ "$EXPORT_MODE" = "true" ] && echo "$dir_hash_fpath" >> "$EXPORT_HASH_DELETED"
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
 		rm "$roh_hash_fpath"
 		[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$fpath] -- hash file [$roh_hash_fpath] -- deleted"
+		[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_HASH_DELETED"
     fi
 
 	return 0
@@ -1075,7 +1078,7 @@ process_entry()
 
 		if find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
 			mkdir -p "$ROH_LOGS"
-			echo "$entry" >> "$EXPORT_FN_HIDDEN"
+			[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FILE_HIDDEN"
 		fi
 	
 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
@@ -1098,9 +1101,9 @@ process_entry()
 				has_hashes=$(find "$entry" -type f -name '*.sha256' -print | head -n 1)
 				
 				if [ -n "$has_real_files" ] && [ -z "$has_hashes" ]; then
-					[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$entry" >> "$EXPORT_FN_NEW"
 				    progress_log "WARN: [$entry] -- NEW DIRECTORY!?"
 				    ((WARN_COUNT++))
+					[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FILE_NEW"
 					_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_entry_bytes "$entry") ))
 					_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_entry_count "$entry") ))
 					progress_update "$_PROG_CURRENT_BYTES"
@@ -1293,9 +1296,6 @@ while getopts "h-:" opt; do
 		only-hashes)
 		  only_hashes="true"
 		  ;;
-		export)
-		  EXPORT_MODE="true"
-		  ;;
 		verbose)
 		  VERBOSE_MODE="true"
 		  ;;
@@ -1445,9 +1445,13 @@ fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
 ROH_LOGS="$ROH_DIR/../.roh.logs"
-EXPORT_FN_NEW="$ROH_LOGS/new-files.exported.txt"
-EXPORT_FN_DELETED="$ROH_LOGS/deleted-files.exported.txt"
-EXPORT_FN_HIDDEN="$ROH_LOGS/hidden-files.exported.txt"
+if [ -d "$ROH_LOGS" ]; then
+	rm -rf "$ROH_LOGS"
+fi
+EXPORT_FILE_NEW="$ROH_LOGS/files-new.exported.txt"
+EXPORT_FILE_MISSING="$ROH_LOGS/files-missing.exported.txt"
+EXPORT_FILE_HIDDEN="$ROH_LOGS/files-hidden.exported.txt"
+EXPORT_HASH_DELETED="$ROH_LOGS/hashes-deleted.exported.txt"
 
 if [ -z "$db" ]; then
     DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array
@@ -1466,7 +1470,7 @@ if contains "index"; then
 	fi
 elif contains "verify"; then
 	if  [ -f "$DB_SQL" ]; then
-		echo "WARN: database file [$DB_SQL] exists; has not been removed"
+		echo "WARN: database file [$DB_SQL] exists; has not been deleted"
 		((WARN_COUNT++))
 	fi
 fi
@@ -1596,11 +1600,12 @@ recover_hash() {
 		if [ "$duplicates_found" -ne 0 ]; then
  			if rm "$roh_hash_fpath"; then
  				if [ "$VERBOSE_MODE" = "true" ]; then
- 					#echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- removed"
- 					progress_log "      ■: REMOVED!"
+ 					#echo "      ■: -- orphaned hash [$stored]: [$roh_hash_fpath] -- deleted"
+ 					progress_log "      ■: DELETED!"
  				else
- 					progress_log "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash -- REMOVED!"
+ 					progress_log "RECOVER: [$stored]: [$roh_hash_fpath] orphaned hash -- DELETED!"
  				fi
+				[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_HASH_DELETED"
  			else
  				progress_log "ERROR: Failed to remove hash [$roh_hash_fpath]"
  				((ERROR_COUNT++))
@@ -1614,11 +1619,12 @@ recover_hash() {
 	# no matching hash found, file identical file names
 
 	if [ "$VERBOSE_MODE" = "true" ]; then
-	   	progress_log " ERR: orphaned hash not in IDX [$fpath] -- file DELETED !?"
+	   	progress_log " ERR: orphaned hash not in IDX [$fpath] -- file MISSING !?"
 	else
-		progress_log "ERROR: [$stored] -- orphaned hash not in IDX [$fpath] -- file DELETED !?"
+		progress_log "ERROR: [$stored] -- orphaned hash not in IDX [$fpath] -- file MISSING !?"
 	fi
 	((ERROR_COUNT++))
+	[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_MISSING"
 
 #	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
 #	if [ -n "$list_roh_hash_fpaths" ]; then
@@ -1722,6 +1728,8 @@ run_directory_process() {
 		fi 
 	fi
 
+	mkdir -p "$ROH_LOGS"
+
 	if [ -e "$entry" ]; then
 		: # echo "Processing directory: [$dir]"
 	else
@@ -1787,14 +1795,12 @@ process_hash_entry()
 	# if the fpath is a directory AND empty, remove it on delete|sweep
     elif [ -d "$roh_hash_fpath" ]; then
 
-
 		if contains "verify"; then
 			if find "$roh_hash_fpath" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.git*' -print -quit | grep -q .; then
 				progress_log "ERROR: directory [$roh_hash_fpath] contains hidden entries"
 				((ERROR_COUNT++))
 			fi
 		fi
-	
 		
 		# save to local variable, because $roh_hash_fpath gets trash during recursion
 		local recursive_dir="$roh_hash_fpath"
@@ -1808,9 +1814,9 @@ process_hash_entry()
 				# echo "   * fpath DIRECTORY: [$dir_fpath]"
  
  				if [ ! -d "$dir_fpath" ]; then
-					[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$recursive_dir" >> "$EXPORT_FN_DELETED"
 					progress_log "ERROR: [$recursive_dir] -- orphaned hash DIRECTORY!"
 					((ERROR_COUNT++))
+					[ "$EXPORT_MODE" = "true" ] && echo "$recursive_dir" >> "$EXPORT_HASH_DELETED"
 					_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_hash_bytes "$recursive_dir") ))
 					_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_hash_count "$recursive_dir") ))
 					progress_update "$_PROG_CURRENT_BYTES"
@@ -1831,10 +1837,11 @@ process_hash_entry()
 					((ERROR_COUNT++))
 				else
 					if [ "$recursive_dir" = "$ROH_DIR" ]; then
-						progress_log "ROH_DIR: [$ROH_DIR] -- REMOVED"
+						progress_log "ROH_DIR: [$ROH_DIR] -- DELETED"
 					else
-						[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: orphaned hash directory [$recursive_dir] -- REMOVED"
+						[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: orphaned hash directory [$recursive_dir] -- DELETED"
 					fi
+					[ "$EXPORT_MODE" = "true" ] && echo "$recursive_dir" >> "$EXPORT_HASH_DELETED"
 				fi
 			fi
 		fi
@@ -1858,12 +1865,13 @@ process_hash_entry()
  		# if the file corresponding to the hash doesn't exist (orphaned), remove it on sweep
  		if ! stat "$fpath" >/dev/null 2>&1; then
  			if contains "sweep"; then
- 				if ! rm "$roh_hash_fpath"; then
+ 				if rm "$roh_hash_fpath"; then
+ 					[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored]: [$roh_hash_fpath] orphaned hash -- DELETED"
+					[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_HASH_DELETED"
+					return 0
+				else
  					progress_log "ERROR: Failed to remove hash [$roh_hash_fpath]"
  					((ERROR_COUNT++))
- 				else
- 					[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored]: [$roh_hash_fpath] orphaned hash -- REMOVED"
-					return 0
  				fi
 			fi
 			if contains "verify"; then
@@ -1875,7 +1883,7 @@ process_hash_entry()
  				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$roh_hash_fpath] -- orphaned hash"
  				[ "$VERBOSE_MODE" = "true" ] && progress_log "       ...                                          NO corresponding file: [$fpath]"
  				((ERROR_COUNT++))
-				[ "$EXPORT_MODE" = "true" ] && mkdir -p "$ROH_LOGS" && echo "$fpath" >> "$EXPORT_FN_DELETED"
+				[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_MISSING"
  			fi
 
  			if contains "index"; then
@@ -1894,6 +1902,7 @@ process_hash_entry()
 						progress_log " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
 					fi
 					[ "$VERBOSE_MODE" = "true" ] && progress_log "      ...                                          NO corresponding file: [$fpath]"
+					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_MISSING"
 		        else
 					[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
 		        fi
@@ -1945,6 +1954,8 @@ hash_maintanence() {
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
+
+	mkdir -p "$ROH_LOGS"
 
 	#----
 
@@ -2096,12 +2107,6 @@ elif contains "write" || contains "delete" || contains "show" || contains "hide"
 		run_directory_process "$ROOT" "${ROOT%/}${PATHSPEC:+/$PATHSPEC}" "$visibility_mode" "$force_mode"
 	fi
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
-	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_NEW" ] && mkdir -p "$ROH_LOGS" && echo " >> [$EXPORT_FN_NEW]"
-	if [ -f "$EXPORT_FN_HIDDEN" ]; then
-		echo "WARN: directories with hidden entries were detected and exported"
-		echo " >> [$EXPORT_FN_HIDDEN]"
-		((WARN_COUNT++))
-	fi
 fi
 
 if [ "$only_files" = "true" ]; then
@@ -2109,8 +2114,17 @@ if [ "$only_files" = "true" ]; then
 elif contains "verify" || contains "recover" || contains "sweep" || contains "index"; then
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" # "$visibility_mode" "$force_mode"
 	[ $? -ne 0 ] && echo "Abort." && echo && exit 1
-	[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FN_DELETED" ] && mkdir -p "$ROH_LOGS" && echo " >> [$EXPORT_FN_DELETED]"
 fi
+
+if [ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FILE_HIDDEN" ]; then
+	echo "WARN: directories with hidden entries were detected and exported"
+	((WARN_COUNT++))
+	echo "LOG: >> [$EXPORT_FILE_HIDDEN]"
+fi
+
+[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FILE_NEW" ] && echo "LOG: >> [$EXPORT_FILE_NEW]"
+[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FILE_MISSING" ] && echo "LOG: >> [$EXPORT_FILE_MISSING]"
+[ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_HASH_DELETED" ] && echo "LOG: >> [$EXPORT_HASH_DELETED]"
 
 if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
 	echo "Number of ERRORs encountered: [$ERROR_COUNT]"
@@ -2123,4 +2137,3 @@ if [ $ERROR_COUNT -gt 0 ] || [ $WARN_COUNT -gt 0 ]; then
 fi
 
 echo "Done."
-
