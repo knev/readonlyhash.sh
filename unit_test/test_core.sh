@@ -492,9 +492,9 @@ $FPATH_BIN index "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
 # catalyst
 echo "#RXN#" > "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/rxn.txt"
 # verbose
-run_test "$FPATH_BIN recover --only-files --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "WARN: [2a5364040532fd64388c6d6c78f5812d30d499bfffb15be2a822cd0f6fefa872]: [test/sub-directory with spaces.ro/sub-sub-directory/rxn.txt] -- NEW!?.*[d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [$PWD/test/sub-directory with spaces.ro/sub-sub-directory/11/rxn.txt].*[$PWD/test/sub-directory with spaces.ro/sub-sub-directory/19/rxn.txt] -- indexed, but missing.*[9999999999999999999999999999999999999999999999999999999999999999]: [$PWD/test/sub-directory with spaces.ro/.roh.git/9/rxn.txt.sha256] orphaned hash")"
+run_test "$FPATH_BIN recover --match-filenames --only-files --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "WARN: [2a5364040532fd64388c6d6c78f5812d30d499bfffb15be2a822cd0f6fefa872]: [test/sub-directory with spaces.ro/sub-sub-directory/rxn.txt] -- NEW!?.*[d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [$PWD/test/sub-directory with spaces.ro/sub-sub-directory/11/rxn.txt].*[$PWD/test/sub-directory with spaces.ro/sub-sub-directory/19/rxn.txt] -- indexed, but missing.*[9999999999999999999999999999999999999999999999999999999999999999]: [$PWD/test/sub-directory with spaces.ro/.roh.git/9/rxn.txt.sha256] orphaned hash")"
 # NOT verbose
-run_test "$FPATH_BIN recover --only-files \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "19 more")"
+run_test "$FPATH_BIN recover -mfn --only-files \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "19 more")"
 
 rm -- "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/"[0-9][0-9]"/rxn.txt"
 rmdir -- "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/"[0-9][0-9]
@@ -579,7 +579,7 @@ rm "$TEST/$SUBDIR_WITH_SPACES_RO/pno.txt"
 
 # run_test "$FPATH_BIN recover --only-hashes --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERR: orphaned hash not in IDX [test/sub-directory with spaces.ro/pno.txt] -- file MISSING.*[958b91857252741a9691102780a7eaeefb8aa4922aa9edd9b9357ae30fb30a43]: [$PWD/test/sub-directory with spaces.ro/sub-sub-directory/15/pno.txt]")"
 
-run_test "$FPATH_BIN recover --only-hashes \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERROR: [1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f] -- orphaned hash not in IDX [test/sub-directory with spaces.ro/pno.txt] -- file MISSING.*2 more")"
+run_test "$FPATH_BIN recover -mfn --only-hashes \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERROR: [1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f] -- orphaned hash not in IDX [test/sub-directory with spaces.ro/pno.txt] -- file MISSING.*2 more")"
 rm -- "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/"[0-9][0-9]"/pno.txt"
 rmdir -- "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR/"[0-9][0-9]
 echo "PNO" > "$TEST/$SUBDIR_WITH_SPACES_RO/pno.txt"
@@ -640,11 +640,11 @@ echo "XGY" > "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt" # NEW location
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/xgy'.txt" # orphan the hash
 echo "9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256" # change the hash
 run_test "$FPATH_BIN write index --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "OK: [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [test/sub-dir copy :slash.ro/xgy'.txt] -- file hash written.*IDX: >4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793<: [test/sub-dir copy :slash.ro/.roh.git/xgy'.txt.sha256] -- INDEXED")"
-run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERR: orphaned hash not in IDX [test/sub-directory with spaces.ro/xgy'.txt] -- file MISSING.*FILENAME matches.*[4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [$PWD/test/sub-dir copy :slash.ro/xgy'.txt]")"
+run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERR: orphaned hash not in IDX [test/sub-directory with spaces.ro/xgy'.txt] -- file MISSING.*FILENAME matches.*[4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [$PWD/test/sub-dir copy :slash.ro/xgy'.txt]")"
 
 # indexed but missing
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt" # orphan the hash
-run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-dir copy :slash.ro/sub-sub-directory/xgy'.txt] -- indexed, but missing")"
+run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-dir copy :slash.ro/sub-sub-directory/xgy'.txt] -- indexed, but missing")"
 echo "XGY" >> "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt" # orphan the hash
 
 echo "4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256"

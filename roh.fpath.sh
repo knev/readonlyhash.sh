@@ -6,42 +6,43 @@ shopt -s nullglob
 
 usage() {
 	echo "Usage:" 
-	echo "      $(basename "$0") <COMMAND|[<write|show|hide> --force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
-	echo "      $(basename "$0") <write|verify> -- <PATH/GLOBSPEC>"
-	echo "      $(basename "$0") <query [--db PATH] [ROOT] -- <HASH>"
+	echo "        $(basename "$0") <COMMAND|[<write|show|hide> --force]> [--roh-dir PATH] <ROOT> -- <PATHSPEC/GLOBSPEC>"
+	echo "        $(basename "$0") <write|verify> -- <PATH/GLOBSPEC>"
+	echo "        $(basename "$0") <query [--db PATH] [ROOT] -- <HASH>"
 	echo
 	echo "Commands:"
-	echo "      v|verify         Verify computed hashes against stored hashes; check for orphaned hashes"
-	echo "      verify show      ..."
-	echo "      verify hide      ... (default)"
-	echo "      w|write          Write SHA256 hashes (hidden by default) for existing files"
-	echo "      i|index          Index hash files in a DB (sqlite3 required), including orphaned hashes"
-	echo "      verify index     Verify by processing files and create index by maintaining hashes"
-	echo "      write index      Write hashes by processing files and create index by maintaining hashes"
-	echo "      d|delete         Delete all hashes with a corresponding file"
-	echo "      h|hide           Move hash files from the files location to ROH_DIR"
-	echo "      s|show           Move hash files from ROH_DIR to next to the file's location"
-	echo "      show sweep       Show hashes by processing files, and sweep for empty directories afterwards"
-	echo "      write hide       Write and hide hashes by processing files"
-	echo "      write show       Write and show hashes by processing files"
-	echo "      write show sweep Write, show hashes by processing files, and sweep for empty directories afterwards"
-	echo "      q|query          Query an existing index for the existence of a hash"
-	echo "      index query      Create an index and then query that index"
-	echo "      r|recover        Write/index files with hashes found in the DB; remove orphaned duplicates"
-	echo "      index recover    Create an index, recover by processing files and recover orphaned hashes in maintenance"
-	echo "      e|sweep          Remove all orphaned and mismatched hashes"
-	echo "      write sweep      Write hashes by processing files and sweep by maintaining hashes"
-	echo "      delete sweep     Delete hash by processing files and sweep remain hashes during maintanence"
+	echo "        v|verify         Verify computed hashes against stored hashes; check for orphaned hashes"
+	echo "        verify show      ..."
+	echo "        verify hide      ... (default)"
+	echo "        w|write          Write SHA256 hashes (hidden by default) for existing files"
+	echo "        i|index          Index hash files in a DB (sqlite3 required), including orphaned hashes"
+	echo "        verify index     Verify by processing files and create index by maintaining hashes"
+	echo "        write index      Write hashes by processing files and create index by maintaining hashes"
+	echo "        d|delete         Delete all hashes with a corresponding file"
+	echo "        h|hide           Move hash files from the files location to ROH_DIR"
+	echo "        s|show           Move hash files from ROH_DIR to next to the file's location"
+	echo "        show sweep       Show hashes by processing files, and sweep for empty directories afterwards"
+	echo "        write hide       Write and hide hashes by processing files"
+	echo "        write show       Write and show hashes by processing files"
+	echo "        write show sweep Write, show hashes by processing files, and sweep for empty directories afterwards"
+	echo "        q|query          Query an existing index for the existence of a hash"
+	echo "        index query      Create an index and then query that index"
+	echo "        r|recover        Write/index files with hashes found in the DB; remove orphaned duplicates"
+	echo "        index recover    Create an index, recover by processing files and recover orphaned hashes in maintenance"
+	echo "        e|sweep          Remove all orphaned and mismatched hashes"
+	echo "        write sweep      Write hashes by processing files and sweep by maintaining hashes"
+	echo "        delete sweep     Delete hash by processing files and sweep remain hashes during maintanence"
 	echo
 	echo "Options:"
-	echo "      --verbose      Verbose operational output"
-	echo "      --force        Force operation even if hash files do not match"
-	echo "      --roh-dir      Specify the readonly hash path"
-	echo "      --db           Explicity specify the location of the database file"
-	echo "      --only-files   Only process files, do not run hash maintanence"
-	echo "      --only-hashes  Do not process files, only run hash maintanence"
-    echo "      --version      Display the version and exit"
-	echo "  -h, --help         Display this help and exit"
+	echo "        --verbose        Verbose operational output"
+	echo "        --force          Force operation even if hash files do not match"
+	echo "        --roh-dir        Specify the readonly hash path"
+	echo "        --db             Explicity specify the location of the database file"
+	echo "        --only-files     Only process files, do not run hash maintanence"
+	echo "        --only-hashes    Do not process files, only run hash maintanence"
+	echo "  -mfn, --match-filenames When recovering also search for matching filenames"
+    echo "        --version        Display the version and exit"
+	echo "  -h,   --help           Display this help and exit"
 	echo
 }
 
@@ -560,106 +561,106 @@ roh_sqlite3_db_roh_hash_fpath_exists() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-# find_matching_fn() 
-# {
-#     local db="$1"
-#     local fpath="$2"
-#     local roh_hash_fpath="$3"
-#     local computed_hash="$4"
-# 
-#     local fn=$(basename "$fpath")
-# #    local enc_fn=$(hex_encode "$fn")
-# 
-#     local abs_fpath=$(readlink -f "$fpath")
-# #    local enc_abs_fpath=$(hex_encode "$abs_fpath")
-# 
-# 	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
-# 	if [ -n "$list_roh_hash_fpaths" ]; then
-# 
-# 		# echo "* Found in file(s): [ ..."
-# 		# echo "$list_roh_hash_fpaths"
-# 		# echo "...]"
-# 
-# 		local original_found=0
-# 		local files_displayed=0
-# 		local orphans_displayed=0
-# 		local missing_displayed=0
-# 		local total_found=0
-# 
-# 	    # Only print non-empty paths
-# 	    while IFS= read -r found; do
-# 			if [ -n "$found" ]; then
-# 				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
-# 
-# 				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
-# 				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
-# 				# echo "[$found_hash] [$found_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
-# 				
-#                 if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
-#                 	# we found the original file
-#                 	if (( original_found > 0 )); then
-# 						echo
-# 						echo "ERROR: this should not happen, should only be one original"
-# 						echo "Abort."
-# 						echo
-# 						exit 1
-#                 	fi
-#                 	((original_found++))
-#                 	continue
-#                 fi
-# 
-# 				(( total_found == 0 )) && progress_log "    : FILENAME matches ..."
-# 				((total_found++))
-# 
-# 				# file is missing, indexed as file not found, so fpath == NULL
-# 				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
-# 					if [ "$VERBOSE_MODE" = "true" ] || [ "$orphans_displayed" -lt 2 ]; then
-# 						((orphans_displayed++))
-# 						progress_log "      ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
-# 					fi
-# 					continue # found_enc_abs_fpath == NULL, so found_abs_fpath is INVALID
-# 				fi
-# 
-# 				# file is found, but at a different path
-# 				if [ -f "$found_abs_fpath" ]; then
-# 					# verify IDX
-# 					local found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
-# 					if [ "$found_hash" != "$found_stored" ]; then
-# 						echo
-# 						echo "ERROR: [$found_abs_roh_hash_fpath] -- IDX inconsistency: ..."
-# 						echo "       ... indexed [$found_hash]"
-# 						echo "       ...  stored [$found_stored]"
-# 						echo "Abort."
-# 						echo
-# 						exit 1
-# 					fi
-# 
-# 					if [ "$VERBOSE_MODE" = "true" ] || [ "$files_displayed" -lt 2 ]; then
-# 						((files_displayed++))
-# 						progress_log "      ... [$found_hash]: [$found_abs_fpath]"
-# 					fi
-# 
-# 				# file is missing, but it was indexed as having a valid fpath
-# 				else
-# 					if [ "$VERBOSE_MODE" = "true" ]; then
-# 						((missing_displayed++))
-# 						progress_log "      ... [$found_abs_fpath] -- indexed, but missing"
-# 					fi
-# 				fi
-# 
-# 			fi
-# 	    done <<< "$list_roh_hash_fpaths"
-# 
-# 		local displayed=$((files_displayed + orphans_displayed + missing_displayed))
-# 		if [ ! "$VERBOSE_MODE" = "true" ] && [ "$total_found" -gt 3 ]; then
-# 			progress_log "          ... $((total_found - displayed)) more ..."
-# 		fi
-# 
-# 		[ "$VERBOSE_MODE" = "true" ] && progress_log "   ■: NOOP!"
-# 	fi
-# 
-# 	return 0
-# }
+find_matching_fn() 
+{
+    local db="$1"
+    local fpath="$2"
+    local roh_hash_fpath="$3"
+    local computed_hash="$4"
+
+    local fn=$(basename "$fpath")
+#    local enc_fn=$(hex_encode "$fn")
+
+    local abs_fpath=$(readlink -f "$fpath")
+#    local enc_abs_fpath=$(hex_encode "$abs_fpath")
+
+	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
+	if [ -n "$list_roh_hash_fpaths" ]; then
+
+		# echo "* Found in file(s): [ ..."
+		# echo "$list_roh_hash_fpaths"
+		# echo "...]"
+
+		local original_found=0
+		local files_displayed=0
+		local orphans_displayed=0
+		local missing_displayed=0
+		local total_found=0
+
+	    # Only print non-empty paths
+	    while IFS= read -r found; do
+			if [ -n "$found" ]; then
+				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
+
+				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
+				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
+				# echo "[$found_hash] [$found_abs_fpath] [$found_enc_abs_roh_hash_fpath]==$enc_abs_roh_hash_fpath"
+				
+                if [ "$found_enc_abs_roh_hash_fpath" = "$enc_abs_roh_hash_fpath" ]; then
+                	# we found the original file
+                	if (( original_found > 0 )); then
+						echo
+						echo "ERROR: this should not happen, should only be one original"
+						echo "Abort."
+						echo
+						exit 1
+                	fi
+                	((original_found++))
+                	continue
+                fi
+
+				(( total_found == 0 )) && progress_log "    : FILENAME matches ..."
+				((total_found++))
+
+				# file is missing, indexed as file not found, so fpath == NULL
+				if [ "$found_enc_abs_fpath" = "<NULL>" ]; then
+					if [ "$VERBOSE_MODE" = "true" ] || [ "$orphans_displayed" -lt 2 ]; then
+						((orphans_displayed++))
+						progress_log "      ... [$found_hash]: [$found_abs_roh_hash_fpath] orphaned hash"
+					fi
+					continue # found_enc_abs_fpath == NULL, so found_abs_fpath is INVALID
+				fi
+
+				# file is found, but at a different path
+				if [ -f "$found_abs_fpath" ]; then
+					# verify IDX
+					local found_stored=$(stored_hash "$found_abs_roh_hash_fpath")
+					if [ "$found_hash" != "$found_stored" ]; then
+						echo
+						echo "ERROR: [$found_abs_roh_hash_fpath] -- IDX inconsistency: ..."
+						echo "       ... indexed [$found_hash]"
+						echo "       ...  stored [$found_stored]"
+						echo "Abort."
+						echo
+						exit 1
+					fi
+
+					if [ "$VERBOSE_MODE" = "true" ] || [ "$files_displayed" -lt 2 ]; then
+						((files_displayed++))
+						progress_log "      ... [$found_hash]: [$found_abs_fpath]"
+					fi
+
+				# file is missing, but it was indexed as having a valid fpath
+				else
+					if [ "$VERBOSE_MODE" = "true" ]; then
+						((missing_displayed++))
+						progress_log "      ... [$found_abs_fpath] -- indexed, but missing"
+					fi
+				fi
+
+			fi
+	    done <<< "$list_roh_hash_fpaths"
+
+		local displayed=$((files_displayed + orphans_displayed + missing_displayed))
+		if [ ! "$VERBOSE_MODE" = "true" ] && [ "$total_found" -gt 3 ]; then
+			progress_log "          ... $((total_found - displayed)) more ..."
+		fi
+
+		[ "$VERBOSE_MODE" = "true" ] && progress_log "   ■: NOOP!"
+	fi
+
+	return 0
+}
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -705,7 +706,7 @@ recover_file() {
 	((WARN_COUNT++))
 	[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
 
-	# find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"
+	[ "$match_filenames" = "true" ] &&find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"
 	return 0
 }
 
@@ -1269,9 +1270,28 @@ db=""
 force_mode="false"
 only_files="false"
 only_hashes="false"
-while getopts "h-:" opt; do
+match_filenames="false"
+
+# Translate short alias -mfn to --match-filenames before getopts (getopts
+# does not support multi-character short options).
+_mfn_args=()
+for _mfn_a in "$@"; do
+	case "$_mfn_a" in
+		-mfn) _mfn_args+=("--match-filenames") ;;
+		*)    _mfn_args+=("$_mfn_a") ;;
+	esac
+done
+set -- "${_mfn_args[@]}"
+unset _mfn_args _mfn_a
+
+while getopts "vh-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
+	v)
+	  echo "$(basename "$0") version: $VERSION"
+	  echo
+	  exit 0
+	  ;;
     h)
       usage
       exit 0
@@ -1295,6 +1315,9 @@ while getopts "h-:" opt; do
 		  ;;
 		only-hashes)
 		  only_hashes="true"
+		  ;;
+		match-filenames)
+		  match_filenames="true"
 		  ;;
 		verbose)
 		  VERBOSE_MODE="true"
@@ -1697,7 +1720,7 @@ recover_hash() {
 #	    done <<< "$list_roh_hash_fpaths"
 #	fi
 
-	# find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$stored"
+	[ "$match_filenames" = "true" ] && find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$stored"
 	return 0
 }
 
