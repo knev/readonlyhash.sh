@@ -105,12 +105,8 @@ run_test "$FPATH_BIN write -- test/sub-directory\ with\ spaces/*" "0" "$(escape_
 run_test "ls -al test/sub-directory\ with\ spaces" "0" "$(escape_expected "omn's_.txt.sha256.*pno.txt.sha256")"
 
 run_test "$FPATH_BIN write -- test/sub-directory\ with\ spaces/*" "0" "$(escape_expected "txt.sha256] -- file hash written")" "true"
-
 run_test "$FPATH_BIN delete -- test/sub-directory\ with\ spaces/*" "0" "$(escape_expected "OK: [test/sub-directory with spaces/omn's_.txt] -- hash file [test/sub-directory with spaces/omn's_.txt.sha256] -- deleted")"
-
 run_test "$FPATH_BIN verify -- test/sub-directory\ with\ spaces/*" "0" "ERROR: " "true"
-rm "$TEST/$SUBDIR_WITH_SPACES/pno.txt.$HASH"
-rm "$TEST/$SUBDIR_WITH_SPACES/omn.txt.$HASH"
 
 # write
 echo
@@ -271,7 +267,7 @@ rm "$TEST/.roh.logs/files-hidden.exported.txt"
 run_test "$FPATH_BIN verify index --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 rm "$TEST/.roh.sqlite3"
 
-mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
+# mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" # already moved
 echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.$HASH"
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: hash mismatch:.* stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69][$TEST/file with spaces.txt.sha256].* computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff][$TEST/file with spaces.txt]")"
 echo "349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff" > "$TEST/file with spaces.txt.$HASH"
@@ -324,6 +320,7 @@ mkdir "$TMP"
 mv "$ROH_DIR" "$TMP"
 run_test "$FPATH_BIN verify --roh-dir $TMP/.roh.git $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 mv "$TMP/.roh.git" "$TEST"
+rm -rf "$TMP/.roh.logs"
 rmdir "$TMP"
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
@@ -894,6 +891,7 @@ rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/iop.txt"
 rmdir "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR"
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/pno.txt"
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/xgy'.txt"
+rm -rf "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.logs"
 rm -rf "$TEST/$SUBDIR_COPY_SLASH_RO/.roh.git"
 rmdir "$TEST/$SUBDIR_COPY_SLASH_RO"
 
@@ -904,17 +902,18 @@ rmdir "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBDIR"
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/xgy'.txt"
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/omn's_.txt"
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/pno.txt"
+rm -rf "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.logs"
 rm -rf "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git"
 rmdir "$TEST/$SUBDIR_WITH_SPACES_RO"
 
 find "$TEST" -name '.DS_Store' -type f -delete
-rm -rf "$ROH_DIR/.roh.logs"
 rm -rf "$ROH_DIR/.git"
 rm "$ROH_DIR/.gitignore"
 rmdir "$ROH_DIR"
 
 $FPATH_BIN delete "$TEST" >/dev/null 2>&1
 rm "$TEST/file with spaces.txt"
+rm -rf "$TEST/.roh.git" "$TEST/.roh.logs"
 rmdir "$TEST"
 
 run_test "ls -alR $TEST" "1" "$TEST.?: No such file or directory"

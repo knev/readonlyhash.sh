@@ -89,7 +89,7 @@ HASH="sha256"
 ERROR_COUNT=0
 WARN_COUNT=0
 
-EXPORT_MODE="true"
+EXPORT_MODE="false"
 VERBOSE_MODE="false"
 
 # Function to check if a file's extension is in the list to avoid
@@ -1844,8 +1844,8 @@ process_hash_entry()
 						progress_log "ROH_DIR: [$ROH_DIR] -- DELETED"
 					else
 						[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: orphaned hash directory [$recursive_dir] -- DELETED"
+						[ "$EXPORT_MODE" = "true" ] && echo "$recursive_dir" >> "$EXPORT_HASH_DELETED"
 					fi
-					[ "$EXPORT_MODE" = "true" ] && echo "$recursive_dir" >> "$EXPORT_HASH_DELETED"
 				fi
 			fi
 		fi
@@ -2079,6 +2079,8 @@ if [ "$globspec_mode" = "true" ]; then
 	echo "Done."
 	exit 0
 fi
+
+EXPORT_MODE="true"
 
 if contains "index" && ( contains "recover" || contains "query" ); then
 	cmds_copy=("${commands[@]}")
