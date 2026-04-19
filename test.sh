@@ -162,7 +162,7 @@ run_test() {
 		if ! [[ "$output" =~ $expected_regex ]]; then
 			ok="YES"
 			if status_matches "$exit_status" "$expected_status" && [ "$verbose_mode" != "true" ]; then
-				echo "PASS: [$cmd][$exit_status] ! \"$expected_regex\""
+				echo "PASS: [$cmd][$exit_status] ! \"$expected_regex\", line no. [${BASH_LINENO[0]}]"
 				return 0
 			fi 
 		fi
@@ -192,7 +192,7 @@ run_test() {
 		if [[ "$output" =~ $expected_regex ]]; then
 			ok="YES"
 			if status_matches "$exit_status" "$expected_status" && [ "$verbose_mode" != "true" ]; then
-				echo "PASS: [$cmd][$exit_status] \"$expected_regex\""
+				echo "PASS: [$cmd][$exit_status] \"$expected_regex\", line no. [${BASH_LINENO[0]}]"
 				return 0
 			fi
 		fi
