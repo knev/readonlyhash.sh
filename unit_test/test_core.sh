@@ -816,7 +816,13 @@ chmod 000 "$ROH_DIR"
 run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test/.roh.git] -- missing or inacccessible.*Abort.")"
 chmod 755 "$ROH_DIR"
 
-cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
+# equal hashes on both sides: show should silently move, no --force needed
+cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
+run_test "$FPATH_BIN show --verbose $TEST" "0" "$(escape_expected "OK: [$TEST/file with spaces.txt]: [test/file with spaces.txt.sha256] hash file -- moved(shown)")"
+
+# restore hidden, then write a DIFFERENT hash to the shown side to exercise the mismatch-ERROR path
+cp "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256"
+echo "0000000000000000000000000000000000000000000000000000000000000000" > "$TEST/file with spaces.txt.sha256"
 run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt] -- not moving/(not shown).*destination [test/file with spaces.txt.sha256] -- exists.*for source [test/.roh.git/file with spaces.txt.sha256]")"
 run_test "$FPATH_BIN show sweep --verbose --force $TEST" "0" "$(escape_expected "OK: [$TEST/file with spaces.txt]: [test/file with spaces.txt.sha256] hash file -- moved(shown)")"
 run_test "ls -alR $ROH_DIR" "1" "$ROH_DIR.?: No such file or directory"

@@ -1020,11 +1020,14 @@ manage_hash_visibility() {
 
 	if [ -f "$src_fpath" ]; then
 		if [ -f "$dest_fpath" ] && [ "$force_mode" = "false" ]; then
-			progress_log "ERROR: [$fpath] -- not moving/(not $past_tense) ..."
-			progress_log "       ... destination [$dest_fpath] -- exists"
-			progress_log "        ... for source [$src_fpath]"
-			((ERROR_COUNT++))
-			return 0
+			if [ "$(stored_hash "$src_fpath")" != "$(stored_hash "$dest_fpath")" ]; then
+				progress_log "ERROR: [$fpath] -- not moving/(not $past_tense) ..."
+				progress_log "       ... destination [$dest_fpath] -- exists"
+				progress_log "        ... for source [$src_fpath]"
+				((ERROR_COUNT++))
+				return 0
+			fi
+			# equal hashes: move is effectively a redundant-file cleanup, no --force needed.
 		fi
 
 		if [ "$action" = "hide" ]; then
