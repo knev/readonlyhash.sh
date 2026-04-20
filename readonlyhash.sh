@@ -173,8 +173,15 @@ shift $((OPTIND-1))
 
 # ----
 
-# Enforce stdin redirection
-if [[ -t 0 ]]; then 
+# Enforce stdin redirection. Fail when:
+#   - stdin is a TTY (no redirection at all), or
+#   - stdin is neither a pipe nor a regular file (e.g. `< /dev/null`), or
+#   - stdin is a regular file but it is empty.
+# We cannot reliably detect "open pipe with no data yet" without blocking,
+# so that case still slips through and is the caller's responsibility.
+if [[ -t 0 ]] \
+   || { [[ ! -p /dev/stdin ]] && [[ ! -f /dev/stdin ]]; } \
+   || { [[ -f /dev/stdin ]] && [[ ! -s /dev/stdin ]]; }; then
     echo "ERROR: missing input redirection of '.roh.txt' file"
 	echo "Abort."
 	echo
