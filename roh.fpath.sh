@@ -731,14 +731,22 @@ verify_hash() {
 		local stored_roh=$(stored_hash "$roh_hash_fpath")
 		local stored_dir=$(stored_hash "$dir_hash_fpath")
 
-        progress_log "ERROR: two hash files exist ..."
-		progress_log "         ... hidden [$stored_roh][$roh_hash_fpath]"
-		progress_log "          ... shown [$stored_dir][$dir_hash_fpath]"
-		progress_log "       ... computed [$computed_hash][$fpath]"
-
 		x_roh_hash="false"
-        ((ERROR_COUNT++))
-        return 0  
+
+		if [ "$stored_roh" = "$stored_dir" ] && [ "$stored_roh" = "$computed_hash" ]; then
+			# all three agree: the duplication is redundant, not inconsistent
+			progress_log "WARN: two hash files exist but EQUAL ..."
+			progress_log "         ... hidden [$stored_roh][$roh_hash_fpath]"
+			progress_log "          ... shown [$stored_dir][$dir_hash_fpath]"
+			((WARN_COUNT++))
+		else
+			progress_log "ERROR: two hash files exist ..."
+			progress_log "         ... hidden [$stored_roh][$roh_hash_fpath]"
+			progress_log "          ... shown [$stored_dir][$dir_hash_fpath]"
+			progress_log "       ... computed [$computed_hash][$fpath]"
+			((ERROR_COUNT++))
+		fi
+        return 0
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
