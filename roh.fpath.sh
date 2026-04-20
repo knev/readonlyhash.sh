@@ -41,6 +41,7 @@ usage() {
 	echo "        --only-files     Only process files, do not run hash maintanence"
 	echo "        --only-hashes    Do not process files, only run hash maintanence"
 	echo "  -mfn, --match-filenames When recovering also search for matching filenames"
+	echo "        --dedup          With write index: first-seen hash is accepted; subsequent duplicates are logged as NEW"
     echo "        --version        Display the version and exit"
 	echo "  -h,   --help           Display this help and exit"
 	echo
@@ -792,8 +793,9 @@ write_hash() {
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
+	local computed_hash="0000000000000000000000000000000000000000000000000000000000000000"
 
-	# optimization for if we run "write index" more than once
+	# optimization for if we run "write index" more than once; also the --dedup hash check
 	if contains "index"; then
 		# fpath must exist for roh_sqlite3_db_fpath_exists() to succeed here
 		if [ ! -f "$fpath" ]; then
@@ -817,6 +819,18 @@ write_hash() {
 			echo
 			exit 1
 		fi
+
+		# --dedup: if this content-hash is already indexed (by an earlier file in this walk,
+		# or a prior run), skip the write AND the DB insert; log the source to NEW as a
+		# "duplicate left untracked".
+		if [ "$dedup_mode" = "true" ]; then
+			computed_hash=$(generate_hash "$fpath")
+			if [ -n "$(roh_sqlite3_db_find_hash "$DB_SQL" "$computed_hash")" ]; then
+				progress_log " IDX: [$computed_hash]: [$fpath] -- duplicate, skipped (--dedup)"
+				[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
+				return 0
+			fi
+		fi
 	fi
 
 	# echo "* [$dir]-[$ROOT]= [$sub_dir]; $roh_hash_fpath"
@@ -834,9 +848,11 @@ write_hash() {
 	# exist-R=T (eq-R=T), exist-D=T (eq-D=T)
 	# exist-R=T (eq-R=T), exist-D=F
 
-	local computed_hash="0000000000000000000000000000000000000000000000000000000000000000"
-	if [ "$force_mode" = "true" ] || ( ! [ -f "$dir_hash_fpath" ] && ! [ -f "$roh_hash_fpath" ] ); then
-		computed_hash=$(generate_hash "$fpath")
+	# compute if not already done by the --dedup branch above
+	if [ "$computed_hash" = "0000000000000000000000000000000000000000000000000000000000000000" ]; then
+		if [ "$force_mode" = "true" ] || ( ! [ -f "$dir_hash_fpath" ] && ! [ -f "$roh_hash_fpath" ] ); then
+			computed_hash=$(generate_hash "$fpath")
+		fi
 	fi
 
 	if [ -f "$dir_hash_fpath" ] || [ -f "$roh_hash_fpath" ]; then
@@ -906,7 +922,10 @@ write_hash() {
 				return 0  # Signal that an error occurred
 			fi
 		fi
-		[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
+		# --dedup: insert into DB inline so subsequent same-hash files in this walk are skipped.
+		if [ "$dedup_mode" = "true" ] && contains "index"; then
+			roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$computed_hash"
+		fi
 		return 0
 	fi
 
@@ -1271,6 +1290,7 @@ force_mode="false"
 only_files="false"
 only_hashes="false"
 match_filenames="false"
+dedup_mode="false"
 
 # Translate short alias -mfn to --match-filenames before getopts (getopts
 # does not support multi-character short options).
@@ -1318,6 +1338,9 @@ while getopts "vh-:" opt; do
 		  ;;
 		match-filenames)
 		  match_filenames="true"
+		  ;;
+		dedup)
+		  dedup_mode="true"
 		  ;;
 		verbose)
 		  VERBOSE_MODE="true"
@@ -1453,6 +1476,13 @@ fi
 # Check for force_mode usage
 if [ "$force_mode" = "true" ] && ! contains "write" && ! contains "show" && ! contains "hide"; then
     echo "ERROR: [--force] can only be used with: write|show|hide" >&2
+    usage
+    exit 1
+fi
+
+# Check for dedup_mode usage
+if [ "$dedup_mode" = "true" ] && ! contains "index"; then
+    echo "ERROR: [--dedup] can only be used with: index" >&2
     usage
     exit 1
 fi
@@ -1914,9 +1944,12 @@ process_hash_entry()
  			fi
 
  			if contains "index"; then
-				# IDX consistency
 				local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
-		        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
+
+				# IDX consistency. Skip only when write_hash's inline insert under `write index --dedup`
+				# legitimately populated this row — otherwise uniqueness still applies.
+		        if [ "$roh_hash_fpath_exists" -eq 1 ] && \
+				   ! ( [ "$dedup_mode" = "true" ] && contains "write" ); then
 					progress_log "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
  					((ERROR_COUNT++))
 					return 0
@@ -1924,12 +1957,16 @@ process_hash_entry()
 
 		        local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
 		        if [ "$fpath_exists" -eq 0 ]; then
-					roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-					if [ "$VERBOSE_MODE" = "true" ]; then
-						progress_log " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
+					if [ "$dedup_mode" = "true" ] && [ -n "$(roh_sqlite3_db_find_hash "$DB_SQL" "$stored")" ]; then
+						[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- duplicate, skipped (--dedup)"
+					else
+						roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+						if [ "$VERBOSE_MODE" = "true" ]; then
+							progress_log " IDX: >$stored<: [$roh_hash_fpath] orphaned hash -- INDEXED"
+						fi
+						[ "$VERBOSE_MODE" = "true" ] && progress_log "      ...                                          NO corresponding file: [$fpath]"
+						[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_MISSING"
 					fi
-					[ "$VERBOSE_MODE" = "true" ] && progress_log "      ...                                          NO corresponding file: [$fpath]"
-					[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_MISSING"
 		        else
 					[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: [$stored]: [$roh_hash_fpath] orphaned hash -- already indexed, skipping"
 		        fi
@@ -1940,9 +1977,11 @@ process_hash_entry()
 
 		else
 	 		if contains "index"; then
-				# IDX consistency
+				# IDX consistency. Skip only when write_hash's inline insert under `write index --dedup`
+				# legitimately populated this row — otherwise uniqueness still applies.
 				local roh_hash_fpath_exists=$(roh_sqlite3_db_roh_hash_fpath_exists "$DB_SQL" "$roh_hash_fpath")
-		        if [ "$roh_hash_fpath_exists" -eq 1 ]; then
+		        if [ "$roh_hash_fpath_exists" -eq 1 ] && \
+				   ! ( [ "$dedup_mode" = "true" ] && contains "write" ); then
 					progress_log "ERROR: [$roh_hash_fpath] hash NOT UNIQUE -- IDX inconsistency"
  					((ERROR_COUNT++))
 					return 0
@@ -1950,8 +1989,12 @@ process_hash_entry()
 
 				local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$stored") || return 1
 	 			if [ "$fpath_exists" -eq 0 ]; then
-	 				roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
-	 				[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
+					if [ "$dedup_mode" = "true" ] && [ -n "$(roh_sqlite3_db_find_hash "$DB_SQL" "$stored")" ]; then
+						[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: [$stored]: [$roh_hash_fpath] -- duplicate, skipped (--dedup)"
+					else
+						roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
+						[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: >$stored<: [$roh_hash_fpath] -- INDEXED"
+					fi
 	 			else
 	 				[ "$VERBOSE_MODE" = "true" ] && progress_log " IDX: [$stored]: [$roh_hash_fpath] -- already indexed, skipping"
 	 			fi

@@ -419,6 +419,37 @@ rm -rf "$TEST/.roh.sqlite3"
 echo "IOP" > "$TEST/$SUBDIR_WITH_SPACES/IOP~.txt"
 # one "new" file with an orphaned hash
 
+# write index --dedup (single-invocation)
+echo
+echo "# write index --dedup (single-invocation)"
+
+DEDUP_TMP=$(mktemp -d)
+mkdir -p "$DEDUP_TMP/ro/sub" "$DEDUP_TMP/roh"
+printf 'alpha\n' > "$DEDUP_TMP/ro/a.txt"
+printf 'beta\n'  > "$DEDUP_TMP/ro/sub/b.txt"
+printf 'alpha\n' > "$DEDUP_TMP/ro/sub/c.txt"   # duplicate of a.txt
+
+# single invocation: hash + index with dedup in one walk
+run_test "$FPATH_BIN write index --dedup --roh-dir $DEDUP_TMP/roh --db $DEDUP_TMP/.roh.sqlite3 $DEDUP_TMP/ro" "0" \
+	"$(escape_expected "IDX: [b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060]: [$DEDUP_TMP/ro/sub/c.txt] -- duplicate, skipped (--dedup)")"
+
+# canonicals have .sha256; duplicate does not
+run_test "ls $DEDUP_TMP/roh/a.txt.sha256 $DEDUP_TMP/roh/sub/b.txt.sha256" "0" "a.txt.sha256.*b.txt.sha256"
+run_test "ls $DEDUP_TMP/roh/sub/c.txt.sha256" "1" "c.txt.sha256.?: No such file or directory"
+
+# DB has exactly 2 rows (one per unique hash)
+run_test "sqlite3 $DEDUP_TMP/.roh.sqlite3 \"SELECT COUNT(*) FROM hashes;\"" "0" "2"
+
+# NEW log contains only the duplicate (c.txt)
+run_test "cat $DEDUP_TMP/.roh.logs/files-new.exported.txt" "0" "$(escape_expected "$DEDUP_TMP/ro/sub/c.txt")"
+# and nothing else — canonicals must NOT be logged
+run_test "cat $DEDUP_TMP/.roh.logs/files-new.exported.txt" "0" "$(escape_expected "$DEDUP_TMP/ro/a.txt")" "true"
+
+# validation: --dedup without index is rejected
+run_test "$FPATH_BIN write --dedup $DEDUP_TMP/ro" "1" "$(escape_expected "ERROR: [--dedup] can only be used with: index")"
+
+rm -rf "$DEDUP_TMP"
+
 # recover
 echo
 echo "# recover"
@@ -917,5 +948,3 @@ rm -rf "$TEST/.roh.git" "$TEST/.roh.logs"
 rmdir "$TEST"
 
 run_test "ls -alR $TEST" "1" "$TEST.?: No such file or directory"
-
-echo
