@@ -4,19 +4,23 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [-c|-v]"
+    echo "Usage: $(basename "$0") [-c|-v] [--step-test=<LINENO>]"
     echo "Options:"
-    echo "  -c, --continue   Continue processing tests even in the event of failure."
-	echo "  -v, --verbose    Display all output regardless if pass or fail."
-    echo "  -h, --help       Display this help and exit"
-	echo 
+    echo "  -c, --continue        Continue processing tests even in the event of failure."
+	echo "  -v, --verbose         Display all output regardless if pass or fail."
+    echo "  -h, --help            Display this help and exit"
+    echo "  --step-test=<LINENO>  Pause before each run_test call whose caller line in"
+    echo "                        unit_test/test_core.sh is >= LINENO. Prompts:"
+    echo "                        [Enter]=run, c=continue without stepping, s=skip, q=quit."
+	echo
 	echo "Note: options -c and -v are mutually exclusive."
-	echo 
+	echo
 }
 
 # Parse command line options
 continue_mode="false"
 verbose_mode="false"
+step_test_line=""
 while getopts "cvh-:" opt; do
   case $opt in
     c)
@@ -40,6 +44,19 @@ while getopts "cvh-:" opt; do
         help)
           usage
           exit 0
+          ;;
+        step-test=*)
+          step_test_line="${OPTARG#*=}"
+          if ! [[ "$step_test_line" =~ ^[0-9]+$ ]]; then
+            echo "step-test: expected numeric line number, got [$step_test_line]" >&2
+            usage
+            exit 1
+          fi
+          ;;
+        step-test)
+          echo "step-test: missing value (use --step-test=<LINENO>)" >&2
+          usage
+          exit 1
           ;;
         *)
           echo "Invalid option: --${OPTARG}" >&2
@@ -96,6 +113,29 @@ run_test() {
     local expected_status="$2"
     local expected_regex="$3"
     local not_flag="${4:-false}"  # Default not_flag to false if not provided
+
+    # --step-test: pause before running once the caller's line number in
+    # test_core.sh is >= $step_test_line. Reads keystrokes from /dev/tty so
+    # tests that pipe stdin into the command under test aren't affected.
+    local caller_line=${BASH_LINENO[0]}
+    if [ -n "$step_test_line" ] && [ "$caller_line" -ge "$step_test_line" ]; then
+        printf '\n--- step [test_core.sh:%d] ---\n' "$caller_line" >&2
+        printf '  $ %s\n' "$cmd" >&2
+        local not_suffix=""
+        [ "$not_flag" = "true" ] && not_suffix=" (NOT)"
+        printf '  Expected EXIT status:[%s] regex:[%s]%s\n' \
+            "$expected_status" "$expected_regex" "$not_suffix" >&2
+        printf '[ENTER]=run, [c]ontinue, [s]kip, [q]uit ? ' >&2
+        local key=""
+        read -rsn1 key < /dev/tty
+        printf '\n' >&2
+        case "$key" in
+            q|Q) echo "step-test: quit at [test_core.sh:$caller_line]" >&2; exit 0 ;;
+            c|C) step_test_line="" ;;
+            s|S) echo "step-test: skipped [test_core.sh:$caller_line]" >&2; return 0 ;;
+            *)   ;;
+        esac
+    fi
 
     #	local output=$(eval "$cmd" 2>&1)
 	#	if [ "$not_flag" = "true" ]; then
