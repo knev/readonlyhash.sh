@@ -305,6 +305,43 @@ roh.copy copy --rebase johndoe:johndoe-bkup Fotos.roh.txt // backup
 ```
 
 ---
+## Examples
+
+### Ex: Remove duplicates comparing a directory to a main.
+
+This example will deal with fotos. It is possible to make an index of a main readonly directory using the `index` command. If there are multiple read only directories with fotos, say one readonly directory per year, it is possible to make a single index of hashes across all of the readonly directories using `index --db`. 
+```
+while IFS= read -r line; do roh.fpath i --db fotos.db "$line"; done < fotos.roh.txt
+```
+
+Given a folder of restored fotos, with some fotos already in the main directory and some not, perhaps the idea is to avoid duplicates. The `write` command can be used to write hashes of all files in the restored directory. 
+```
+roh.fpath w _2019-11-11_restored
+```
+
+The `recover` comman is responsible for attempting to recover hashes for files in two phases; the first writes hashes for files already indexed, the second removes hashes that were found in the index. By making ALL hashes of the restored directory orphans, `recover` is then triggered to try and recover them. We do not need the first phase, since all hashes are made orphans.
+```
+roh.fpath r --only-hashes --roh-dir _2019-11-11_restored/.roh.git --db fotos.db _tmp
+```
+The `--only-hashes` switch skips phase 1. By pointing the recover to an empty `_tmp` directory, all files are missing and so all hashes are orphans. The index specified by `--db` is the index of ALL fotos in the main and `--roh-dir` specifies the directory where the orphaned hashes are found. 
+
+Recover will go through the orphaned hashes found in the specified ROH_DIR; look up the hash in the index specified by `--db`; if found, remove the hash; if not state the file is missing. Hashes that were recovered, indicates that the corresponding file was in the index and therefore in the main directory. Those that remaining missing are new to the main.
+
+It is possible to use the LOG output `hashes-deleted.exported.txt` to remove the duplicates. Note: that the entries need to be converted from hashes to files (remove the `.roh.git` directory and the `.sha256` extension). A future update will make this possible via a ROH tool.
+
+To get file names instead of hashes, it is possible to run `verify` again. It will generate a new files log with new files (those for which the hashes were removed).
+```
+roh.fpath w _2019-11-11_restored
+```
+
+Then use a while loop to iterate through the new files LOG.
+```
+while IFS= read -r line; do rm -rf "$line"; done < _2019-11-11_restored/.roh.git/../.roh.new-files.txt
+```
+
+Running verify again should leave with a clean directory with no duplcates.
+
+---
 ## Worst case scenarios
 
 This mini-suite is designed not to clutter the disk space. In the case where the user has decided to manually reverse the changes by ROH. This can be done by:
