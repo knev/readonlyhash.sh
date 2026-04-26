@@ -216,7 +216,12 @@ archive_roh() {
 	fi
 
 	#tar -cvf "$dir/$archive_name" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 # tar.gz
-	tar -cvf "$dir/$ROH_DIR.tar" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 && zip -qm "$dir/$archive_name" "$dir/$ROH_DIR.tar"
+	# Deterministic zip: normalize the inner tar's mtime (zip records it in the
+	# entry header) and use -X to strip Unix uid/gid/atime extra fields. With
+	# stable .roh.git/ contents, two archive runs produce byte-identical output.
+	tar -cvf "$dir/$ROH_DIR.tar" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 \
+		&& touch -t 197001010000.00 "$dir/$ROH_DIR.tar" \
+		&& zip -qXm "$dir/$archive_name" "$dir/$ROH_DIR.tar"
     if [ $? -eq 0 ]; then
         echo "Archived [$ROH_DIR] to [$dir/$archive_name]"
     else
