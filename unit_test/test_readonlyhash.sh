@@ -1,8 +1,10 @@
 #! /bin/echo Please-source
 
-# Path to the hash script
-ROH_BIN="./readonlyhash.sh"
-chmod +x $ROH_BIN
+# Path to the hash script. --debug routes readonlyhash.sh to the local
+# ./roh.fpath.sh and ./roh.git.sh so tests always exercise the working tree
+# without depending on a PATH-installed copy.
+ROH_BIN="./readonlyhash.sh --debug"
+chmod +x ./readonlyhash.sh
 FPATH_BIN="./roh.fpath.sh"
 chmod +x $FPATH_BIN
 GIT_BIN="./roh.git.sh"
