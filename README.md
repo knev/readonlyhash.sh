@@ -181,7 +181,9 @@ The above command would for each orphaned check if it exists in the index of the
 
 #### Command: `e|sweep`
 
-When the user has controlled that removed files (files for which there are orphans) are indeed ok, or files for which the hash has changed are ok, then it is possible to `sweep` the hashes to a clean state.
+`sweep` removes **orphaned** hashes — hash files whose corresponding file no longer exists — and prunes any hash subdirectories left empty as a result. Use it once you've confirmed those removed files are indeed ok.
+
+`sweep` does **not** touch mismatched hashes (hash files whose stored value disagrees with the current file's content). To act on a mismatch, first detect it with `verify`, then either fix the file or use `write --force` to overwrite the stored hash.
 #### PATHSPEC
 
 Instead of having to restart an entire `verify`, `write` or other operation, it is possible to pass a `PATHSPEC` to `roh.fpath` as the last argument after a `--`. The `ROOT` that is specified will be used along with its `ROH_DIR`, but only the `PATHSPEC` will be operated on.

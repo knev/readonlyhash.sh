@@ -51,7 +51,6 @@ usage() {
 #TODO: when reading a hash, read out only the hash length of bytes and ignore any characters trailing the hash
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 #TODO: if some of the hashes are partially hidden, doing a "write show" does or does not correct them?
-#TODO: what does sweep do on mismatched hashes? update the README
 
 # bug:
 # kiim@Fractal:~/Fractal$ roh.fpath r --db ../fotos.db --roh-dir _Fotos/.roh.git _tmp
