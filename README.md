@@ -270,6 +270,13 @@ Archives the `ROH_DIR` to `_.roh.git.zip`
 #### Switch: `-x`
 Extracts the `_.roh.git.zip` to `ROH_DIR`
 
+#### Switches: `--v1`, `--v2`
+
+Selects the archive/extract routine used by `-zC` and `-xC`:
+
+- `--v2` (default): deterministic tar + content-hash + `.zip~` drift tracking (current format)
+- `--v1`: legacy `tar + zip -m` / `unzip -j + tar -xf` routine from `da76c41`'s parent
+
 ---
 ### `roh.copy`
 

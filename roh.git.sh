@@ -11,7 +11,9 @@ usage() {
 	echo "  -z             Archive the roh.git storage"
 	echo "  -x             Extract the roh.git storage"
 	echo "  -C             Specify the working directory"
-    echo "      --force    Force operation"	
+    echo "      --force    Force operation"
+	echo "      --v1       Use the legacy tar+zip routine (pre-content-hash format)"
+	echo "      --v2       Use the deterministic tar+content-hash routine (default)"
     echo "      --version  Display the version and exit"
     echo "  -h, --help     Display this help and exit"
 	echo
@@ -37,6 +39,7 @@ contains() {
 
 CWD=""
 force_mode="false"
+archive_version="v2"
 
 # Parse command line options
 while getopts ":izxC:h-:" opt; do
@@ -52,21 +55,27 @@ while getopts ":izxC:h-:" opt; do
 	  ;;
     C)
 	  CWD="$OPTARG"
-      ;;	
+      ;;
     h)
       usage
       exit 0
-      ;;	  
+      ;;
     -)
       case "${OPTARG}" in
 		force)
           force_mode="true"
           ;;
+		v1)
+		  archive_version="v1"
+		  ;;
+		v2)
+		  archive_version="v2"
+		  ;;
 	    version)
 	      echo "$(basename "$0") version: $VERSION"
 		  echo
 	      exit 0
-	      ;;		
+	      ;;
         help)
           usage
           exit 0
@@ -165,12 +174,119 @@ init_roh() {
 # 	echo "$dir_ro" >> "$LOOP_TXT_RO"
 }
 
+archive_roh_v1() {
+    local dir="$1"
+    local force_mode="$2"
+
+    local archive_name="_$ROH_DIR.zip"
+
+	if [ -f "$dir/$archive_name" ]; then
+		if [ "$force_mode" = "true" ]; then
+			rm "$dir/$archive_name"
+			echo "Clobber [$dir/$archive_name] (FORCED)!"
+		else
+			echo "ERROR: archive [$archive_name] exists in [$dir]."
+			echo "Abort."
+			echo
+			exit 1
+		fi
+	fi
+
+    if [ ! -d "$dir/$ROH_DIR" ]; then
+        echo "ERROR: directory [$ROH_DIR] does NOT exist in [$dir]"
+		echo "Abort."
+		echo
+        exit 1
+    fi
+
+	if [ ! -d "$dir/$ROH_DIR/.git" ]; then
+		echo "ERROR: local repo [$dir/$ROH_DIR/.git] does not exist"
+		echo "Abort."
+		echo
+		exit 1
+	fi
+
+	if [ -n "$(find "$dir" -mindepth 1 -path "*/.roh.git/*" -prune -o -name "*.sha256" -print -quit)" ]; then
+		echo "ERROR: hashes not exclusively hidden in [$dir/$ROH_DIR]"
+		echo "Abort."
+		echo
+		return 1
+	fi
+
+	git_status=$(git -C "$dir/$ROH_DIR" status)
+	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+        echo "ERROR: local repo [$dir/$ROH_DIR] not clean"
+		echo "Abort."
+		echo
+		exit 1
+	fi
+
+	tar -cvf "$dir/$ROH_DIR.tar" -C "$dir" "$ROH_DIR" >/dev/null 2>&1 && zip -qm "$dir/$archive_name" "$dir/$ROH_DIR.tar"
+    if [ $? -eq 0 ]; then
+        echo "Archived [$ROH_DIR] to [$dir/$archive_name]"
+    else
+        echo "ERROR: failed to archive [$dir/$ROH_DIR] to [$dir/$archive_name]"
+		echo "Abort."
+		echo
+        exit 1
+    fi
+
+	if [ -f "$dir/$archive_name" ]; then
+		rm -rf "$dir/$ROH_DIR"
+		echo "Removed [$dir/$ROH_DIR]"
+	fi
+
+	return 0
+}
+
+extract_roh_v1() {
+    local dir="$1"
+    local force_mode="$2"
+
+    local archive_name="_$ROH_DIR.zip"
+
+	if [ -d "$dir/$ROH_DIR" ]; then
+		if [ "$force_mode" = "true" ]; then
+			rm -rf "$dir/$ROH_DIR"
+			echo "Clobber [$dir/$ROH_DIR] (FORCED)!"
+		else
+			echo "ERROR: directory [$ROH_DIR] exists in [$dir]"
+			echo "Abort."
+			echo
+			exit 1
+		fi
+	fi
+
+	if [ -f "$dir/$archive_name" ]; then
+		unzip -jq "$dir/$archive_name" -d "$dir" && tar -xf "$dir/$ROH_DIR.tar" -C "$dir" && rm -f "$dir/$ROH_DIR.tar" "$dir/$archive_name"
+		if [ $? -eq 0 ]; then
+		    echo "Extracted [$dir/$ROH_DIR] from [$archive_name]"
+		else
+		    echo "ERROR: failed to extract [$dir/$ROH_DIR] from [$dir/$archive_name]"
+			echo "Abort."
+		    echo
+		    exit 1
+		fi
+
+		if [ -d "$dir/$ROH_DIR" ]; then
+			rm -rf "$dir/$archive_name"
+			echo "Removed [$dir/$archive_name]"
+		fi
+
+	else
+        echo "ERROR: archive [$archive_name] does NOT exist in [$dir]"
+		echo "Abort."
+		echo
+        exit 1
+    fi
+}
+
 archive_roh() {
     local dir="$1"
     local force_mode="$2"
 
     local archive_name="_$ROH_DIR.zip"
-    
+
 	# If force_mode is true, move the existing archive aside as the .zip~
 	# backup so the prev_hash drift check below picks it up — the same as
 	# the post-extract path. mv -f overwrites any older .zip~.
@@ -367,10 +483,18 @@ if contains "init"; then
 	init_roh "$CWD"
 
 elif contains "archive"; then
-	archive_roh "$CWD" "$force_mode"
+	if [ "$archive_version" = "v1" ]; then
+		archive_roh_v1 "$CWD" "$force_mode"
+	else
+		archive_roh "$CWD" "$force_mode"
+	fi
 
 elif contains "extract"; then
-	extract_roh "$CWD" "$force_mode"
+	if [ "$archive_version" = "v1" ]; then
+		extract_roh_v1 "$CWD" "$force_mode"
+	else
+		extract_roh "$CWD" "$force_mode"
+	fi
 
 else
 	# External drive fatal error, because ownership ids are from another system

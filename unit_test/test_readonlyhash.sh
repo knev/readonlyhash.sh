@@ -265,5 +265,3 @@ rm "$fpath"
 run_test "ls -alR 2002.ro" "1" "$(escape_expected "ls:.*2002.ro.*No such file or directory")"
 # run_test "ls -alR Fotos\ \[space\]" "1" "$(escape_expected "ls: Fotos [space]: No such file or directory")"
 # run_test "ls -alR $TARGET" "1" "$(escape_expected "ls: $TARGET: No such file or directory")"
-
-echo 
