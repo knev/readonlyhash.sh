@@ -48,31 +48,36 @@ usage() {
 }
 
 #BUGS
+#TODO: when reading a hash, read out only the hash length of bytes and ignore any characters trailing the hash
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 #TODO: if some of the hashes are partially hidden, doing a "write show" does or does not correct them?
 #TODO: what does sweep do on mismatched hashes? update the README
 
+# bug: roh.fpath ws -- filepath is the same as roh.fpath w -- filepath
+# bug:
+# kiim@Fractal:~/Fractal$ roh.fpath r --db ../fotos.db --roh-dir _Fotos/.roh.git _tmp
+# ROH_DIR: using [_Fotos/.roh.git]
+# Using DB_SQL [../fotos.db]
+# # Processing files ... [_tmp]
+# # Hash maintanence ... [_Fotos/.roh.git]
+# ROH_DIR: [_Fotos/.roh.git] -- DELETED
+# Done.
+# bug: output .roh-dir creation e.g., on hide.
+
 # readonlyhash
 #TODO: reinstate ability to verify without extracting?
 #TODO: readonlyhash commit
-#TODO: do we need the --rebase switch? isn't alway required?
-#TODO: option to keep archives after extract
 
 # roh.copy
 #TODO: on rebase, use the rebase string to rename output .roh.txt file; create a roh.copy command that accepts a rebase string; accepts export output too
 
 #TODO: .roh if git is not applied and .roh.git if git has been applied!?
 #TODO: ? roh.git is -z ZIP ... readonlyhash is a (archive); two different commans for the same thing
-#TODO: when reading a hash, read out only the hash length of bytes and ignore any characters trailing the hash
 #TODO: implement verify show|hide
-#TODO: update --export (beta tag)
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
 #TODO: prune all index hashes that point to files that no longer exist
-#TODO: archive, then try a retarget
-#TODO: update readme
 #TODO: ? write parts in C++ or rust to improve performance
-#TODO: should probably add a delete on the ROH level to delete the hashes and .git
 #TODO: when using --roh-dir, perhaps the output paths should show that the roh-dir is different than the file location.
 #TODO: rm -rf .roh.git.rslsc
 
