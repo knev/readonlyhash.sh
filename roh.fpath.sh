@@ -48,7 +48,6 @@ usage() {
 }
 
 #BUGS
-#TODO: when reading a hash, read out only the hash length of bytes and ignore any characters trailing the hash
 #TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
 #TODO: if some of the hashes are partially hidden, doing a "write show" does or does not correct them?
 
@@ -132,7 +131,7 @@ generate_hash() {
 
 stored_hash() {
     local hash_file="$1"
-    cat "$hash_file" 2>/dev/null || echo "0000000000000000000000000000000000000000000000000000000000000000"
+    head -c 64 "$hash_file" 2>/dev/null || echo "0000000000000000000000000000000000000000000000000000000000000000"
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
