@@ -108,6 +108,63 @@ run_test "$FPATH_BIN write -- test/sub-directory\ with\ spaces/*" "0" "$(escape_
 run_test "$FPATH_BIN delete -- test/sub-directory\ with\ spaces/*" "0" "$(escape_expected "OK: [test/sub-directory with spaces/omn's_.txt] -- hash file [test/sub-directory with spaces/omn's_.txt.sha256] -- deleted")"
 run_test "$FPATH_BIN verify -- test/sub-directory\ with\ spaces/*" "0" "ERROR: " "true"
 
+# roh.git
+echo
+echo "# roh.git"
+
+run_test "$GIT_BIN" "1" "$(escape_expected "ERROR: not enough arguments.")" 
+#run_test "$GIT_BIN status" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
+run_test "$GIT_BIN --force -iC \"\"" "1" "$(escape_expected "ERROR: invalid working directory []")" 
+#run_test "$GIT_BIN --force -x" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
+run_test "$GIT_BIN -xC" "1" "$(escape_expected "ERROR: option [-C] requires an argument.")" 
+run_test "$GIT_BIN -xC FAKE_FPATH" "1" "$(escape_expected "ERROR: invalid working directory [FAKE_FPATH].")" 
+run_test "$GIT_BIN -zxC ." "1" "$(escape_expected "ERROR: archive and extract operations are mutually exclusive.")" 
+run_test "$GIT_BIN -C FAKE_FPATH" "1" "$(escape_expected "ERROR: not enough arguments.")" 
+run_test "$GIT_BIN -C ." "1" "$(escape_expected "ERROR: not enough arguments.")" 
+run_test "$GIT_BIN -C FAKE_FPATH status" "1" "$(escape_expected "ERROR: invalid working directory [FAKE_FPATH].")" 
+
+run_test "$FPATH_BIN write --verbose $TEST" 0 "$(escape_expected "ERROR:")" true
+
+$GIT_BIN -C "$TEST" init >/dev/null 2>&1
+$GIT_BIN -C "$TEST" add "*" >/dev/null 2>&1
+$GIT_BIN -C "$TEST" commit -m "Initial hashes" >/dev/null 2>&1
+run_test "$GIT_BIN -C $TEST status" "0" "nothing to commit, working tree clean"
+
+run_test "$GIT_BIN -zC $TEST" "0" "$(escape_expected "Archived [.roh.git] to [test/_.roh.git.zip].*Removed [test/.roh.git]")"
+
+run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] exists in [test].*Abort.")"
+mv "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
+run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] does NOT exist in [test]")"
+
+mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
+run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "Extracted [test/.roh.git] from [_.roh.git.zip].*Backed: up [test/_.roh.git.zip] as [test/.roh.git.zip~]")"
+run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] exists in [test].*Abort.")"
+mv "$ROH_DIR" "roh.git-tmp-copy" # move .roh.git to avoid the error above and hit the error below
+run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] does NOT exist in [test]")"
+mv "roh.git-tmp-copy" "$ROH_DIR"
+
+cp -R "$ROH_DIR" "roh.git-tmp-copy"
+$GIT_BIN -zC "$TEST" >/dev/null 2>&1
+mv "roh.git-tmp-copy" "$ROH_DIR" # putting the copy where the extracted copy should go
+run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Clobber [test/_.roh.git.zip] (FORCED)!")"
+
+cp "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
+$GIT_BIN -xC "$TEST" >/dev/null 2>&1
+mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
+run_test "$GIT_BIN --force -xC $TEST" "0" "$(escape_expected "Clobber [test/.roh.git] (FORCED)!.*Backed: up [test/_.roh.git.zip] as [test/.roh.git.zip~]")"
+
+# if show/hide dies while processing; recover
+mv "$ROH_DIR/file with spaces.txt.$HASH" "$TEST/file with spaces.txt.$HASH" 
+find "$TEST" -name "*.$HASH" -type f -delete 
+$GIT_BIN -C "$TEST" checkout . >/dev/null 2>&1
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
+
+# tear down the git internals + preserved-zip artifact left over from this section,
+# so subsequent sections that expect .roh.git/ to be sweep-empty can clean up fully.
+rm -rf "$ROH_DIR/.git"
+rm -f "$ROH_DIR/.gitignore"
+rm -f "$TEST/.roh.git.zip~"
+
 # write
 echo
 echo "# write"
@@ -844,55 +901,6 @@ echo "# worst case"
 
 mv "$ROH_DIR/file with spaces.txt.$HASH" "$TEST/file with spaces.txt.$HASH" 
 $FPATH_BIN hide "$TEST" >/dev/null 2>&1
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
-
-# roh.git
-echo
-echo "# roh.git"
-
-run_test "$GIT_BIN" "1" "$(escape_expected "ERROR: not enough arguments.")" 
-#run_test "$GIT_BIN status" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
-run_test "$GIT_BIN --force -iC \"\"" "1" "$(escape_expected "ERROR: invalid working directory []")" 
-#run_test "$GIT_BIN --force -x" "1" "$(escape_expected "ERROR: invalid working directory [].")" 
-run_test "$GIT_BIN -xC" "1" "$(escape_expected "ERROR: option [-C] requires an argument.")" 
-run_test "$GIT_BIN -xC FAKE_FPATH" "1" "$(escape_expected "ERROR: invalid working directory [FAKE_FPATH].")" 
-run_test "$GIT_BIN -zxC ." "1" "$(escape_expected "ERROR: archive and extract operations are mutually exclusive.")" 
-run_test "$GIT_BIN -C FAKE_FPATH" "1" "$(escape_expected "ERROR: not enough arguments.")" 
-run_test "$GIT_BIN -C ." "1" "$(escape_expected "ERROR: not enough arguments.")" 
-run_test "$GIT_BIN -C FAKE_FPATH status" "1" "$(escape_expected "ERROR: invalid working directory [FAKE_FPATH].")" 
-
-$GIT_BIN -C "$TEST" init >/dev/null 2>&1
-$GIT_BIN -C "$TEST" add "*" >/dev/null 2>&1
-$GIT_BIN -C "$TEST" commit -m "Initial hashes" >/dev/null 2>&1
-run_test "$GIT_BIN -C $TEST status" "0" "nothing to commit, working tree clean"
-
-run_test "$GIT_BIN -zC $TEST" "0" "$(escape_expected "Archived [.roh.git] to [test/_.roh.git.zip].*Removed [test/.roh.git]")"
-
-run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] exists in [test].*Abort.")"
-mv "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
-run_test "$GIT_BIN -zC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] does NOT exist in [test]")"
-
-mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
-run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "Extracted [test/.roh.git] from [_.roh.git.zip].*Removed [test/_.roh.git.zip]")"
-run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: directory [.roh.git] exists in [test].*Abort.")"
-mv "$ROH_DIR" "roh.git-tmp-copy" # move .roh.git to avoid the error above and hit the error below
-run_test "$GIT_BIN -xC $TEST" "1" "$(escape_expected "ERROR: archive [_.roh.git.zip] does NOT exist in [test]")"
-mv "roh.git-tmp-copy" "$ROH_DIR"
-
-cp -R "$ROH_DIR" "roh.git-tmp-copy"
-$GIT_BIN -zC "$TEST" >/dev/null 2>&1
-mv "roh.git-tmp-copy" "$ROH_DIR" # putting the copy where the extracted copy should go
-run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Clobber [test/_.roh.git.zip] (FORCED)!")"
-
-cp "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
-$GIT_BIN -xC "$TEST" >/dev/null 2>&1
-mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
-run_test "$GIT_BIN --force -xC $TEST" "0" "$(escape_expected "Clobber [test/.roh.git] (FORCED)!.*Removed [test/_.roh.git.zip]")"
-
-# if show/hide dies while processing; recover
-mv "$ROH_DIR/file with spaces.txt.$HASH" "$TEST/file with spaces.txt.$HASH" 
-find "$TEST" -name "*.$HASH" -type f -delete 
-$GIT_BIN -C "$TEST" checkout . >/dev/null 2>&1
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
 # process_directory()
