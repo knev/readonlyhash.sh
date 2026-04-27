@@ -206,6 +206,8 @@ run_test() {
 	output=${output%$'\n'} # Remove the last newline
 
 	local ok="no"
+	local status_ok="no"
+	status_matches "$exit_status" "$expected_status" && status_ok="YES"
 	if [ "$not_flag" = "true" ]; then
 	    # Check if expected is NOT in output
 		if ! [[ "$output" =~ $expected_regex ]]; then
@@ -218,11 +220,11 @@ run_test() {
 
 		echo
 		if [ "$verbose_mode" = "true" ]; then
-			echo "# TEST: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
+			echo "# PASS: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		else
-			echo "# FAIL: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
+			echo "# FAIL: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		fi
-		echo "# Expected EXIT status: [$expected_status]"
+		echo "# Expected EXIT status [$status_ok]: [$expected_status]"
 		echo "# Expected to NOT contain [$ok]: \"$expected_regex\""
 		echo "#----"
 		echo "$output" | sed 's/^/  /'
@@ -248,11 +250,11 @@ run_test() {
 
 		echo
 		if [ "$verbose_mode" = "true" ]; then
-			echo "# TEST: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
+			echo "# PASS: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		else
-			echo "# FAIL: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
+			echo "# FAIL: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		fi
-		echo "# Expected EXIT status: [$expected_status]"
+		echo "# Expected EXIT status [$status_ok]: [$expected_status]"
 		echo "# Expected to contain [$ok]: \"$expected_regex\""
 		echo "#----"
 		echo "$output" | sed 's/^/  /'

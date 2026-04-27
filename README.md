@@ -80,8 +80,8 @@ On fail (or always, in `-v` mode):
 
 ```
 # FAIL: [<exit>][<cmd>], line no. [<N>]
-# Expected EXIT status: [<expected>]
-# Expected to contain [no]: "<regex>"
+# Expected EXIT status [YES|no]: [<expected>]
+# Expected to contain [YES|no]: "<regex>"
 #----
   <captured combined stdout+stderr>
 #----
