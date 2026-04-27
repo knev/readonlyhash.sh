@@ -1,10 +1,26 @@
 #!/bin/bash
 
-#FPATH_BIN="./roh.fpath.sh"
 FPATH_BIN="roh.fpath"
-#GIT_BIN="./roh.git.sh"
 GIT_BIN="roh.git"
 HASH="sha256"
+
+# --debug: run against the local source copies (./roh.fpath.sh, ./roh.git.sh)
+# instead of the PATH-installed versions. Used by the unit tests so they
+# always exercise the working tree without needing to install first.
+debug_mode="false"
+new_args=()
+for a in "$@"; do
+    case "$a" in
+        --debug) debug_mode="true" ;;
+        *)       new_args+=("$a") ;;
+    esac
+done
+set -- "${new_args[@]}"
+
+if [ "$debug_mode" = "true" ]; then
+    FPATH_BIN="./roh.fpath.sh"
+    GIT_BIN="./roh.git.sh"
+fi
 
 usage() {
     echo "Usage:" 
@@ -18,6 +34,7 @@ usage() {
 	echo 
     echo "Options:"
 	echo "      --resume-at <STRING>    Resume on directory with STRING as suffix"
+	echo "      --debug                 Use local ./roh.fpath.sh and ./roh.git.sh instead of installed bins"
     echo "      --version               Display the version and exit"
     echo "  -h, --help                  Display this help and exit"
 	echo 

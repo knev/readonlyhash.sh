@@ -6,12 +6,11 @@ usage() {
 	echo
     echo "Usage: $(basename "$0") [-c|-v] [--step-test=<LINENO>]"
     echo "Options:"
-    echo "  -c, --continue        Continue processing tests even in the event of failure."
-	echo "  -v, --verbose         Display all output regardless if pass or fail."
-    echo "  -h, --help            Display this help and exit"
-    echo "  --step-test=<LINENO>  Pause before each run_test call whose caller line in"
-    echo "                        unit_test/test_core.sh is >= LINENO. Prompts:"
-    echo "                        [Enter]=run, c=continue without stepping, s=skip, q=quit."
+    echo "    -c, --continue          Continue processing tests even in the event of failure."
+	echo "    -v, --verbose           Display all output regardless if pass or fail."
+    echo "    -h, --help              Display this help and exit"
+    echo "    --step-test=<LINENO>    Pause before each run_test call whose caller line in unit_test/test_core.sh is >= LINENO." 
+	echo "                            Prompts: [Enter]=run, c=continue without stepping, l=continue to line N, s=skip, q=quit."
 	echo
 	echo "Note: options -c and -v are mutually exclusive."
 	echo
@@ -125,13 +124,23 @@ run_test() {
         [ "$not_flag" = "true" ] && not_suffix=" (NOT)"
         printf '  Expected EXIT status:[%s] regex:[%s]%s\n' \
             "$expected_status" "$expected_regex" "$not_suffix" >&2
-        printf '[ENTER]=run, [c]ontinue, [s]kip, [q]uit ? ' >&2
+        printf '[ENTER]=run, [c]ontinue/to [l]ine, [s]kip, [q]uit ? ' >&2
         local key=""
         read -rsn1 key < /dev/tty
         printf '\n' >&2
         case "$key" in
             q|Q) echo "step-test: quit at [test_core.sh:$caller_line]" >&2; exit 0 ;;
             c|C) step_test_line="" ;;
+            l|L)
+                local target=""
+                printf 'continue to line: ' >&2
+                read -r target < /dev/tty
+                if [[ "$target" =~ ^[0-9]+$ ]]; then
+                    step_test_line="$target"
+                else
+                    echo "step-test: expected numeric line number, got [$target] — staying at [$caller_line]" >&2
+                fi
+                ;;
             s|S) echo "step-test: skipped [test_core.sh:$caller_line]" >&2; return 0 ;;
             *)   ;;
         esac
@@ -197,6 +206,8 @@ run_test() {
 	output=${output%$'\n'} # Remove the last newline
 
 	local ok="no"
+	local status_ok="no"
+	status_matches "$exit_status" "$expected_status" && status_ok="YES"
 	if [ "$not_flag" = "true" ]; then
 	    # Check if expected is NOT in output
 		if ! [[ "$output" =~ $expected_regex ]]; then
@@ -208,12 +219,12 @@ run_test() {
 		fi
 
 		echo
-		if [ "$verbose_mode" = "true" ]; then
-			echo "# TEST: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
+		if [ "$ok" = "YES" ] && [ "$status_ok" = "YES" ]; then
+			echo "# PASS: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		else
-			echo "# FAIL: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
+			echo "# FAIL: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		fi
-		echo "# Expected EXIT status: [$expected_status]"
+		echo "# Expected EXIT status [$status_ok]: [$expected_status]"
 		echo "# Expected to NOT contain [$ok]: \"$expected_regex\""
 		echo "#----"
 		echo "$output" | sed 's/^/  /'
@@ -238,12 +249,12 @@ run_test() {
 		fi
 
 		echo
-		if [ "$verbose_mode" = "true" ]; then
-			echo "# TEST: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
+		if [ "$ok" = "YES" ] && [ "$status_ok" = "YES" ]; then
+			echo "# PASS: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		else
-			echo "# FAIL: [$exit_status][$cmd], line no. [${BASH_LINENO[0]}]"
+			echo "# FAIL: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		fi
-		echo "# Expected EXIT status: [$expected_status]"
+		echo "# Expected EXIT status [$status_ok]: [$expected_status]"
 		echo "# Expected to contain [$ok]: \"$expected_regex\""
 		echo "#----"
 		echo "$output" | sed 's/^/  /'
