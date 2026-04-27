@@ -1460,10 +1460,14 @@ if [ ${#commands[@]} -eq 3 ]; then
 		exit 1	
 	fi
 elif [ ${#commands[@]} -eq 2 ]; then
-	if [ "$globspec_mode" = "true" ] && ! contains "query"; then 
+	# In globspec mode, hashes are always written next to files, so `ws` is
+	# just a redundant restating of `w` and should be accepted as equivalent.
+	if [ "$globspec_mode" = "true" ] \
+	   && ! contains "query" \
+	   && ! ( contains "write" && contains "show" ); then
 		echo "ERROR: invalid globspec command combination [${commands[@]}]" >&2
 		usage
-		exit 1	
+		exit 1
 	fi
 
 	if contains "verify" && ( contains "show" || contains "hide" ); then
