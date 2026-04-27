@@ -4,11 +4,11 @@
 
 usage() {
     echo "Usage:"
-	echo "      $(basename "$0") [--force] <[-i|-z|-x] -[i|z|x]C PATHSPEC> [ARGUMENTS]"
+	echo "      $(basename "$0") [--force] <[-i|-[a|z]|-x] -[i|[a|z]|x]C PATHSPEC> [ARGUMENTS]"
 	echo
     echo "Options:"
 	echo "  -i             Initialize the roh.git storage"
-	echo "  -z             Archive the roh.git storage"
+	echo "  -[a|z]         Archive the roh.git storage"
 	echo "  -x             Extract the roh.git storage"
 	echo "  -C             Specify the working directory"
     echo "      --force    Force operation"
@@ -42,12 +42,12 @@ force_mode="false"
 archive_version="v2"
 
 # Parse command line options
-while getopts ":izxC:h-:" opt; do
+while getopts ":iazxC:h-:" opt; do
   case $opt in
 	i)
 	  commands+=("init")
 	  ;;
-	z)
+	a|z)
 	  commands+=("archive")
 	  ;;
 	x)
