@@ -53,7 +53,6 @@ usage() {
 #TODO: if some of the hashes are partially hidden, doing a "write show" does or does not correct them?
 #TODO: what does sweep do on mismatched hashes? update the README
 
-# bug: roh.fpath ws -- filepath is the same as roh.fpath w -- filepath
 # bug:
 # kiim@Fractal:~/Fractal$ roh.fpath r --db ../fotos.db --roh-dir _Fotos/.roh.git _tmp
 # ROH_DIR: using [_Fotos/.roh.git]
@@ -62,7 +61,6 @@ usage() {
 # # Hash maintanence ... [_Fotos/.roh.git]
 # ROH_DIR: [_Fotos/.roh.git] -- DELETED
 # Done.
-# bug: output .roh-dir creation e.g., on hide.
 
 # readonlyhash
 #TODO: reinstate ability to verify without extracting?
@@ -927,6 +925,7 @@ write_hash() {
 			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$computed_hash]: [$fpath] -- file hash written"
 		else
 			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+			[ ! -d "$ROH_DIR" ] && echo "ROH_DIR: creating [$ROH_DIR]"
 			if mkdir -p "$roh_hash_just_path" 2>/dev/null && { echo "$computed_hash" > "$roh_hash_fpath"; } 2>/dev/null; then
 				[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$computed_hash]: [$fpath] -- file hash written"
 			else
@@ -1037,6 +1036,7 @@ manage_hash_visibility() {
 
 		if [ "$action" = "hide" ]; then
 			local roh_hash_just_path="$ROH_DIR${sub_dir:+/}$sub_dir"
+			[ ! -d "$ROH_DIR" ] && echo "ROH_DIR: creating [$ROH_DIR]"
 			if ! mkdir -p "$roh_hash_just_path" 2>/dev/null; then
 				progress_log "ERROR: [$fpath] -- failed to make (hash) directory [$roh_hash_just_path]"
 				((ERROR_COUNT++))
@@ -1792,6 +1792,7 @@ run_directory_process() {
 
 	if contains "hide" || ( contains "write" && [ "$visibility_mode" != "show" ] ); then
 		if [ ! -d "$ROH_DIR" ]; then
+			echo "ROH_DIR: creating [$ROH_DIR]"
 			mkdir "$ROH_DIR"
 		fi
  	elif contains "verify" || contains "recover" || ( contains "show" && ! contains "write" ); then
