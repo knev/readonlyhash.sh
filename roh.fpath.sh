@@ -1772,6 +1772,15 @@ run_directory_process() {
 	local visibility_mode="$3"
     local force_mode="$4"
 
+	# Bail before any side-effects (mkdir of ROH_DIR/ROH_LOGS) if the target
+	# entry doesn't exist; otherwise globspec/path errors leave stray
+	# .roh.git/ and .roh.logs/ directories behind in $ROOT.
+	if ! [ -e "$entry" ]; then
+		echo "ERROR: can't find [$entry] for processing"
+		((ERROR_COUNT++))
+		return 0
+	fi
+
 	if contains "hide" || ( contains "write" && [ "$visibility_mode" != "show" ] ); then
 		if [ ! -d "$ROH_DIR" ]; then
 			mkdir "$ROH_DIR"
