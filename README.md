@@ -102,11 +102,13 @@ first failure.
 --- step [test_core.sh:<N>] ---
   $ <cmd>
   Expected EXIT status:[<exp>] regex:[<regex>]
-[ENTER]=run, [c]ontinue, [s]kip, [q]uit ?
+[ENTER]=run, [c]ontinue/to [l]ine, [s]kip, [q]uit ?
 ```
 
 - `Enter` — run this test, then pause at the next one.
 - `c` — run this and all remaining tests without pausing.
+- `l` — prompt for a line number `N`, then run this test and resume pausing
+  once the caller line is `>= N` (one-shot version of `c`).
 - `s` — skip this test (counts as a pass-through, not a failure).
 - `q` — quit immediately.
 

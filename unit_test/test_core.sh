@@ -11,7 +11,7 @@ echo "# --help / -h"
 
 run_test "./test.sh -h" "0" "Usage: test\.sh"
 run_test "./test.sh --help" "0" "Usage: test\.sh"
-run_test "./test.sh -h" "0" "$(escape_expected "[Enter]=run, c=continue without stepping, s=skip, q=quit")"
+run_test "./test.sh -h" "0" "$(escape_expected "[Enter]=run, c=continue without stepping, l=continue to line N, s=skip, q=quit")"
 
 echo
 echo "# invalid options"
