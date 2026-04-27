@@ -109,7 +109,7 @@ run_test "$ROH_BIN archive < $fpath" "0" "$(escape_expected "SKIP: directory [$P
 mkdir 2002
 cp "$PWD/2002.ro/_.roh.git.zip" "2002/."
 mv "2002.ro" "2002.ro.ORIG"
-run_test "$GIT_BIN -xC 2002" "0" "$(escape_expected "Extracted [2002/.roh.git] from [_.roh.git.zip].*Removed [2002/_.roh.git.zip]")"
+run_test "$GIT_BIN -xC 2002" "0" "$(escape_expected "Extracted [2002/.roh.git] from [_.roh.git.zip].*Backed: up [2002/_.roh.git.zip] as [2002/.roh.git.zip~]")"
 rm -rf 2002
 mv "2002.ro.ORIG" "2002.ro"
 
@@ -123,7 +123,7 @@ echo "# extract"
 # run_test "$ROH_BIN verify $fpath_ro" "0" "ERROR" "true"
 # run_test "$ROH_BIN verify $fpath_ro" "0" "$(escape_expected "On branch master.*nothing to commit, working tree clean.*Removed [/var/folders/.*/tmp.*].*On branch master.*nothing to commit, working tree clean.*Removed [/var/folders/.*/tmp.*]")"
 
-run_test "$ROH_BIN extract < $fpath" "0" "$(escape_expected "Extracted [$PWD/Fotos [space]/2003/.roh.git] from [_.roh.git.zip].*Removed [$PWD/Fotos [space]/2003/_.roh.git.zip]")"
+run_test "$ROH_BIN extract < $fpath" "0" "$(escape_expected "Extracted [$PWD/Fotos [space]/2003/.roh.git] from [_.roh.git.zip].*Backed: up [$PWD/Fotos [space]/2003/_.roh.git.zip] as [$PWD/Fotos [space]/2003/.roh.git.zip~]")"
 
 
 # verify

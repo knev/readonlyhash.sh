@@ -146,12 +146,45 @@ mv "roh.git-tmp-copy" "$ROH_DIR"
 cp -R "$ROH_DIR" "roh.git-tmp-copy"
 $GIT_BIN -zC "$TEST" >/dev/null 2>&1
 mv "roh.git-tmp-copy" "$ROH_DIR" # putting the copy where the extracted copy should go
-run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Clobber [test/_.roh.git.zip] (FORCED)!")"
+run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Clobber [test/_.roh.git.zip] (FORCED)!.*WARN: [test/.roh.git] content unchanged from clobbered archive")"
 
 cp "$TEST/_.roh.git.zip" "$TEST/_.roh.git.zip~"
 $GIT_BIN -xC "$TEST" >/dev/null 2>&1
 mv "$TEST/_.roh.git.zip~" "$TEST/_.roh.git.zip"
 run_test "$GIT_BIN --force -xC $TEST" "0" "$(escape_expected "Clobber [test/.roh.git] (FORCED)!.*Backed: up [test/_.roh.git.zip] as [test/.roh.git.zip~]")"
+
+# drift detection: archive with no content change vs. archive after a content change.
+# At this point .roh.git/ was just extracted and .roh.git.zip~ holds the prior archive.
+run_test "$GIT_BIN -zC $TEST" "0" "WARN: \[test/\.roh\.git\] content changed since last archive" "true"
+
+# Round-trip back so .roh.git/ and .roh.git.zip~ are both present for the next test.
+$GIT_BIN -xC "$TEST" >/dev/null 2>&1
+
+# Tweak a tracked file and commit so the working tree is clean; archive should warn.
+echo "DRIFT" > "$ROH_DIR/drift-test.$HASH"
+$GIT_BIN -C "$TEST" add "drift-test.$HASH" >/dev/null 2>&1
+$GIT_BIN -C "$TEST" commit -m "drift test tweak" >/dev/null 2>&1
+run_test "$GIT_BIN -zC $TEST" "0" "$(escape_expected "WARN: [test/.roh.git] content changed since last archive")"
+
+# Restore: extract latest, drop the tweak commit so downstream tests see a clean tree.
+$GIT_BIN -xC "$TEST" >/dev/null 2>&1
+$GIT_BIN -C "$TEST" reset --hard HEAD~1 >/dev/null 2>&1
+
+# Forced clobber with content drift: seed _.roh.git.zip with the prior
+# (post-tweak) archive while .roh.git/ now holds pre-tweak content. The
+# clobber renames the zip to .zip~ and the drift check fires.
+cp "$TEST/.roh.git.zip~" "$TEST/_.roh.git.zip"
+run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Clobber [test/_.roh.git.zip] (FORCED)!.*WARN: [test/.roh.git] content changed since last archive")"
+
+# Restore .roh.git/ for downstream tests.
+$GIT_BIN -xC "$TEST" >/dev/null 2>&1
+
+# Extract with a pre-existing .zip~ should warn that the prior backup is
+# being overwritten. (Normal cycles delete .zip~ on archive, so this is
+# the recovery / manual-restore case.)
+cp "$TEST/.roh.git.zip~" "$TEST/_.roh.git.zip"
+rm -rf "$ROH_DIR"
+run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "WARN: [test/.roh.git.zip~] exists -- overwriting.*Backed: up [test/_.roh.git.zip] as [test/.roh.git.zip~]")"
 
 # if show/hide dies while processing; recover
 mv "$ROH_DIR/file with spaces.txt.$HASH" "$TEST/file with spaces.txt.$HASH" 
@@ -959,6 +992,7 @@ rmdir "$ROH_DIR"
 $FPATH_BIN delete "$TEST" >/dev/null 2>&1
 rm "$TEST/file with spaces.txt"
 rm -rf "$TEST/.roh.git" "$TEST/.roh.logs"
+rm -f "$TEST/.roh.git.zip~"
 rmdir "$TEST"
 
 run_test "ls -alR $TEST" "1" "$TEST.?: No such file or directory"
