@@ -219,7 +219,7 @@ run_test() {
 		fi
 
 		echo
-		if [ "$verbose_mode" = "true" ]; then
+		if [ "$ok" = "YES" ] && [ "$status_ok" = "YES" ]; then
 			echo "# PASS: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		else
 			echo "# FAIL: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
@@ -249,7 +249,7 @@ run_test() {
 		fi
 
 		echo
-		if [ "$verbose_mode" = "true" ]; then
+		if [ "$ok" = "YES" ] && [ "$status_ok" = "YES" ]; then
 			echo "# PASS: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
 		else
 			echo "# FAIL: [$cmd][$exit_status], line no. [${BASH_LINENO[0]}]"
