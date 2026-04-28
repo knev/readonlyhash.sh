@@ -4,15 +4,16 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [-c|-v] [--step-test=[ID,]LINENO]"
+    echo "Usage: $(basename "$0") [-c|-v] [-u ID[,ID...]] [--step [ID,]LINENO] [-l]"
     echo "Options:"
     echo "    -c, --continue              Continue processing tests even in the event of failure."
 	echo "    -v, --verbose               Display all output regardless if pass or fail."
     echo "    -h, --help                  Display this help and exit"
-    echo "    --step-test=[ID,]LINENO     Pause before each run_test call in test unit ID once its caller line is >= LINENO."
-	echo "                                ID is required when more than one test unit is present in unit_test/."
+    echo "    -u, --units ID[,ID...]      Run only the listed test units (by number or name; comma-separated)."
+    echo "    --step [ID,]LINENO          Pause before each run_test call in test unit ID once its caller line is >= LINENO."
+	echo "                                ID is required when more than one test unit is present after filtering."
 	echo "                                Prompts: [Enter]=run, c=continue without stepping, l=continue to [unit,]line, s=skip, q=quit."
-	echo "    --list-units                List discovered test units (id / name and file) and exit."
+	echo "    -l, --list-units            List discovered test units (id / name and file) and exit."
 	echo
 	echo "Note: options -c and -v are mutually exclusive."
 	echo
@@ -22,73 +23,103 @@ usage() {
 continue_mode="false"
 verbose_mode="false"
 list_units_mode="false"
-step_test_line=""
-step_test_unit=""
-while getopts "cvh-:" opt; do
-  case $opt in
-    c)
-      continue_mode="true"
-      ;;
-    v)
-      verbose_mode="true"
-      ;;
-    h)
-      usage
-      exit 0
-      ;;
-    -)
-      case "${OPTARG}" in
-        continue)
-          continue_mode="true"
-          ;;
-        verbose)
-          verbose_mode="true"
-          ;;
-        help)
-          usage
-          exit 0
-          ;;
-        step-test=*)
-          raw="${OPTARG#*=}"
-          if [[ "$raw" == *,* ]]; then
-            step_test_unit="${raw%%,*}"
-            step_test_line="${raw#*,}"
-            if [ -z "$step_test_unit" ] || [ -z "$step_test_line" ]; then
-              echo "step-test: expected ID,LINE, got [$raw]" >&2
-              usage
-              exit 1
-            fi
-          else
-            step_test_unit=""
-            step_test_line="$raw"
-          fi
-          if ! [[ "$step_test_line" =~ ^[0-9]+$ ]]; then
-            echo "step-test: expected numeric line number, got [$step_test_line]" >&2
+units_filter=""
+step_line=""
+step_unit=""
+
+parse_step_value() {
+    # Parse the value of --step=... into the globals step_unit/step_line.
+    # Echoes errors and returns non-zero on bad input.
+    local raw="$1"
+    if [[ "$raw" == *,* ]]; then
+        step_unit="${raw%%,*}"
+        step_line="${raw#*,}"
+        if [ -z "$step_unit" ] || [ -z "$step_line" ]; then
+            echo "step: expected ID,LINE, got [$raw]" >&2
+            return 1
+        fi
+    else
+        step_unit=""
+        step_line="$raw"
+    fi
+    if ! [[ "$step_line" =~ ^[0-9]+$ ]]; then
+        echo "step: expected numeric line number, got [$step_line]" >&2
+        return 1
+    fi
+    return 0
+}
+
+need_value() {
+    # Helper for options that take a separate-argument value. Echoes the value,
+    # or prints an error and returns non-zero when the next positional is
+    # missing.
+    local opt="$1" hint="$2" remaining="$3" next="$4"
+    if [ "$remaining" -lt 2 ]; then
+        echo "${opt#--}: missing value (use $hint)" >&2
+        return 1
+    fi
+    printf '%s\n' "$next"
+    return 0
+}
+
+while [ $# -gt 0 ]; do
+    arg="$1"
+    case "$arg" in
+        -c|--continue)
+            continue_mode="true"
+            shift
+            ;;
+        -v|--verbose)
+            verbose_mode="true"
+            shift
+            ;;
+        -h|--help)
             usage
-            exit 1
-          fi
-          ;;
-        step-test)
-          echo "step-test: missing value (use --step-test=[ID,]LINENO)" >&2
-          usage
-          exit 1
-          ;;
-        list-units)
-          list_units_mode="true"
-          ;;
+            exit 0
+            ;;
+        -l|--list-units)
+            list_units_mode="true"
+            shift
+            ;;
+        -u|--units)
+            if ! val=$(need_value "--units" "--units ID[,ID...]" "$#" "${2-}"); then
+                usage; exit 1
+            fi
+            units_filter="$val"
+            if [ -z "$units_filter" ]; then
+                echo "units: missing value (use --units ID[,ID...])" >&2
+                usage; exit 1
+            fi
+            shift 2
+            ;;
+        --step)
+            if ! val=$(need_value "--step" "--step [ID,]LINENO" "$#" "${2-}"); then
+                usage; exit 1
+            fi
+            if ! parse_step_value "$val"; then
+                usage; exit 1
+            fi
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        --*)
+            echo "Invalid option: $arg" >&2
+            usage; exit 1
+            ;;
+        -[a-zA-Z]*)
+            # Any short-form starting with -X that didn't match an explicit
+            # case above is an unknown short flag (or unsupported cluster).
+            echo "${0##*/}: illegal option -- ${arg#-}" >&2
+            usage; exit 1
+            ;;
         *)
-          echo "Invalid option: --${OPTARG}" >&2
-          usage
-          exit 1
-          ;;
-      esac
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      usage
-      exit 1
-      ;;
-  esac
+            echo "Unexpected argument: $arg" >&2
+            usage; exit 1
+            ;;
+    esac
 done
 
 #	# Check for mutually exclusive flags
@@ -132,14 +163,14 @@ run_test() {
     local expected_regex="$3"
     local not_flag="${4:-false}"  # Default not_flag to false if not provided
 
-    # --step-test: pause before running once the caller's line number in the
-    # currently-sourced test unit is >= $step_test_line and the unit matches
-    # $step_test_unit (when set). Reads keystrokes from /dev/tty so tests that
+    # --step: pause before running once the caller's line number in the
+    # currently-sourced test unit is >= $step_line and the unit matches
+    # $step_unit (when set). Reads keystrokes from /dev/tty so tests that
     # pipe stdin into the command under test aren't affected.
     local caller_line=${BASH_LINENO[0]}
-    if [ -n "$step_test_line" ] \
-       && { [ -z "$step_test_unit" ] || [ "$step_test_unit" = "$CURRENT_UNIT_ID" ]; } \
-       && [ "$caller_line" -ge "$step_test_line" ]; then
+    if [ -n "$step_line" ] \
+       && { [ -z "$step_unit" ] || [ "$step_unit" = "$CURRENT_UNIT_ID" ]; } \
+       && [ "$caller_line" -ge "$step_line" ]; then
         local caller_file="${BASH_SOURCE[1]##*/}"
         printf '\n--- step [%s:%s:%d] ---\n' "$CURRENT_UNIT_ID" "$caller_file" "$caller_line" >&2
         printf '  $ %s\n' "$cmd" >&2
@@ -154,8 +185,8 @@ run_test() {
             read -rsn1 key < /dev/tty
             printf '\n' >&2
             case "$key" in
-                q|Q) echo "step-test: quit at [$CURRENT_UNIT_ID:$caller_file:$caller_line]" >&2; exit 0 ;;
-                c|C) step_test_line=""; step_test_unit=""; done_prompt="true" ;;
+                q|Q) echo "step: quit at [$CURRENT_UNIT_ID:$caller_file:$caller_line]" >&2; exit 0 ;;
+                c|C) step_line=""; step_unit=""; done_prompt="true" ;;
                 l|L)
                     print_unit_list
                     target=""
@@ -173,27 +204,27 @@ run_test() {
                         tresolved=""
                         tidx=""
                         if [ -z "$tunit" ] || ! [[ "$tline" =~ ^[0-9]+$ ]]; then
-                            echo "step-test: expected [unit,]line, got [$target] — staying at [$caller_line]" >&2
+                            echo "step: expected [unit,]line, got [$target] — staying at [$caller_line]" >&2
                         elif ! tresolved=$(unit_resolve "$tunit"); then
-                            echo "step-test: unknown test unit [$tunit] — staying at [$caller_line]" >&2
+                            echo "step: unknown test unit [$tunit] — staying at [$caller_line]" >&2
                         else
                             tidx=$(unit_index "$tresolved")
                             if [ "$tidx" -lt "${CURRENT_UNIT_INDEX:-0}" ]; then
-                                echo "step-test: test unit [$tresolved] has already completed — staying at [$caller_line]" >&2
+                                echo "step: test unit [$tresolved] has already completed — staying at [$caller_line]" >&2
                             else
-                                step_test_unit="$tresolved"
-                                step_test_line="$tline"
+                                step_unit="$tresolved"
+                                step_line="$tline"
                             fi
                         fi
                     elif [[ "$target" =~ ^[0-9]+$ ]]; then
-                        step_test_unit="$CURRENT_UNIT_ID"
-                        step_test_line="$target"
+                        step_unit="$CURRENT_UNIT_ID"
+                        step_line="$target"
                     else
-                        echo "step-test: expected [unit,]line, got [$target] — staying at [$caller_line]" >&2
+                        echo "step: expected [unit,]line, got [$target] — staying at [$caller_line]" >&2
                     fi
                     done_prompt="true"
                     ;;
-                s|S) echo "step-test: skipped [$CURRENT_UNIT_ID:$caller_file:$caller_line]" >&2; return 0 ;;
+                s|S) echo "step: skipped [$CURRENT_UNIT_ID:$caller_file:$caller_line]" >&2; return 0 ;;
                 *) done_prompt="true" ;;
             esac
         done
@@ -415,7 +446,7 @@ print_unit_list() {
         if [ "${UNIT_IDS[$i]}" = "${UNIT_NAMES[$i]}" ]; then
             label="[${UNIT_IDS[$i]}]"
         else
-            label="[${UNIT_IDS[$i]}]/[${UNIT_NAMES[$i]}]"
+            label="[${UNIT_IDS[$i]}]-[${UNIT_NAMES[$i]}]"
         fi
         if [ -n "$status" ]; then
             printf '  unit:%-18s unit_test/%-24s %s\n' "$label" "[${UNIT_FILES[$i]##*/}]" "$status" >&2
@@ -495,25 +526,62 @@ else
     done
 fi
 
+# Apply --units filter (comma-separated list of IDs/names). Preserves
+# discovery order so behaviour is independent of how the user listed them.
+if [ -n "$units_filter" ]; then
+    selected_ids=""
+    IFS=',' read -ra _req <<< "$units_filter"
+    for req in "${_req[@]}"; do
+        if [ -z "$req" ]; then
+            echo "units: empty entry in [$units_filter]" >&2
+            usage
+            exit 1
+        fi
+        if resolved=$(unit_resolve "$req"); then
+            case " $selected_ids " in
+                *" $resolved "*) ;;  # already selected — silently de-dup
+                *) selected_ids="$selected_ids $resolved" ;;
+            esac
+        else
+            echo "units: unknown test unit [$req]" >&2
+            usage
+            exit 1
+        fi
+    done
+
+    new_ids=(); new_names=(); new_files=()
+    for i in "${!UNIT_IDS[@]}"; do
+        case " $selected_ids " in *" ${UNIT_IDS[$i]} "*)
+            new_ids+=("${UNIT_IDS[$i]}")
+            new_names+=("${UNIT_NAMES[$i]}")
+            new_files+=("${UNIT_FILES[$i]}")
+            ;;
+        esac
+    done
+    UNIT_IDS=("${new_ids[@]}")
+    UNIT_NAMES=("${new_names[@]}")
+    UNIT_FILES=("${new_files[@]}")
+fi
+
 if [ "$list_units_mode" = "true" ]; then
     print_unit_list
     exit 0
 fi
 
-# Validate --step-test now that we know which units exist.
-if [ -n "$step_test_line" ]; then
-    if [ -z "$step_test_unit" ]; then
+# Validate --step now that we know which units will run.
+if [ -n "$step_line" ]; then
+    if [ -z "$step_unit" ]; then
         if [ "${#UNIT_IDS[@]}" -ne 1 ]; then
-            echo "step-test: expected ID,LINE (multiple test units present)" >&2
+            echo "step: expected ID,LINE (multiple test units present)" >&2
             usage
             exit 1
         fi
-        step_test_unit="${UNIT_IDS[0]}"
+        step_unit="${UNIT_IDS[0]}"
     else
-        if resolved=$(unit_resolve "$step_test_unit"); then
-            step_test_unit="$resolved"
+        if resolved=$(unit_resolve "$step_unit"); then
+            step_unit="$resolved"
         else
-            echo "step-test: unknown test unit [$step_test_unit]" >&2
+            echo "step: unknown test unit [$step_unit]" >&2
             usage
             exit 1
         fi

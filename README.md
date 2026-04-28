@@ -10,7 +10,10 @@ files, which `test.sh` discovers and sources automatically.
 ./test.sh                          # run all tests, stop at the first failure
 ./test.sh -v                       # verbose: show every test's output, pass or fail
 ./test.sh -c                       # continue past failures instead of stopping
-./test.sh --step-test=core,42      # interactive step-through, from test_core.sh line 42 onward
+./test.sh -l                       # list discovered test units and exit (--list-units)
+./test.sh -u core                  # run only the 'core' unit (--units core)
+./test.sh -u 99,core --step 42     # run units 99 then core; step from line 42
+./test.sh --step core,42           # interactive step-through, from test_core.sh line 42 onward
 ./test.sh -h                       # help
 ```
 
@@ -42,13 +45,25 @@ extra **name alias**) taken from the part of its basename after `test_`:
 If the part after `test_` starts with digits followed by `-` (or just digits),
 the file is **numbered** and the leading number becomes its primary identifier;
 the rest after the dash becomes a name alias. Either form may be used wherever
-an `ID` is expected (e.g. `--step-test=99,...` and `--step-test=discovery,...`
-both target `test_99-discovery.sh`). Unnumbered files have a single identifier
+an `ID` is expected (e.g. `--step 99,...` and `--step discovery,...` both
+target `test_99-discovery.sh`). Unnumbered files have a single identifier
 equal to the full stripped basename.
 
 Run order is: numbered units first, in numeric order; then unnumbered units in
 alphabetical order. Duplicate identifiers (across either column) are an error
-at startup. Use `./test.sh --list-units` to print the full table.
+at startup. Use `./test.sh -l` (or `--list-units`) to print the full table.
+
+### Selecting which units to run
+
+`-u, --units ID[,ID...]` filters the suite to the listed units (resolved by
+number or name; duplicates de-duped silently). Order in the run is always the
+discovery order, regardless of how you list them on the command line:
+
+```
+./test.sh -u core             # only test_core.sh
+./test.sh -u 99,core          # both, in discovery order
+./test.sh -u discovery -l     # confirm the filter took effect
+```
 
 ## Writing a test
 
@@ -111,22 +126,24 @@ On fail (or always, in `-v` mode):
 ```
 
 `line no.` is the line in the test unit's source file where `run_test` was
-called, which is what `--step-test` keys off of.
+called, which is what `--step` keys off of.
 
 Without `-c`, the harness prints `To be continued ...` and exits `1` on the
 first failure.
 
 ## Step mode
 
-`--step-test=[ID,]LINENO` pauses before every `run_test` whose caller line is
+`--step [ID,]LINENO` pauses before every `run_test` whose caller line is
 `>= LINENO` *and* (when `ID` is given) whose unit identifier matches `ID`. The
-`ID,` prefix is required when more than one test unit exists in `unit_test/`;
-when there is only one unit, a bare `LINENO` is accepted for backwards
-compatibility. Examples:
+`ID,` prefix is required when more than one test unit will run after any
+`--units` filter; when only one unit will run (either because the suite has
+one unit or `--units` narrowed it to one), a bare `LINENO` is accepted.
+Examples:
 
 ```
-./test.sh --step-test=core,12      # pause inside test_core.sh from line 12 onward
-./test.sh --step-test=99,1         # pause inside test_99-discovery.sh from the first run_test
+./test.sh --step core,12           # pause inside test_core.sh from line 12 onward
+./test.sh --step 99,1              # pause inside test_99-discovery.sh from the first run_test
+./test.sh -u core --step 12        # bare line OK once -u narrows to one unit
 ```
 
 At each pause:
