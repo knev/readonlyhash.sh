@@ -53,6 +53,14 @@ Run order is: numbered units first, in numeric order; then unnumbered units in
 alphabetical order. Duplicate identifiers (across either column) are an error
 at startup. Use `./test.sh -l` (or `--list-units`) to print the full table.
 
+### Disabling a unit
+
+Prefix the filename with `_` (e.g. `_test_Entroopy.sh` or
+`_test_99-foo.sh`) to mark a unit as **disabled**. Disabled units still appear
+in `-l` output marked `(disabled)` so you can see what's been parked, but they
+are never sourced and cannot be selected by `--units` or targeted by `--step`.
+Rename the file (drop the leading `_`) to re-enable.
+
 ### Selecting which units to run
 
 `-u, --units ID[,ID...]` filters the suite to the listed units (resolved by

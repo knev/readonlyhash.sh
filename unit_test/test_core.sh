@@ -40,9 +40,15 @@ echo "# --list-units / -l (also exercises the number/name alias)"
 # Numbered files are addressable by both their number and their name —
 # test_99-discovery.sh appears as "99 / discovery". Unnumbered files have a
 # single token (e.g. "core").
-run_test "./test.sh --list-units" "0" "unit:.99./.discovery."
+run_test "./test.sh --list-units" "0" "unit:.99.-.discovery."
 run_test "./test.sh --list-units" "0" "unit:.core. +unit_test/.test_core\\.sh."
-run_test "./test.sh -l" "0" "unit:.99./.discovery."
+run_test "./test.sh -l" "0" "unit:.99.-.discovery."
+# Files with a leading underscore (e.g. unit_test/_test_disabled_demo.sh)
+# show up in --list-units marked "(disabled)" — they are discovered for
+# visibility but are never sourced and cannot be selected.
+run_test "./test.sh --list-units" "0" "disabled_demo.*.disabled."
+run_test "./test.sh -u disabled_demo" "1" "units: test unit .disabled_demo. is disabled"
+run_test "./test.sh --step disabled_demo,1" "1" "step: test unit .disabled_demo. is disabled"
 
 echo
 echo "# --units / -u filtering"
@@ -52,9 +58,9 @@ run_test "./test.sh --units" "1" "units: missing value"
 run_test "./test.sh -u 'core,,'" "1" "units: empty entry"
 # -l respects the filter; only the selected unit shows up.
 run_test "./test.sh -u core -l" "0" "unit:.core."
-run_test "./test.sh -u core -l" "0" "unit:.99./.discovery." "true"
+run_test "./test.sh -u core -l" "0" "unit:.99.-.discovery." "true"
 # Name-alias resolution applies to --units too.
-run_test "./test.sh -u discovery -l" "0" "unit:.99./.discovery."
+run_test "./test.sh -u discovery -l" "0" "unit:.99.-.discovery."
 
 echo
 echo "# escape_expected helper"

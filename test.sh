@@ -209,7 +209,9 @@ run_test() {
                             echo "step: unknown test unit [$tunit] — staying at [$caller_line]" >&2
                         else
                             tidx=$(unit_index "$tresolved")
-                            if [ "$tidx" -lt "${CURRENT_UNIT_INDEX:-0}" ]; then
+                            if [ "${UNIT_DISABLED[$tidx]}" = "true" ]; then
+                                echo "step: test unit [$tresolved] is disabled — staying at [$caller_line]" >&2
+                            elif [ "$tidx" -lt "${CURRENT_UNIT_INDEX:-0}" ]; then
                                 echo "step: test unit [$tresolved] has already completed — staying at [$caller_line]" >&2
                             else
                                 step_unit="$tresolved"
@@ -423,7 +425,9 @@ unit_index() {
 
 # Always lists every discovered unit. During a step pause, units that have
 # already been sourced are marked "done" — the table still shows them for
-# context, but the `l` handler refuses to jump there.
+# context, but the `l` handler refuses to jump there. Units whose filename
+# starts with `_` are listed with a "(disabled)" marker; they're discovered
+# for visibility but never sourced and cannot be selected.
 print_unit_list() {
     local in_step="false"
     [ -n "${CURRENT_UNIT_ID:-}" ] && in_step="true"
@@ -436,11 +440,13 @@ print_unit_list() {
     start_idx="${CURRENT_UNIT_INDEX:-0}"
     for i in "${!UNIT_IDS[@]}"; do
         status=""
-        if [ "$in_step" = "true" ]; then
-            if [ "$i" -lt "$start_idx" ]; then
-                status="  ■  (done)"
-            elif [ "${UNIT_IDS[$i]}" = "$CURRENT_UNIT_ID" ]; then
+        if [ "${UNIT_DISABLED[$i]:-false}" = "true" ]; then
+            status="  * disabled"
+        elif [ "$in_step" = "true" ]; then
+            if [ "${UNIT_IDS[$i]}" = "$CURRENT_UNIT_ID" ]; then
                 status="<-- current"
+            elif [ "$i" -lt "$start_idx" ]; then
+                status="  ■ (done)"
             fi
         fi
         if [ "${UNIT_IDS[$i]}" = "${UNIT_NAMES[$i]}" ]; then
@@ -449,7 +455,7 @@ print_unit_list() {
             label="[${UNIT_IDS[$i]}]-[${UNIT_NAMES[$i]}]"
         fi
         if [ -n "$status" ]; then
-            printf '  unit:%-18s unit_test/%-24s %s\n' "$label" "[${UNIT_FILES[$i]##*/}]" "$status" >&2
+            printf '  unit:%-18s unit_test/%-26s %s\n' "$label" "[${UNIT_FILES[$i]##*/}]" "$status" >&2
         else
             printf '  unit:%-18s unit_test/%s\n' "$label" "[${UNIT_FILES[$i]##*/}]" >&2
         fi
@@ -463,16 +469,28 @@ print_unit_list() {
 UNIT_IDS=()
 UNIT_NAMES=()
 UNIT_FILES=()
+UNIT_DISABLED=()
 
 if [ -n "${UNIT_TEST_CORE:-}" ]; then
     UNIT_IDS=("core")
     UNIT_NAMES=("core")
     UNIT_FILES=("$UNIT_TEST_CORE")
+    UNIT_DISABLED=("false")
 else
     _sortkeys=()
-    for f in unit_test/test_*.sh; do
+    # Discovery picks up both enabled (`test_*.sh`) and disabled
+    # (`_test_*.sh`) units. Disabled units appear in --list-units output but
+    # are never sourced and cannot be selected by --units / --step.
+    for f in unit_test/test_*.sh unit_test/_test_*.sh; do
         [ -e "$f" ] || continue
-        bn="${f##*/}"; bn="${bn%.sh}"; bn="${bn#test_}"
+        bn_full="${f##*/}"
+        if [[ "$bn_full" == _test_* ]]; then
+            disabled="true"
+            bn="${bn_full%.sh}"; bn="${bn#_test_}"
+        else
+            disabled="false"
+            bn="${bn_full%.sh}"; bn="${bn#test_}"
+        fi
         if [[ "$bn" =~ ^([0-9]+)(-(.+))?$ ]]; then
             id="${BASH_REMATCH[1]}"
             name="${BASH_REMATCH[3]}"
@@ -483,7 +501,8 @@ else
             name="$bn"
             sk="1_$bn"
         fi
-        UNIT_IDS+=("$id"); UNIT_NAMES+=("$name"); UNIT_FILES+=("$f"); _sortkeys+=("$sk")
+        UNIT_IDS+=("$id"); UNIT_NAMES+=("$name"); UNIT_FILES+=("$f")
+        UNIT_DISABLED+=("$disabled"); _sortkeys+=("$sk")
     done
 
     if [ "${#UNIT_IDS[@]}" -eq 0 ]; then
@@ -497,14 +516,17 @@ else
     sorted_ids=()
     sorted_names=()
     sorted_files=()
+    sorted_disabled=()
     for i in "${indices[@]}"; do
         sorted_ids+=("${UNIT_IDS[$i]}")
         sorted_names+=("${UNIT_NAMES[$i]}")
         sorted_files+=("${UNIT_FILES[$i]}")
+        sorted_disabled+=("${UNIT_DISABLED[$i]}")
     done
     UNIT_IDS=("${sorted_ids[@]}")
     UNIT_NAMES=("${sorted_names[@]}")
     UNIT_FILES=("${sorted_files[@]}")
+    UNIT_DISABLED=("${sorted_disabled[@]}")
 
     # Catch collisions between any pair of (id, name) across all units.
     seen=""
@@ -528,6 +550,7 @@ fi
 
 # Apply --units filter (comma-separated list of IDs/names). Preserves
 # discovery order so behaviour is independent of how the user listed them.
+# Disabled units cannot be selected explicitly.
 if [ -n "$units_filter" ]; then
     selected_ids=""
     IFS=',' read -ra _req <<< "$units_filter"
@@ -538,6 +561,12 @@ if [ -n "$units_filter" ]; then
             exit 1
         fi
         if resolved=$(unit_resolve "$req"); then
+            ridx=$(unit_index "$resolved")
+            if [ "${UNIT_DISABLED[$ridx]}" = "true" ]; then
+                echo "units: test unit [$req] is disabled" >&2
+                usage
+                exit 1
+            fi
             case " $selected_ids " in
                 *" $resolved "*) ;;  # already selected — silently de-dup
                 *) selected_ids="$selected_ids $resolved" ;;
@@ -549,18 +578,20 @@ if [ -n "$units_filter" ]; then
         fi
     done
 
-    new_ids=(); new_names=(); new_files=()
+    new_ids=(); new_names=(); new_files=(); new_disabled=()
     for i in "${!UNIT_IDS[@]}"; do
         case " $selected_ids " in *" ${UNIT_IDS[$i]} "*)
             new_ids+=("${UNIT_IDS[$i]}")
             new_names+=("${UNIT_NAMES[$i]}")
             new_files+=("${UNIT_FILES[$i]}")
+            new_disabled+=("${UNIT_DISABLED[$i]}")
             ;;
         esac
     done
     UNIT_IDS=("${new_ids[@]}")
     UNIT_NAMES=("${new_names[@]}")
     UNIT_FILES=("${new_files[@]}")
+    UNIT_DISABLED=("${new_disabled[@]}")
 fi
 
 if [ "$list_units_mode" = "true" ]; then
@@ -568,17 +599,34 @@ if [ "$list_units_mode" = "true" ]; then
     exit 0
 fi
 
+# Count enabled units so a bare --step LINE works whenever exactly one
+# enabled unit will run, even if the discovery list contains disabled ones.
+enabled_count=0
+sole_enabled_id=""
+for _i in "${!UNIT_IDS[@]}"; do
+    if [ "${UNIT_DISABLED[$_i]}" = "false" ]; then
+        enabled_count=$((enabled_count + 1))
+        sole_enabled_id="${UNIT_IDS[$_i]}"
+    fi
+done
+
 # Validate --step now that we know which units will run.
 if [ -n "$step_line" ]; then
     if [ -z "$step_unit" ]; then
-        if [ "${#UNIT_IDS[@]}" -ne 1 ]; then
+        if [ "$enabled_count" -ne 1 ]; then
             echo "step: expected ID,LINE (multiple test units present)" >&2
             usage
             exit 1
         fi
-        step_unit="${UNIT_IDS[0]}"
+        step_unit="$sole_enabled_id"
     else
         if resolved=$(unit_resolve "$step_unit"); then
+            ridx=$(unit_index "$resolved")
+            if [ "${UNIT_DISABLED[$ridx]}" = "true" ]; then
+                echo "step: test unit [$step_unit] is disabled" >&2
+                usage
+                exit 1
+            fi
             step_unit="$resolved"
         else
             echo "step: unknown test unit [$step_unit]" >&2
@@ -589,6 +637,9 @@ if [ -n "$step_line" ]; then
 fi
 
 for _i in "${!UNIT_IDS[@]}"; do
+    if [ "${UNIT_DISABLED[$_i]}" = "true" ]; then
+        continue
+    fi
     CURRENT_UNIT_ID="${UNIT_IDS[$_i]}"
     CURRENT_UNIT_INDEX="$_i"
     source "${UNIT_FILES[$_i]}"
