@@ -4,13 +4,15 @@
 
 usage() {
 	echo
-    echo "Usage: $(basename "$0") [-c|-v] [--step-test=<LINENO>]"
+    echo "Usage: $(basename "$0") [-c|-v] [--step-test=[ID,]LINENO]"
     echo "Options:"
-    echo "    -c, --continue          Continue processing tests even in the event of failure."
-	echo "    -v, --verbose           Display all output regardless if pass or fail."
-    echo "    -h, --help              Display this help and exit"
-    echo "    --step-test=<LINENO>    Pause before each run_test call whose caller line in unit_test/test_core.sh is >= LINENO." 
-	echo "                            Prompts: [Enter]=run, c=continue without stepping, l=continue to line N, s=skip, q=quit."
+    echo "    -c, --continue              Continue processing tests even in the event of failure."
+	echo "    -v, --verbose               Display all output regardless if pass or fail."
+    echo "    -h, --help                  Display this help and exit"
+    echo "    --step-test=[ID,]LINENO     Pause before each run_test call in test unit ID once its caller line is >= LINENO."
+	echo "                                ID is required when more than one test unit is present in unit_test/."
+	echo "                                Prompts: [Enter]=run, c=continue without stepping, l=continue to [unit,]line, s=skip, q=quit."
+	echo "    --list-units                List discovered test units (id / name and file) and exit."
 	echo
 	echo "Note: options -c and -v are mutually exclusive."
 	echo
@@ -19,7 +21,9 @@ usage() {
 # Parse command line options
 continue_mode="false"
 verbose_mode="false"
+list_units_mode="false"
 step_test_line=""
+step_test_unit=""
 while getopts "cvh-:" opt; do
   case $opt in
     c)
@@ -45,7 +49,19 @@ while getopts "cvh-:" opt; do
           exit 0
           ;;
         step-test=*)
-          step_test_line="${OPTARG#*=}"
+          raw="${OPTARG#*=}"
+          if [[ "$raw" == *,* ]]; then
+            step_test_unit="${raw%%,*}"
+            step_test_line="${raw#*,}"
+            if [ -z "$step_test_unit" ] || [ -z "$step_test_line" ]; then
+              echo "step-test: expected ID,LINE, got [$raw]" >&2
+              usage
+              exit 1
+            fi
+          else
+            step_test_unit=""
+            step_test_line="$raw"
+          fi
           if ! [[ "$step_test_line" =~ ^[0-9]+$ ]]; then
             echo "step-test: expected numeric line number, got [$step_test_line]" >&2
             usage
@@ -53,9 +69,12 @@ while getopts "cvh-:" opt; do
           fi
           ;;
         step-test)
-          echo "step-test: missing value (use --step-test=<LINENO>)" >&2
+          echo "step-test: missing value (use --step-test=[ID,]LINENO)" >&2
           usage
           exit 1
+          ;;
+        list-units)
+          list_units_mode="true"
           ;;
         *)
           echo "Invalid option: --${OPTARG}" >&2
@@ -113,37 +132,71 @@ run_test() {
     local expected_regex="$3"
     local not_flag="${4:-false}"  # Default not_flag to false if not provided
 
-    # --step-test: pause before running once the caller's line number in
-    # test_core.sh is >= $step_test_line. Reads keystrokes from /dev/tty so
-    # tests that pipe stdin into the command under test aren't affected.
+    # --step-test: pause before running once the caller's line number in the
+    # currently-sourced test unit is >= $step_test_line and the unit matches
+    # $step_test_unit (when set). Reads keystrokes from /dev/tty so tests that
+    # pipe stdin into the command under test aren't affected.
     local caller_line=${BASH_LINENO[0]}
-    if [ -n "$step_test_line" ] && [ "$caller_line" -ge "$step_test_line" ]; then
-        printf '\n--- step [test_core.sh:%d] ---\n' "$caller_line" >&2
+    if [ -n "$step_test_line" ] \
+       && { [ -z "$step_test_unit" ] || [ "$step_test_unit" = "$CURRENT_UNIT_ID" ]; } \
+       && [ "$caller_line" -ge "$step_test_line" ]; then
+        local caller_file="${BASH_SOURCE[1]##*/}"
+        printf '\n--- step [%s:%s:%d] ---\n' "$CURRENT_UNIT_ID" "$caller_file" "$caller_line" >&2
         printf '  $ %s\n' "$cmd" >&2
         local not_suffix=""
         [ "$not_flag" = "true" ] && not_suffix=" (NOT)"
         printf '  Expected EXIT status:[%s] regex:[%s]%s\n' \
             "$expected_status" "$expected_regex" "$not_suffix" >&2
-        printf '[ENTER]=run, [c]ontinue/to [l]ine, [s]kip, [q]uit ? ' >&2
-        local key=""
-        read -rsn1 key < /dev/tty
-        printf '\n' >&2
-        case "$key" in
-            q|Q) echo "step-test: quit at [test_core.sh:$caller_line]" >&2; exit 0 ;;
-            c|C) step_test_line="" ;;
-            l|L)
-                local target=""
-                printf 'continue to line: ' >&2
-                read -r target < /dev/tty
-                if [[ "$target" =~ ^[0-9]+$ ]]; then
-                    step_test_line="$target"
-                else
-                    echo "step-test: expected numeric line number, got [$target] — staying at [$caller_line]" >&2
-                fi
-                ;;
-            s|S) echo "step-test: skipped [test_core.sh:$caller_line]" >&2; return 0 ;;
-            *)   ;;
-        esac
+        local key="" target="" tunit="" tline="" tresolved="" tidx=""
+        local done_prompt="false"
+        while [ "$done_prompt" = "false" ]; do
+			printf '[ENTER]=run, [c]ontinue/to (unit,)[l]ine, [s]kip, [q]uit ? ' >&2
+            read -rsn1 key < /dev/tty
+            printf '\n' >&2
+            case "$key" in
+                q|Q) echo "step-test: quit at [$CURRENT_UNIT_ID:$caller_file:$caller_line]" >&2; exit 0 ;;
+                c|C) step_test_line=""; step_test_unit=""; done_prompt="true" ;;
+                l|L)
+                    print_unit_list
+                    target=""
+                    printf 'Continue to (unit,)line: ' >&2
+                    read -r target < /dev/tty
+                    # Empty input: re-display the main prompt so the user can pick again.
+                    if [ -z "$target" ]; then
+                        continue
+                    fi
+                    if [[ "$target" == *,* ]]; then
+                        tunit="${target%%,*}"
+                        tline="${target#*,}"
+                        # Trailing comma with no line: "unit," means "jump to unit, start from the beginning".
+                        [ -z "$tline" ] && tline="0"
+                        tresolved=""
+                        tidx=""
+                        if [ -z "$tunit" ] || ! [[ "$tline" =~ ^[0-9]+$ ]]; then
+                            echo "step-test: expected [unit,]line, got [$target] — staying at [$caller_line]" >&2
+                        elif ! tresolved=$(unit_resolve "$tunit"); then
+                            echo "step-test: unknown test unit [$tunit] — staying at [$caller_line]" >&2
+                        else
+                            tidx=$(unit_index "$tresolved")
+                            if [ "$tidx" -lt "${CURRENT_UNIT_INDEX:-0}" ]; then
+                                echo "step-test: test unit [$tresolved] has already completed — staying at [$caller_line]" >&2
+                            else
+                                step_test_unit="$tresolved"
+                                step_test_line="$tline"
+                            fi
+                        fi
+                    elif [[ "$target" =~ ^[0-9]+$ ]]; then
+                        step_test_unit="$CURRENT_UNIT_ID"
+                        step_test_line="$target"
+                    else
+                        echo "step-test: expected [unit,]line, got [$target] — staying at [$caller_line]" >&2
+                    fi
+                    done_prompt="true"
+                    ;;
+                s|S) echo "step-test: skipped [$CURRENT_UNIT_ID:$caller_file:$caller_line]" >&2; return 0 ;;
+                *) done_prompt="true" ;;
+            esac
+        done
     fi
 
     #	local output=$(eval "$cmd" 2>&1)
@@ -304,7 +357,174 @@ run_test() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-source "${UNIT_TEST_CORE:-unit_test/test_core.sh}"
+# Helpers used by the step gate and discovery loop.
+#
+# A numbered unit (test_NN-name.sh) is addressable by either its number or its
+# name; an unnumbered unit (test_core.sh) is addressable by its name only.
+# unit_resolve takes user input and prints the canonical primary ID.
+unit_resolve() {
+    local target="$1"
+    local i
+    for i in "${!UNIT_IDS[@]}"; do
+        if [ "${UNIT_IDS[$i]}" = "$target" ] || [ "${UNIT_NAMES[$i]}" = "$target" ]; then
+            printf '%s\n' "${UNIT_IDS[$i]}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+unit_exists() {
+    unit_resolve "$1" >/dev/null
+}
+
+unit_index() {
+    local target="$1"
+    local i
+    for i in "${!UNIT_IDS[@]}"; do
+        if [ "${UNIT_IDS[$i]}" = "$target" ]; then
+            printf '%s\n' "$i"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Always lists every discovered unit. During a step pause, units that have
+# already been sourced are marked "done" — the table still shows them for
+# context, but the `l` handler refuses to jump there.
+print_unit_list() {
+    local in_step="false"
+    [ -n "${CURRENT_UNIT_ID:-}" ] && in_step="true"
+    if [ "$in_step" = "true" ]; then
+        printf 'Available units (current: %s):\n' "$CURRENT_UNIT_ID" >&2
+    else
+        printf 'Available units:\n' >&2
+    fi
+    local i status label start_idx
+    start_idx="${CURRENT_UNIT_INDEX:-0}"
+    for i in "${!UNIT_IDS[@]}"; do
+        status=""
+        if [ "$in_step" = "true" ]; then
+            if [ "$i" -lt "$start_idx" ]; then
+                status="  ■  (done)"
+            elif [ "${UNIT_IDS[$i]}" = "$CURRENT_UNIT_ID" ]; then
+                status="<-- current"
+            fi
+        fi
+        if [ "${UNIT_IDS[$i]}" = "${UNIT_NAMES[$i]}" ]; then
+            label="[${UNIT_IDS[$i]}]"
+        else
+            label="[${UNIT_IDS[$i]}]/[${UNIT_NAMES[$i]}]"
+        fi
+        if [ -n "$status" ]; then
+            printf '  unit:%-18s unit_test/%-24s %s\n' "$label" "[${UNIT_FILES[$i]##*/}]" "$status" >&2
+        else
+            printf '  unit:%-18s unit_test/%s\n' "$label" "[${UNIT_FILES[$i]##*/}]" >&2
+        fi
+    done
+}
+
+# Discover unit_test/test_*.sh and source them in order. Numbered files
+# (test_NN-...) run first by numeric value, then unnumbered files
+# alphabetically. UNIT_TEST_CORE overrides discovery for single-file
+# regression rigs (see verbose-mode tests in test_core.sh).
+UNIT_IDS=()
+UNIT_NAMES=()
+UNIT_FILES=()
+
+if [ -n "${UNIT_TEST_CORE:-}" ]; then
+    UNIT_IDS=("core")
+    UNIT_NAMES=("core")
+    UNIT_FILES=("$UNIT_TEST_CORE")
+else
+    _sortkeys=()
+    for f in unit_test/test_*.sh; do
+        [ -e "$f" ] || continue
+        bn="${f##*/}"; bn="${bn%.sh}"; bn="${bn#test_}"
+        if [[ "$bn" =~ ^([0-9]+)(-(.+))?$ ]]; then
+            id="${BASH_REMATCH[1]}"
+            name="${BASH_REMATCH[3]}"
+            [ -z "$name" ] && name="$id"
+            sk=$(printf '0_%010d' "$id")
+        else
+            id="$bn"
+            name="$bn"
+            sk="1_$bn"
+        fi
+        UNIT_IDS+=("$id"); UNIT_NAMES+=("$name"); UNIT_FILES+=("$f"); _sortkeys+=("$sk")
+    done
+
+    if [ "${#UNIT_IDS[@]}" -eq 0 ]; then
+        echo "ERROR: no test units found in unit_test/test_*.sh" >&2
+        exit 1
+    fi
+
+    indices=( $(for i in "${!_sortkeys[@]}"; do
+                    printf '%s\t%s\n' "${_sortkeys[$i]}" "$i"
+                done | sort | awk -F'\t' '{print $2}') )
+    sorted_ids=()
+    sorted_names=()
+    sorted_files=()
+    for i in "${indices[@]}"; do
+        sorted_ids+=("${UNIT_IDS[$i]}")
+        sorted_names+=("${UNIT_NAMES[$i]}")
+        sorted_files+=("${UNIT_FILES[$i]}")
+    done
+    UNIT_IDS=("${sorted_ids[@]}")
+    UNIT_NAMES=("${sorted_names[@]}")
+    UNIT_FILES=("${sorted_files[@]}")
+
+    # Catch collisions between any pair of (id, name) across all units.
+    seen=""
+    for i in "${!UNIT_IDS[@]}"; do
+        id="${UNIT_IDS[$i]}"
+        name="${UNIT_NAMES[$i]}"
+        case " $seen " in *" $id "*)
+            echo "ERROR: duplicate test unit identifier [$id]" >&2
+            exit 1 ;;
+        esac
+        seen="$seen $id"
+        if [ "$name" != "$id" ]; then
+            case " $seen " in *" $name "*)
+                echo "ERROR: duplicate test unit identifier [$name]" >&2
+                exit 1 ;;
+            esac
+            seen="$seen $name"
+        fi
+    done
+fi
+
+if [ "$list_units_mode" = "true" ]; then
+    print_unit_list
+    exit 0
+fi
+
+# Validate --step-test now that we know which units exist.
+if [ -n "$step_test_line" ]; then
+    if [ -z "$step_test_unit" ]; then
+        if [ "${#UNIT_IDS[@]}" -ne 1 ]; then
+            echo "step-test: expected ID,LINE (multiple test units present)" >&2
+            usage
+            exit 1
+        fi
+        step_test_unit="${UNIT_IDS[0]}"
+    else
+        if resolved=$(unit_resolve "$step_test_unit"); then
+            step_test_unit="$resolved"
+        else
+            echo "step-test: unknown test unit [$step_test_unit]" >&2
+            usage
+            exit 1
+        fi
+    fi
+fi
+
+for _i in "${!UNIT_IDS[@]}"; do
+    CURRENT_UNIT_ID="${UNIT_IDS[$_i]}"
+    CURRENT_UNIT_INDEX="$_i"
+    source "${UNIT_FILES[$_i]}"
+done
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -11,7 +11,7 @@ echo "# --help / -h"
 
 run_test "./test.sh -h" "0" "Usage: test\.sh"
 run_test "./test.sh --help" "0" "Usage: test\.sh"
-run_test "./test.sh -h" "0" "$(escape_expected "[Enter]=run, c=continue without stepping, l=continue to line N, s=skip, q=quit")"
+run_test "./test.sh -h" "0" "$(escape_expected "[Enter]=run, c=continue without stepping, l=continue to [unit,]line, s=skip, q=quit")"
 run_test "./test.sh -h" "0" "$(escape_expected "ERROR:")" "true"
 
 echo
@@ -26,6 +26,22 @@ echo "# --step-test validation"
 run_test "./test.sh --step-test" "1" "step-test: missing value"
 run_test "./test.sh --step-test=abc" "1" "step-test: expected numeric line number, got .abc."
 run_test "./test.sh --step-test=-3" "1" "step-test: expected numeric line number"
+run_test "./test.sh --step-test=,5" "1" "step-test: expected ID,LINE"
+run_test "./test.sh --step-test=foo," "1" "step-test: expected ID,LINE"
+run_test "./test.sh --step-test=foo,abc" "1" "step-test: expected numeric line number, got .abc."
+# Discovered units include test_core.sh and test_99-discovery.sh, so a bare
+# LINE is rejected with the multi-unit error.
+run_test "./test.sh --step-test=12" "1" "multiple test units present"
+run_test "./test.sh --step-test=nope,1" "1" "step-test: unknown test unit .nope."
+
+echo
+echo "# --list-units (also exercises the number/name alias)"
+
+# Numbered files are addressable by both their number and their name —
+# test_99-discovery.sh appears as "99 / discovery". Unnumbered files have a
+# single token (e.g. "core").
+run_test "./test.sh --list-units" "0" "ID:.99./.discovery."
+run_test "./test.sh --list-units" "0" "ID:.core. +unit_test/.test_core\\.sh."
 
 echo
 echo "# escape_expected helper"

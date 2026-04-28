@@ -1,8 +1,8 @@
 # unit_test_bash
 
 A small, drop-in Bash unit-testing harness. `test.sh` parses options and defines
-the helpers; the actual test cases live in `unit_test/test_core.sh`, which is
-sourced at the bottom of `test.sh`.
+the helpers; the actual test cases live in one or more `unit_test/test_*.sh`
+files, which `test.sh` discovers and sources automatically.
 
 ## Quick start
 
@@ -10,7 +10,7 @@ sourced at the bottom of `test.sh`.
 ./test.sh                          # run all tests, stop at the first failure
 ./test.sh -v                       # verbose: show every test's output, pass or fail
 ./test.sh -c                       # continue past failures instead of stopping
-./test.sh --step-test=42           # interactive step-through from line 42 onward
+./test.sh --step-test=core,42      # interactive step-through, from test_core.sh line 42 onward
 ./test.sh -h                       # help
 ```
 
@@ -20,12 +20,35 @@ commented out in `test.sh`).
 ## Layout
 
 ```
-test.sh                 # entry point: option parsing + helpers, sources the suite
-unit_test/test_core.sh  # the actual test cases (add more files and source them)
+test.sh                       # entry point: option parsing + helpers, discovers and sources units
+unit_test/test_core.sh        # one test unit (any file matching test_*.sh is picked up)
+unit_test/test_99-extra.sh    # optionally numbered to control run order
 ```
 
-To grow the suite, drop another file under `unit_test/` and `source` it from
-`test.sh` next to the existing `source "unit_test/test_core.sh"` line.
+To grow the suite, drop another file under `unit_test/` whose basename starts
+with `test_`. It is sourced automatically — no `source` line to add.
+
+### Run order and unit identifiers
+
+Each discovered file gets a **unit identifier** (and, for numbered files, an
+extra **name alias**) taken from the part of its basename after `test_`:
+
+| File                  | Number | Name        | Addressable as       |
+|-----------------------|--------|-------------|----------------------|
+| `test_core.sh`        | —      | `core`      | `core`               |
+| `test_99-discovery.sh`| `99`   | `discovery` | `99` *or* `discovery`|
+| `test_01-foo.sh`      | `01`   | `foo`       | `01` *or* `foo`      |
+
+If the part after `test_` starts with digits followed by `-` (or just digits),
+the file is **numbered** and the leading number becomes its primary identifier;
+the rest after the dash becomes a name alias. Either form may be used wherever
+an `ID` is expected (e.g. `--step-test=99,...` and `--step-test=discovery,...`
+both target `test_99-discovery.sh`). Unnumbered files have a single identifier
+equal to the full stripped basename.
+
+Run order is: numbered units first, in numeric order; then unnumbered units in
+alphabetical order. Duplicate identifiers (across either column) are an error
+at startup. Use `./test.sh --list-units` to print the full table.
 
 ## Writing a test
 
@@ -87,28 +110,42 @@ On fail (or always, in `-v` mode):
 #----
 ```
 
-`line no.` is the line in `unit_test/test_core.sh` where `run_test` was called,
-which is what `--step-test` keys off of.
+`line no.` is the line in the test unit's source file where `run_test` was
+called, which is what `--step-test` keys off of.
 
 Without `-c`, the harness prints `To be continued ...` and exits `1` on the
 first failure.
 
 ## Step mode
 
-`--step-test=<LINENO>` pauses before every `run_test` whose caller line in
-`unit_test/test_core.sh` is `>= LINENO`. At each pause:
+`--step-test=[ID,]LINENO` pauses before every `run_test` whose caller line is
+`>= LINENO` *and* (when `ID` is given) whose unit identifier matches `ID`. The
+`ID,` prefix is required when more than one test unit exists in `unit_test/`;
+when there is only one unit, a bare `LINENO` is accepted for backwards
+compatibility. Examples:
 
 ```
---- step [test_core.sh:<N>] ---
+./test.sh --step-test=core,12      # pause inside test_core.sh from line 12 onward
+./test.sh --step-test=99,1         # pause inside test_99-discovery.sh from the first run_test
+```
+
+At each pause:
+
+```
+--- step [<unit>:<file>:<N>] ---
   $ <cmd>
   Expected EXIT status:[<exp>] regex:[<regex>]
-[ENTER]=run, [c]ontinue/to [l]ine, [s]kip, [q]uit ?
+[Enter]=run, c=continue without stepping, l=continue to [unit,]line, s=skip, q=quit ?
 ```
 
 - `Enter` — run this test, then pause at the next one.
 - `c` — run this and all remaining tests without pausing.
-- `l` — prompt for a line number `N`, then run this test and resume pausing
-  once the caller line is `>= N` (one-shot version of `c`).
+- `l` — prints the unit table (already-sourced units show `done` in the Status
+  column, the active one shows `current`), then prompts for `[unit,]line`.
+  Bare `line` keeps stepping in the current unit; `unit,line` jumps stepping
+  to a unit that's still ahead in the run order (one-shot version of `c`).
+  Empty input cancels and re-displays the main step prompt; targets marked
+  `done` are rejected — once a unit has finished sourcing you can't return to it.
 - `s` — skip this test (counts as a pass-through, not a failure).
 - `q` — quit immediately.
 
