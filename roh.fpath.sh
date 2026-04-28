@@ -48,10 +48,6 @@ usage() {
 }
 
 #BUGS
-#TODO: on ?write? possibly SHOW the hash, if it is mismatched with the computed hash?
-#TODO: if some of the hashes are partially hidden, doing a "write show" does or does not correct them?
-
-# bug:
 # kiim@Fractal:~/Fractal$ roh.fpath r --db ../fotos.db --roh-dir _Fotos/.roh.git _tmp
 # ROH_DIR: using [_Fotos/.roh.git]
 # Using DB_SQL [../fotos.db]
@@ -868,7 +864,18 @@ write_hash() {
 	    if [ -f "$roh_hash_fpath" ]; then
 			local stored=$(stored_hash "$roh_hash_fpath")
 			if [ "$force_mode" = "false" ]; then
-	 			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored][$roh_hash_fpath] hidden hash exists -- SKIPPING"
+				# Free piggy-back: if an upstream branch (e.g. --dedup) already
+				# computed the hash, compare and warn on mismatch. Otherwise
+				# stay fast: plain `write` over an existing tree must NOT rehash.
+				if [ "$computed_hash" != "0000000000000000000000000000000000000000000000000000000000000000" ] \
+				   && [ "$computed_hash" != "$stored" ]; then
+					progress_log "WARN: hash mismatch: ..."
+					progress_log "      ... computed [$computed_hash][$fpath]"
+					progress_log "      ...   stored [$stored][$roh_hash_fpath]"
+					((WARN_COUNT++))
+				else
+					[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored][$roh_hash_fpath] hidden hash exists -- SKIPPING"
+				fi
 				return 0
 			fi
 
@@ -880,12 +887,20 @@ write_hash() {
 				progress_log "      ...   stored [$stored][$roh_hash_fpath] -- deleted (FORCED)!"
 			fi
 		fi
-	
+
 		# exist-D=T
 		if [ -f "$dir_hash_fpath" ]; then
 			local stored=$(stored_hash "$dir_hash_fpath")
 			if [ "$force_mode" = "false" ]; then
-	 			[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored][$dir_hash_fpath] shown hash exists -- SKIPPING"
+				if [ "$computed_hash" != "0000000000000000000000000000000000000000000000000000000000000000" ] \
+				   && [ "$computed_hash" != "$stored" ]; then
+					progress_log "WARN: hash mismatch: ..."
+					progress_log "      ... computed [$computed_hash][$fpath]"
+					progress_log "      ...   stored [$stored][$dir_hash_fpath]"
+					((WARN_COUNT++))
+				else
+					[ "$VERBOSE_MODE" = "true" ] && progress_log "  OK: [$stored][$dir_hash_fpath] shown hash exists -- SKIPPING"
+				fi
 				return 0
 			fi
 
