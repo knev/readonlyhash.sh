@@ -1,29 +1,29 @@
 # unit_test_bash
 
-A small, drop-in Bash unit-testing harness. `ut` parses options and defines
+A small, drop-in Bash unit-testing harness. `unitt` parses options and defines
 the helpers; the actual test cases live in one or more `unit_test/test_*.sh`
-files, which `ut` discovers and sources automatically.
+files, which `unitt` discovers and sources automatically.
 
 ## Quick start
 
 ```
-./ut                          # run all tests, stop at the first failure
-./ut -v                       # verbose: show every test's output, pass or fail
-./ut -c                       # continue past failures instead of stopping
-./ut -l                       # list discovered test units and exit (--list-units)
-./ut -u core                  # run only the 'core' unit (--units core)
-./ut -u 99,core --step 42     # run units 99 then core; step from line 42
-./ut --step core,42           # interactive step-through, from test_core.sh line 42 onward
-./ut -h                       # help
+./unitt                          # run all tests, stop at the first failure
+./unitt -v                       # verbose: show every test's output, pass or fail
+./unitt -c                       # continue past failures instead of stopping
+./unitt -l                       # list discovered test units and exit (--list-units)
+./unitt -u core                  # run only the 'core' unit (--units core)
+./unitt -u 99,core --step 42     # run units 99 then core; step from line 42
+./unitt --step core,42           # interactive step-through, from test_core.sh line 42 onward
+./unitt -h                       # help
 ```
 
 `-c` and `-v` are mutually exclusive in spirit (the explicit check is currently
-commented out in `ut`).
+commented out in `unitt`).
 
 ## Layout
 
 ```
-ut                       # entry point: option parsing + helpers, discovers and sources units
+unitt                       # entry point: option parsing + helpers, discovers and sources units
 unit_test/test_core.sh        # one test unit (any file matching test_*.sh is picked up)
 unit_test/test_99-extra.sh    # optionally numbered to control run order
 ```
@@ -51,7 +51,7 @@ equal to the full stripped basename.
 
 Run order is: numbered units first, in numeric order; then unnumbered units in
 alphabetical order. Duplicate identifiers (across either column) are an error
-at startup. Use `./ut -l` (or `--list-units`) to print the full table.
+at startup. Use `./unitt -l` (or `--list-units`) to print the full table.
 
 ### Disabling a unit
 
@@ -68,9 +68,9 @@ number or name; duplicates de-duped silently). Order in the run is always the
 discovery order, regardless of how you list them on the command line:
 
 ```
-./ut -u core             # only test_core.sh
-./ut -u 99,core          # both, in discovery order
-./ut -u discovery -l     # confirm the filter took effect
+./unitt -u core             # only test_core.sh
+./unitt -u 99,core          # both, in discovery order
+./unitt -u discovery -l     # confirm the filter took effect
 ```
 
 ## Writing a test
@@ -149,9 +149,9 @@ one unit or `--units` narrowed it to one), a bare `LINENO` is accepted.
 Examples:
 
 ```
-./ut --step core,12           # pause inside test_core.sh from line 12 onward
-./ut --step 99,1              # pause inside test_99-discovery.sh from the first run_test
-./ut -u core --step 12        # bare line OK once -u narrows to one unit
+./unitt --step core,12           # pause inside test_core.sh from line 12 onward
+./unitt --step 99,1              # pause inside test_99-discovery.sh from the first run_test
+./unitt -u core --step 12        # bare line OK once -u narrows to one unit
 ```
 
 At each pause:
