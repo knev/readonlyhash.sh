@@ -179,12 +179,15 @@ run_test "$GIT_BIN --force -zC $TEST" "0" "$(escape_expected "Clobber [test/_.ro
 # Restore .roh.git/ for downstream tests.
 $GIT_BIN -xC "$TEST" >/dev/null 2>&1
 
-# Extract with a pre-existing .zip~ should warn that the prior backup is
-# being overwritten. (Normal cycles delete .zip~ on archive, so this is
-# the recovery / manual-restore case.)
+# Extract with a pre-existing .zip~ silently overwrites — the prior backup
+# is always superseded by the archive being unpacked. No WARN.
 cp "$TEST/.roh.git.zip~" "$TEST/_.roh.git.zip"
 rm -rf "$ROH_DIR"
-run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "WARN: [test/.roh.git.zip~] exists -- overwriting.*Backed: up [test/_.roh.git.zip] as [test/.roh.git.zip~]")"
+run_test "$GIT_BIN -xC $TEST" "0" "WARN: \[test/\.roh\.git\.zip~\] exists -- overwriting" "true"
+# Reset and assert the "Backed: up" path still fires.
+cp "$TEST/.roh.git.zip~" "$TEST/_.roh.git.zip"
+rm -rf "$ROH_DIR"
+run_test "$GIT_BIN -xC $TEST" "0" "$(escape_expected "Backed: up [test/_.roh.git.zip] as [test/.roh.git.zip~]")"
 
 # --v1 archive/extract: legacy tar+zip routine. Distinct extract wording
 # ("Removed [_.roh.git.zip]") signals the v1 path; v1 does NOT preserve a
