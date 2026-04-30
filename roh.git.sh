@@ -294,10 +294,14 @@ archive_roh() {
 	if [ -f "$dir/$archive_name" ]; then
 		rm -rf "$dir/$ROH_DIR"
 		echo "Removed [$dir/$ROH_DIR]"
-		# The .zip~ kept around for prev_hash comparison is now stale —
-		# _.roh.git.zip is the current archive. Drop it; the next extract
-		# (or forced clobber) will reseed it from the fresh archive.
-		rm -f "$dir/$ROH_DIR.zip~"
+		# Drop the .zip~ only when the new archive is content-identical to
+		# it (the backup adds no information). On drift, leave .zip~ as
+		# residue so the user can inspect the prior state; readonlyhash
+		# (archive_directory) cleans it up like it does .roh.sqlite3 and
+		# .roh.logs.
+		if [ -n "$prev_hash" ] && [ "$prev_hash" = "$new_hash" ]; then
+			rm -f "$dir/$ROH_DIR.zip~"
+		fi
 	fi
 
 	return 0
@@ -346,9 +350,9 @@ extract_roh() {
 
 		if [ -d "$dir/$ROH_DIR" ]; then
 			local preserved="$dir/$ROH_DIR.zip~"
-			if [ -f "$preserved" ]; then
-				echo "WARN: [$preserved] exists -- overwriting"
-			fi
+			# Silently overwrite any existing .zip~ — drift residue from a
+			# prior -zC, or stale backup from a previous extract, is
+			# always superseded by the archive we just unpacked.
 			mv -f "$dir/$archive_name" "$preserved"
 			echo "Backed: up [$dir/$archive_name] as [$preserved]"
 		fi

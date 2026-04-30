@@ -317,6 +317,12 @@ archive_directory() {
 		rm -r "$dir/.roh.logs"
 		echo "OK: [$dir/.roh.logs] -- removed"
 	fi
+
+	# roh.git -zC may leave .roh.git.zip~ behind on content drift — clean it up.
+	if [ -f "$dir/.roh.git.zip~" ]; then
+		rm -f "$dir/.roh.git.zip~"
+		echo "OK: [$dir/.roh.git.zip~] -- removed"
+	fi
 }
 
 extract_directory() {
