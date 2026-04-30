@@ -495,7 +495,7 @@ else
             id="${BASH_REMATCH[1]}"
             name="${BASH_REMATCH[3]}"
             [ -z "$name" ] && name="$id"
-            sk=$(printf '0_%010d' "$id")
+            sk=$(printf '0_%010d' "$((10#$id))")
         else
             id="$bn"
             name="$bn"
