@@ -807,11 +807,11 @@ mv "$TEST/$SUBDIR_COPY_SLASH_RO/xgy'.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBD
 # SUBDIR_COPY_SLASH_RO gained iop.txt
 # SUBDIR_COPY_SLASH_RO gained rxn.txt # and CHANGED
 
-run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "WARN: [1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f]: [test/sub-directory with spaces.ro/pno copy.txt] -- NEW.*NO corresponding file: [test/sub-directory with spaces.ro/sub-sub-directory/iop.txt]")"
-run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "WARN: [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [test/sub-directory with spaces.ro/sub-sub-directory/xgy'.txt] -- NEW.*NO corresponding file: [test/sub-directory with spaces.ro/rxn.txt]")"
+run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "WARN: [1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f]: [test/sub-directory with spaces.ro/pno copy.txt] -- NEW.*[test/sub-directory with spaces.ro/sub-sub-directory/iop.txt] -- NO corresponding file")"
+run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "WARN: [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [test/sub-directory with spaces.ro/sub-sub-directory/xgy'.txt] -- NEW.*[test/sub-directory with spaces.ro/rxn.txt] -- NO corresponding file")"
 
-run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "WARN: [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/sub-dir copy :slash.ro/iop.txt] -- NEW.*NO corresponding file: [test/sub-dir copy :slash.ro/pno.txt]")"
-run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "WARN: [e251ad71d0c88bf9ec02f9de65edd8e07655ab946e1014e6181077ee27f7c580]: [test/sub-dir copy :slash.ro/rxn.txt] -- NEW.*NO corresponding file: [test/sub-dir copy :slash.ro/xgy'.txt]")"
+run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "WARN: [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/sub-dir copy :slash.ro/iop.txt] -- NEW.*[test/sub-dir copy :slash.ro/pno.txt] -- NO corresponding file")"
+run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "WARN: [e251ad71d0c88bf9ec02f9de65edd8e07655ab946e1014e6181077ee27f7c580]: [test/sub-dir copy :slash.ro/rxn.txt] -- NEW.*[test/sub-dir copy :slash.ro/xgy'.txt] -- NO corresponding file")"
 
 $FPATH_BIN index --verbose --db $TEST/.roh.sqlite3 "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
 $FPATH_BIN index --verbose --db $TEST/.roh.sqlite3 "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
