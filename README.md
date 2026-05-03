@@ -133,6 +133,13 @@ Combining `write` with `sweep` should produce a clean result, except if there ar
 
 `verify` is the most strict command. It ensures that all hashes correspond to files and that there are no un-hashed files or orphaned hashes.
 
+`verify` accepts an optional sub-command that asserts the *exclusive* location of every hash. `verify` does **not** move any files — it only reports.
+
+- `verify hide` (default; same as bare `verify`): emits an `ERROR` for every hash that is not exclusively hidden — i.e., the hash is sitting next to the file (shown), or both a hidden and a shown copy exist with mismatched values.
+- `verify show`: emits an `ERROR` for every hash that is not exclusively shown — i.e., the hash is in `ROH_DIR` (hidden), or both copies exist and disagree.
+
+When both a hidden and a shown copy exist with **equal** stored values, `verify hide`/`verify show` emit a `WARN` ("two hash files exist but EQUAL") rather than an error — the duplication is redundant, not inconsistent.
+
 #### Command: `i|index`
 This command operates on all the hashes, building and index of all hashes (including those that are orphaned; having no valid file path). There are two possible index phase. The first can occur before a `recover` or `query`, the other one is after files are processed. 
 
@@ -148,7 +155,7 @@ Sometimes maintenance must be done on a directory (e.g, rename, moving or delete
 
 Hashes have the same name as each file, but with a hash extension (e.g., `.sha256` representing the hashing algorithm used) appended to it.
 
-After the maintenance is complete, hashes can be moved back to `ROH_DIR` using the `hide` command. Note that it is possible to verify a directory if hashes are shown; a warning will be produced to make the user aware hashes are shown.
+After the maintenance is complete, hashes can be moved back to `ROH_DIR` using the `hide` command. While hashes are shown you can run `verify show` to check them in place; running plain `verify` (i.e., `verify hide`) on a shown tree will report each shown hash as an `ERROR: hash NOT hidden`.
 
 #### Command: `q|query`
 
