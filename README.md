@@ -4,6 +4,7 @@ The purpose of ROH is to write hashes to disk for each file in a particular dire
 
 Features:
 - Ignores hidden (dot) files, by design
+- Optional `.rohignore` file (next to `.roh.git`) for additional skip patterns — see [.rohignore](#rohignore) below
 - Does not alter the target files in any way. All target files are only read to create a hash and nothing more, so the modified date should not change.
 - Hashes are stored relative to the top level target so as to not pollute the directory structure with files.
 
@@ -204,6 +205,31 @@ The `roh.fpath` script can be used to just one off some files with hashes. In th
 ```
 roh.fpath write -- "Fotos/Uncle Bob"
 ```
+
+#### `.rohignore`
+
+A `.rohignore` file at the top of `ROOT` (next to `.roh.git` in the default layout) lists additional patterns to silently skip during `write`, `verify`, `show`, `hide`, `delete`, and `recover`.
+
+Hidden (dot) files are skipped structurally regardless of whether `.rohignore` exists; the file cannot opt those back in. Skipped entries — both hidden ones and `.rohignore` matches — are recorded to `.roh.logs/files-ignored.exported.txt` for review.
+
+Patterns are simple shell globs, one per line. Comments start with `#`; blank lines are allowed.
+
+- **Basename pattern** (no `/` in the pattern): matched against the basename of every entry, at any depth. `__*` skips both `__skip.txt` and `projects/__nested/`.
+- **Anchored path pattern** (contains `/`): matched against the entry path relative to `ROOT`. The leading `/` is optional and stripped — `/foo/bar` and `foo/bar` both pin to `$ROOT/foo/bar`. Use this when you want to skip exactly one subtree without affecting same-named directories elsewhere.
+
+Example `Fotos/.rohignore`:
+```
+# Editor scratch files anywhere
+__*
+*.__.md
+Thumbs.db
+
+# Specific subtree only
+projects/old/junk
+/archive/raw_dumps
+```
+
+When `--roh-dir` relocates `ROH_DIR` outside `ROOT`, `.rohignore` still lives at `$ROOT/.rohignore` — it describes the data tree, not the metadata directory.
 
 #### Multiple commands
 

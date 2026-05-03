@@ -74,7 +74,28 @@ echo "OMN" > "$TEST/$SUBDIR_WITH_SPACES/omn's_.txt"
 mkdir -p "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR"
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 
-#	run_test "$FPATH_BIN -w $TEST" "0" "$(escape_expected "File: ")" 
+# .rohignore fixture: a parallel tree used by the per-command sections below
+# to assert that every command honors patterns. ri_setup recreates it from
+# scratch so each section starts from a known state.
+TEST_RI="$TEST-rohignore"
+ZERO_HASH="0000000000000000000000000000000000000000000000000000000000000000"
+ri_setup() {
+	[ -d "$TEST_RI" ] && chmod -R 777 "$TEST_RI" && rm -rf "$TEST_RI"
+	mkdir -p "$TEST_RI/__cachedir" "$TEST_RI/projects/old/junk"
+	echo "KEEP"     > "$TEST_RI/keep.txt"
+	echo "SKIP"     > "$TEST_RI/__skip.txt"
+	echo "DRAFT"    > "$TEST_RI/notes.__.md"
+	echo "INNER"    > "$TEST_RI/__cachedir/inner.txt"
+	echo "ANCHORED" > "$TEST_RI/projects/old/junk/data.bin"
+	echo "OK"       > "$TEST_RI/projects/old/keep.txt"
+	cat > "$TEST_RI/.rohignore" <<-'EOF'
+		__*
+		*.__.md
+		projects/old/junk
+	EOF
+}
+
+#	run_test "$FPATH_BIN -w $TEST" "0" "$(escape_expected "File: ")"
 #	$GIT_BIN -C "$TEST" init >/dev/null 2>&1
 #	echo ".DS_Store" > "$TEST/.gitignore"
 #	
@@ -316,6 +337,24 @@ run_test "$FPATH_BIN sweep --verbose $TEST" "0" "$(escape_expected "OK: [20562d3
 mv "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/OMG.txt" "$TEST/$SUBDIR_WITH_SPACES/omn's_.txt"
 rm "$TEST/.roh.sqlite3"
 
+# .rohignore: write skips matching basenames and anchored paths
+ri_setup
+run_test "$FPATH_BIN write $TEST_RI" "0" "$(escape_expected "ignored entries (hidden and/or .rohignore matches) were detected and exported")"
+run_test "[ -f \"$TEST_RI/.roh.git/keep.txt.$HASH\" ] && echo OK || echo MISS" "0" "OK"
+run_test "[ -f \"$TEST_RI/.roh.git/projects/old/keep.txt.$HASH\" ] && echo OK || echo MISS" "0" "OK"
+run_test "[ -e \"$TEST_RI/.roh.git/__skip.txt.$HASH\" ] && echo PRESENT || echo ABSENT" "0" "ABSENT"
+run_test "[ -e \"$TEST_RI/.roh.git/notes.__.md.$HASH\" ] && echo PRESENT || echo ABSENT" "0" "ABSENT"
+run_test "[ -e \"$TEST_RI/.roh.git/__cachedir\" ] && echo PRESENT || echo ABSENT" "0" "ABSENT"
+run_test "[ -e \"$TEST_RI/.roh.git/projects/old/junk\" ] && echo PRESENT || echo ABSENT" "0" "ABSENT"
+# anchored 'projects/old/junk' must NOT match a same-basename dir elsewhere
+mkdir -p "$TEST_RI/elsewhere/junk"
+echo "X" > "$TEST_RI/elsewhere/junk/data.bin"
+run_test "$FPATH_BIN write $TEST_RI" "0" "$(escape_expected "ERROR:")" "true"
+run_test "[ -f \"$TEST_RI/.roh.git/elsewhere/junk/data.bin.$HASH\" ] && echo OK || echo MISS" "0" "OK"
+# files-ignored.exported.txt contains both basename and anchored matches
+run_test "grep -F \"$TEST_RI/__skip.txt\" \"$TEST_RI/.roh.logs/files-ignored.exported.txt\"" "0" "$(escape_expected "$TEST_RI/__skip.txt")"
+run_test "grep -F \"$TEST_RI/projects/old/junk\" \"$TEST_RI/.roh.logs/files-ignored.exported.txt\"" "0" "$(escape_expected "$TEST_RI/projects/old/junk")"
+
 # delete
 echo
 echo "# delete"
@@ -331,6 +370,13 @@ run_test "ls -al test/$ROH_DIR" "1" "test/$ROH_DIR.?: No such file or directory"
 
 run_test "$FPATH_BIN delete $TEST" "0" "$(escape_expected "  OK: ")" "true"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
+
+# .rohignore: delete leaves a pre-existing hash for an ignored file alone
+ri_setup
+$FPATH_BIN write "$TEST_RI" >/dev/null 2>&1
+echo "$ZERO_HASH" > "$TEST_RI/.roh.git/__skip.txt.$HASH"
+run_test "$FPATH_BIN delete $TEST_RI" "0" "$(escape_expected "ERROR:")" "true"
+run_test "[ -f \"$TEST_RI/.roh.git/__skip.txt.$HASH\" ] && echo PRESENT || echo ABSENT" "0" "PRESENT"
 
 # verify
 echo
@@ -371,9 +417,9 @@ rm "$TEST/file with spaces.txt.sha256"
 # state: hidden only — exclusive-hidden is the post-condition expected by tests downstream
 
 touch "$TEST/.HIDDEN_FILE"
-run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported.*[test/.roh.git/../.roh.logs/files-hidden.exported.txt]")"
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: ignored entries (hidden and/or .rohignore matches) were detected and exported.*[test/.roh.git/../.roh.logs/files-ignored.exported.txt]")"
 rm "$TEST/.HIDDEN_FILE"
-rm "$TEST/.roh.logs/files-hidden.exported.txt"
+rm "$TEST/.roh.logs/files-ignored.exported.txt"
 
 run_test "$FPATH_BIN verify index --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 rm "$TEST/.roh.sqlite3"
@@ -459,13 +505,13 @@ rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/sub-empty"
 
 touch "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported")"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: ignored entries (hidden and/or .rohignore matches) were detected and exported")"
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_FILE" 
 rm -rf "$TEST/.roh.logs"
 
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported")"
+run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: ignored entries (hidden and/or .rohignore matches) were detected and exported")"
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty/.HIDDEN_DIR" 
 rmdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
 rm -rf "$TEST/.roh.logs"
@@ -486,6 +532,16 @@ rm "$ROH_DIR/.gitignore"
 rm -v "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: [c5a8fb450fb0b568fc69a9485b8e531f119ca6e112fe1015d03fceb64b9c0e65]: [$TEST/.roh.git/sub-directory with spaces/sub-sub-directory/jkl.txt.sha256]")"
 echo "JKL" > "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt"
+
+# .rohignore: verify --verbose surfaces INFO; hashes for ignored files WARN; sweep cleans them up
+ri_setup
+$FPATH_BIN write "$TEST_RI" >/dev/null 2>&1
+run_test "$FPATH_BIN verify --verbose $TEST_RI" "0" "$(escape_expected "INFO: Ignoring [$TEST_RI/__skip.txt] (matches .rohignore)")"
+run_test "$FPATH_BIN verify --verbose $TEST_RI" "0" "$(escape_expected "INFO: Ignoring [$TEST_RI/projects/old/junk] (matches .rohignore)")"
+echo "$ZERO_HASH" > "$TEST_RI/.roh.git/__skip.txt.$HASH"
+run_test "$FPATH_BIN verify $TEST_RI" "0" "$(escape_expected "WARN:") .* $(escape_expected "hash for ignored file [$TEST_RI/__skip.txt] -- run sweep to clean")"
+run_test "$FPATH_BIN sweep $TEST_RI" "0" "$(escape_expected "ERROR:")" "true"
+run_test "[ -e \"$TEST_RI/.roh.git/__skip.txt.$HASH\" ] && echo PRESENT || echo ABSENT" "0" "ABSENT"
 
 # index
 echo
@@ -530,6 +586,13 @@ rm -rf "$TEST/.roh.sqlite3"
 echo "IOP" > "$TEST/$SUBDIR_WITH_SPACES/IOP~.txt"
 # one "new" file with an orphaned hash
 
+# .rohignore: index INFO-skips hashes pointing at ignored files
+ri_setup
+$FPATH_BIN write "$TEST_RI" >/dev/null 2>&1
+echo "$ZERO_HASH" > "$TEST_RI/.roh.git/__skip.txt.$HASH"
+run_test "$FPATH_BIN index --verbose $TEST_RI" "0" "$(escape_expected "INFO: [$TEST_RI/__skip.txt] is ignored -- not processing hash")"
+rm -f "$TEST_RI/.roh.sqlite3"
+
 # write index --dedup (single-invocation)
 echo
 echo "# write index --dedup (single-invocation)"
@@ -564,6 +627,14 @@ rm -rf "$DEDUP_TMP"
 # recover
 echo
 echo "# recover"
+
+# .rohignore: recover INFO-skips hashes pointing at ignored files
+ri_setup
+$FPATH_BIN write "$TEST_RI" >/dev/null 2>&1
+echo "$ZERO_HASH" > "$TEST_RI/.roh.git/__skip.txt.$HASH"
+$FPATH_BIN index "$TEST_RI" >/dev/null 2>&1
+run_test "$FPATH_BIN recover --verbose $TEST_RI" "0" "$(escape_expected "INFO: [$TEST_RI/__skip.txt] is ignored -- not processing hash")"
+rm -f "$TEST_RI/.roh.sqlite3"
 
 $FPATH_BIN write --verbose "$TEST" >/dev/null 2>&1
 # $FPATH_BIN verify --verbose "$TEST"
@@ -949,6 +1020,19 @@ rm "$TEST/file with spaces.txt.sha256"
 run_test "$FPATH_BIN hide $TEST" "1" "$(escape_expected "ERROR: [test/file with spaces.txt]: [test/file with spaces.txt.sha256] hash file -- NOT found, not hidden")"
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
+# .rohignore: show leaves the ignored file's hash in ROH_DIR (process_entry skips, no movement)
+ri_setup
+$FPATH_BIN write "$TEST_RI" >/dev/null 2>&1
+echo "$ZERO_HASH" > "$TEST_RI/.roh.git/__skip.txt.$HASH"
+run_test "$FPATH_BIN show $TEST_RI" "0" "$(escape_expected "ERROR:")" "true"
+run_test "[ -f \"$TEST_RI/.roh.git/__skip.txt.$HASH\" ] && echo PRESENT || echo ABSENT" "0" "PRESENT"
+run_test "[ -e \"$TEST_RI/__skip.txt.$HASH\" ] && echo PRESENT || echo ABSENT" "0" "ABSENT"
+
+# .rohignore: hide leaves the ignored file's shown hash next to the file (process_entry skips)
+echo "$ZERO_HASH" > "$TEST_RI/__skip.txt.$HASH"
+run_test "$FPATH_BIN hide $TEST_RI" "0" "$(escape_expected "ERROR:")" "true"
+run_test "[ -f \"$TEST_RI/__skip.txt.$HASH\" ] && echo PRESENT || echo ABSENT" "0" "PRESENT"
+
 # worst case
 echo
 echo "# worst case"
@@ -1015,5 +1099,8 @@ rm "$TEST/file with spaces.txt"
 rm -rf "$TEST/.roh.git" "$TEST/.roh.logs"
 rm -f "$TEST/.roh.git.zip~"
 rmdir "$TEST"
+
+# .rohignore fixture cleanup
+[ -d "$TEST_RI" ] && chmod -R 777 "$TEST_RI" && rm -rf "$TEST_RI"
 
 run_test "ls -alR $TEST" "1" "$TEST.?: No such file or directory"

@@ -77,6 +77,12 @@ KEEP_PROGRESS_BAR="false"
 # List of file extensions to avoid, comma separated
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
+# Loaded from $ROOT/.rohignore at startup; one shell-glob pattern per line.
+# Patterns containing '/' are anchored relative to $ROOT (leading '/' optional).
+# Patterns without '/' match against the basename of any entry at any depth.
+# Dotfile skipping is structural (via shell glob defaults) and not configurable here.
+ROHIGNORE_PATTERNS=()
+
 ROOT="_INVALID_"
 PATHSPEC="_INVALID_"
 ROH_DIR="_INVALID_"
@@ -89,6 +95,59 @@ WARN_COUNT=0
 
 EXPORT_MODE="false"
 VERBOSE_MODE="false"
+
+load_rohignore() {
+    local file="$ROOT/.rohignore"
+    [ -r "$file" ] || return 0
+    local line
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%%#*}"
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        [ -z "$line" ] && continue
+        ROHIGNORE_PATTERNS+=("$line")
+    done < "$file"
+}
+
+should_ignore() {
+    local entry="$1"
+    [ ${#ROHIGNORE_PATTERNS[@]} -eq 0 ] && return 1
+    local base rel pat clean
+    base="$(basename "$entry")"
+    rel="$(remove_top_dir "$ROOT" "$entry")"
+    for pat in "${ROHIGNORE_PATTERNS[@]}"; do
+        if [[ "$pat" == */* ]]; then
+            clean="${pat#/}"
+            # shellcheck disable=SC2053
+            [[ "$rel" == $clean ]] && return 0
+        else
+            # shellcheck disable=SC2053
+            [[ "$base" == $pat ]] && return 0
+        fi
+    done
+    return 1
+}
+
+# Build a find prune-args array from ROHIGNORE_PATTERNS, scoped to the search root.
+# Usage: _rohignore_find_prune_args <search_root>; result lands in global _ROH_PRUNE_ARGS.
+_rohignore_find_prune_args() {
+    _ROH_PRUNE_ARGS=()
+    [ ${#ROHIGNORE_PATTERNS[@]} -eq 0 ] && return 0
+    local root="$1"
+    _ROH_PRUNE_ARGS=( '(' )
+    local first=1 pat clean
+    for pat in "${ROHIGNORE_PATTERNS[@]}"; do
+        [ $first -eq 1 ] || _ROH_PRUNE_ARGS+=( -o )
+        if [[ "$pat" == */* ]]; then
+            clean="${pat#/}"
+            _ROH_PRUNE_ARGS+=( -path "$ROOT/$clean" )
+        else
+            _ROH_PRUNE_ARGS+=( -name "$pat" )
+        fi
+        first=0
+    done
+    _ROH_PRUNE_ARGS+=( ')' -prune -o )
+}
 
 # Function to check if a file's extension is in the list to avoid
 check_extension() {
@@ -500,18 +559,20 @@ log_block() {
     done
 }
 
-# Count total bytes of non-hash files in a directory (skip hidden dirs)
+# Count total bytes of non-hash files in a directory (skip hidden dirs and .rohignore matches)
 _prog_entry_bytes() {
+  _rohignore_find_prune_args "$1"
   if [ "$_STAT_FMT" = "bsd" ]; then
-    find "$1" -name '.*' -prune -o -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}'
+    find "$1" "${_ROH_PRUNE_ARGS[@]}" -name '.*' -prune -o -type f ! -name "*.${HASH}" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1}END{print s+0}'
   else
-    find "$1" -name '.*' -prune -o -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}'
+    find "$1" "${_ROH_PRUNE_ARGS[@]}" -name '.*' -prune -o -type f ! -name "*.${HASH}" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1}END{print s+0}'
   fi
 }
 
-# Count total non-hash files in a directory (skip all hidden)
+# Count total non-hash files in a directory (skip all hidden and .rohignore matches)
 _prog_entry_count() {
-  find "$1" -name '.*' -prune -o -type f ! -name "*.${HASH}" -print 2>/dev/null | wc -l | tr -d ' '
+  _rohignore_find_prune_args "$1"
+  find "$1" "${_ROH_PRUNE_ARGS[@]}" -name '.*' -prune -o -type f ! -name "*.${HASH}" -print 2>/dev/null | wc -l | tr -d ' '
 }
 
 # Count total bytes of hash files in a directory (prune .git)
@@ -1225,13 +1286,22 @@ manage_hash_visibility() {
 # }
 
 # Function to process entries contents recursively
-process_entry() 
+process_entry()
 {
 	local parent="$1"
     local entry="$2"
 	# local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local visibility_mode="$3"
     local force_mode="$4"
+
+	if should_ignore "$entry"; then
+		log_v INFO "Ignoring [$entry] (matches .rohignore)"
+		if [ "$EXPORT_MODE" = "true" ]; then
+			mkdir -p "$ROH_LOGS"
+			echo "$entry" >> "$EXPORT_FILE_IGNORED"
+		fi
+		return 0
+	fi
 
 	if [ -L "$entry" ]; then
 		log_v INFO "Avoiding symlink [$entry] like the Plague"
@@ -1242,7 +1312,7 @@ process_entry()
 
 		if find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
 			mkdir -p "$ROH_LOGS"
-			[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FILE_HIDDEN"
+			[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FILE_IGNORED"
 		fi
 	
 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
@@ -1651,8 +1721,10 @@ if [ -d "$ROH_LOGS" ]; then
 fi
 EXPORT_FILE_NEW="$ROH_LOGS/files-new.exported.txt"
 EXPORT_FILE_MISSING="$ROH_LOGS/files-missing.exported.txt"
-EXPORT_FILE_HIDDEN="$ROH_LOGS/files-hidden.exported.txt"
+EXPORT_FILE_IGNORED="$ROH_LOGS/files-ignored.exported.txt"
 EXPORT_HASH_DELETED="$ROH_LOGS/hashes-deleted.exported.txt"
+
+load_rohignore
 
 if [ -z "$db" ]; then
     DB_SQL=("$ROOT/.roh.sqlite3")  # Single path as an array
@@ -2042,6 +2114,25 @@ process_hash_entry()
 		local fpath="$(hash_fpath_to_fpath "$roh_hash_fpath")"
 		# echo "   * fpath: [$fpath]"
 
+		# Hash points to a path covered by .rohignore — active reconcile:
+		# sweep deletes (cruft), verify WARNs, recover/index skip with INFO.
+		if should_ignore "$fpath"; then
+			if contains "sweep"; then
+				if rm "$roh_hash_fpath"; then
+					log_v OK "$(tok_hash "$stored" "$roh_hash_fpath") hash for ignored file -- DELETED"
+					[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_HASH_DELETED"
+				else
+					log ERROR "Failed to remove hash [$roh_hash_fpath]"
+				fi
+			elif contains "verify"; then
+				log WARN "$(tok_hash "$stored" "$roh_hash_fpath") hash for ignored file [$fpath] -- run sweep to clean"
+				[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_FILE_IGNORED"
+			elif contains "recover" || contains "index"; then
+				log_v INFO "[$fpath] is ignored -- not processing hash [$roh_hash_fpath]"
+			fi
+			return 0
+		fi
+
  		# if the file corresponding to the hash doesn't exist (orphaned), remove it on sweep
  		if ! stat "$fpath" >/dev/null 2>&1; then
  			if contains "sweep"; then
@@ -2293,9 +2384,9 @@ elif contains "verify" || contains "recover" || contains "sweep" || contains "in
 	hash_maintanence "${ROH_DIR%/}${PATHSPEC:+/$PATHSPEC}" || abort
 fi
 
-if [ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FILE_HIDDEN" ]; then
-	log WARN "directories with hidden entries were detected and exported"
-	echo "LOG: >> [$EXPORT_FILE_HIDDEN]"
+if [ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FILE_IGNORED" ]; then
+	log WARN "ignored entries (hidden and/or .rohignore matches) were detected and exported"
+	echo "LOG: >> [$EXPORT_FILE_IGNORED]"
 fi
 
 [ "$EXPORT_MODE" = "true" ] && [ -f "$EXPORT_FILE_NEW" ] && echo "LOG: >> [$EXPORT_FILE_NEW]"
