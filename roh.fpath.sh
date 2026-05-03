@@ -864,9 +864,13 @@ verify_hash() {
 		local stored=$(stored_hash "$roh_hash_fpath")
 
 		if [ "$verify_mode" = "show" ]; then
-			log_block ERROR "hash NOT shown" \
-			    hidden   "$(tok_hash "$stored"        "$roh_hash_fpath")" \
-			    computed "$(tok_file "$computed_hash" "$fpath")"
+			if [ "$computed_hash" = "$stored" ]; then
+				log ERROR "$(tok_hash "$stored" "$roh_hash_fpath") hash NOT shown"
+			else
+				log_block ERROR "hash NOT shown" \
+				    hidden   "$(tok_hash "$stored"        "$roh_hash_fpath")" \
+				    computed "$(tok_file "$computed_hash" "$fpath")"
+			fi
 			return 0
 		fi
 
@@ -884,9 +888,13 @@ verify_hash() {
 		local stored=$(stored_hash "$dir_hash_fpath")
 
 		if [ "$verify_mode" = "hide" ]; then
-			log_block ERROR "hash NOT hidden" \
-			    shown    "$(tok_hash "$stored"        "$dir_hash_fpath")" \
-			    computed "$(tok_file "$computed_hash" "$fpath")"
+			if [ "$computed_hash" = "$stored" ]; then
+				log ERROR "$(tok_hash "$stored" "$dir_hash_fpath") hash NOT hidden"
+			else
+				log_block ERROR "hash NOT hidden" \
+				    shown    "$(tok_hash "$stored"        "$dir_hash_fpath")" \
+				    computed "$(tok_file "$computed_hash" "$fpath")"
+			fi
 			return 0
 		fi
 

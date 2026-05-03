@@ -359,10 +359,10 @@ run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: hash mismatch.
 echo "349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff" > "$ROH_DIR/file with spaces.txt.$HASH"
 
 mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
-run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: hash NOT hidden.*shown [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt.sha256].*computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt]")"
-run_test "$FPATH_BIN verify hide $TEST" "1" "$(escape_expected "ERROR: hash NOT hidden")"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt.sha256] hash NOT hidden")"
+run_test "$FPATH_BIN verify hide $TEST" "1" "$(escape_expected "ERROR: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt.sha256] hash NOT hidden")"
 mv "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256"
-run_test "$FPATH_BIN verify show $TEST" "1" "$(escape_expected "ERROR: hash NOT shown.*hidden [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$ROH_DIR/file with spaces.txt.sha256].*computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt]")"
+run_test "$FPATH_BIN verify show $TEST" "1" "$(escape_expected "ERROR: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$ROH_DIR/file with spaces.txt.sha256] hash NOT shown")"
 cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
 run_test "$FPATH_BIN verify hide $TEST" "0" "$(escape_expected "WARN: two hash files exist but EQUAL.*hidden [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$ROH_DIR/file with spaces.txt.sha256].*shown [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt.sha256]")"
 # under `verify show`, sibling sub-dir files are still hidden-only (ERROR: hash NOT shown), so exit is 1; WARN match still verifies the both-equal branch.
