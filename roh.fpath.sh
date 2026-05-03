@@ -12,8 +12,8 @@ usage() {
 	echo
 	echo "Commands:"
 	echo "        v|verify         Verify computed hashes against stored hashes; check for orphaned hashes"
-	echo "        verify show      ..."
-	echo "        verify hide      ... (default)"
+	echo "        verify hide      Verify, ERROR for any hash NOT exclusively hidden (default)"
+	echo "        verify show      Verify, ERROR for any hash NOT exclusively shown"
 	echo "        w|write          Write SHA256 hashes (hidden by default) for existing files"
 	echo "        i|index          Index hash files in a DB (sqlite3 required), including orphaned hashes"
 	echo "        verify index     Verify by processing files and create index by maintaining hashes"
@@ -63,8 +63,8 @@ usage() {
 # roh.copy
 #TODO: on rebase, use the rebase string to rename output .roh.txt file; create a roh.copy command that accepts a rebase string; accepts export output too
 
+#TODO: git init .roh.git256 --object-format=sha256 
 #TODO: .roh if git is not applied and .roh.git if git has been applied!?
-#TODO: implement verify show|hide
 #TODO: multiple "copies" using readonlyhash write the loop file to the same ~ro.loop.txt
 #TODO: permissions: git created as user account, access as different user or root
 #TODO: prune all index hashes that point to files that no longer exist
@@ -825,15 +825,16 @@ recover_file() {
 	return 0
 }
 
-x_roh_hash="true" # exclusively roh hashes
-
 verify_hash() {
     local dir="$1"
     local fpath="$2"
 
 	# local hash_fname="$(basename "$fpath").$HASH"
-	# local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing. 
+	# local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir" # ${sub_dir:+/} expands to a slash / if sub_dir is not empty, otherwise, it expands to nothing.
 	# local roh_hash_fpath=$roh_hash_path/$hash_fname
+
+	local verify_mode="hide"
+	contains "show" && verify_mode="show"
 
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
@@ -844,8 +845,6 @@ verify_hash() {
     if [ -f "$roh_hash_fpath" ] && [ -f "$dir_hash_fpath" ]; then
 		local stored_roh=$(stored_hash "$roh_hash_fpath")
 		local stored_dir=$(stored_hash "$dir_hash_fpath")
-
-		x_roh_hash="false"
 
 		if [ "$stored_roh" = "$stored_dir" ] && [ "$stored_roh" = "$computed_hash" ]; then
 			# all three agree: the duplication is redundant, not inconsistent
@@ -864,6 +863,13 @@ verify_hash() {
     if [ -f "$roh_hash_fpath" ]; then
 		local stored=$(stored_hash "$roh_hash_fpath")
 
+		if [ "$verify_mode" = "show" ]; then
+			log_block ERROR "hash NOT shown" \
+			    hidden   "$(tok_hash "$stored"        "$roh_hash_fpath")" \
+			    computed "$(tok_file "$computed_hash" "$fpath")"
+			return 0
+		fi
+
 		if [ "$computed_hash" = "$stored" ]; then
 			log_v OK "$(tok_file "$computed_hash" "$fpath")"
 			return 0
@@ -877,7 +883,12 @@ verify_hash() {
     elif [ -f "$dir_hash_fpath" ]; then
 		local stored=$(stored_hash "$dir_hash_fpath")
 
-		x_roh_hash="false"
+		if [ "$verify_mode" = "hide" ]; then
+			log_block ERROR "hash NOT hidden" \
+			    shown    "$(tok_hash "$stored"        "$dir_hash_fpath")" \
+			    computed "$(tok_file "$computed_hash" "$fpath")"
+			return 0
+		fi
 
 		if [ "$computed_hash" = "$stored" ]; then
 			log_v OK "$(tok_file "$computed_hash" "$fpath")"
@@ -1289,10 +1300,12 @@ process_entry()
 				write_hash "$parent" "$entry" "$visibility_mode" "$force_mode" || return 1
 			fi
 
-			if contains "hide"; then
-				manage_hash_visibility "$parent" "$entry" "hide" "$force_mode" || return 1
-			elif contains "show"; then 
-				manage_hash_visibility "$parent" "$entry" "show" "$force_mode" || return 1
+			if ! contains "verify"; then
+				if contains "hide"; then
+					manage_hash_visibility "$parent" "$entry" "hide" "$force_mode" || return 1
+				elif contains "show"; then
+					manage_hash_visibility "$parent" "$entry" "show" "$force_mode" || return 1
+				fi
 			fi
 		else
 			delete_hash "$parent" "$entry" || return 1
@@ -1871,7 +1884,7 @@ run_directory_process() {
 		return 0
 	fi
 
-	if contains "hide" || ( contains "write" && [ "$visibility_mode" != "show" ] ); then
+	if ( contains "hide" && ! contains "verify" ) || ( contains "write" && [ "$visibility_mode" != "show" ] ); then
 		if [ ! -d "$ROH_DIR" ]; then
 			log ROH_DIR "creating [$ROH_DIR]"
 			mkdir "$ROH_DIR"
@@ -2152,10 +2165,6 @@ hash_maintanence() {
 		fi
 	fi
 
-	if [ "$x_roh_hash" = "false" ]; then
-		log WARN "hashes not exclusively hidden in [$ROH_DIR]"
-	fi
-	
 	return 0
 }
 

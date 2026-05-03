@@ -338,7 +338,6 @@ echo "# verify"
 
 mkdir "$TEST-empty"
 run_test "$FPATH_BIN verify show $TEST-empty" "0" "$(escape_expected "WARN: [test-empty/.roh.git] missing or inaccessible")"
-#TODO: verify show
 
 # we don't care about empty directories
 run_test "$FPATH_BIN write $TEST-empty" "0" "$(escape_expected "Done.")"
@@ -359,9 +358,17 @@ echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$ROH_
 run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: hash mismatch.*stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$ROH_DIR/file with spaces.txt.sha256].*computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt]")"
 echo "349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff" > "$ROH_DIR/file with spaces.txt.$HASH"
 
-mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" 
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: hashes not exclusively hidden in [$ROH_DIR]")"
-$FPATH_BIN write "$TEST" >/dev/null 2>&1
+mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: hash NOT hidden.*shown [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt.sha256].*computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt]")"
+run_test "$FPATH_BIN verify hide $TEST" "1" "$(escape_expected "ERROR: hash NOT hidden")"
+mv "$TEST/file with spaces.txt.sha256" "$ROH_DIR/file with spaces.txt.sha256"
+run_test "$FPATH_BIN verify show $TEST" "1" "$(escape_expected "ERROR: hash NOT shown.*hidden [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$ROH_DIR/file with spaces.txt.sha256].*computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt]")"
+cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
+run_test "$FPATH_BIN verify hide $TEST" "0" "$(escape_expected "WARN: two hash files exist but EQUAL.*hidden [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$ROH_DIR/file with spaces.txt.sha256].*shown [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt.sha256]")"
+# under `verify show`, sibling sub-dir files are still hidden-only (ERROR: hash NOT shown), so exit is 1; WARN match still verifies the both-equal branch.
+run_test "$FPATH_BIN verify show $TEST" "1" "$(escape_expected "WARN: two hash files exist but EQUAL.*hidden [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$ROH_DIR/file with spaces.txt.sha256].*shown [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt.sha256]")"
+rm "$TEST/file with spaces.txt.sha256"
+# state: hidden only — exclusive-hidden is the post-condition expected by tests downstream
 
 touch "$TEST/.HIDDEN_FILE"
 run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: directories with hidden entries were detected and exported.*[test/.roh.git/../.roh.logs/files-hidden.exported.txt]")"
@@ -371,9 +378,9 @@ rm "$TEST/.roh.logs/files-hidden.exported.txt"
 run_test "$FPATH_BIN verify index --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 rm "$TEST/.roh.sqlite3"
 
-# mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256" # already moved
+mv "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
 echo "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69" > "$TEST/file with spaces.txt.$HASH"
-run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: hash mismatch.*stored [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST/file with spaces.txt.sha256].*computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt]")"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR: hash NOT hidden.*shown [8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69]: [$TEST/file with spaces.txt.sha256].*computed [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt]")"
 echo "349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff" > "$TEST/file with spaces.txt.$HASH"
 
 rm "$TEST/file with spaces.txt.$HASH"
@@ -430,7 +437,7 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 
 cp "$TEST/.roh.git/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.sha256" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/."
 rm -rf "$TEST/.roh.git/$SUBDIR_WITH_SPACES/$SUBSUBDIR"
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
+run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "NEW DIRECTORY!?")" "true"
 
 rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jkl.txt.$HASH" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: [test/sub-directory with spaces/sub-sub-directory] -- NEW DIRECTORY!?")"
