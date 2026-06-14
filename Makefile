@@ -5,9 +5,6 @@ ROH_FPATH=roh.fpath
 ROH_GIT=roh.git
 ROH_COPY=roh.copy
 
-# Define the version here or pass it as an environment variable
-VERSION := $(shell git describe --tags --long --match v[0-9]*.[0-9]* | sed 's/-g.*$$//')
-
 OUT= build
 
 .PHONY: nothing install obf repo clean
@@ -30,31 +27,19 @@ install:
 	@mkdir -p ~/bin
 #
 	@cp -v ./${ROH}.sh ~/bin/${ROH} # this will get clobbered !
-	@echo "#!/bin/bash" > ~/bin/${ROH}
-	@echo "" >> ~/bin/${ROH}
-	@echo "VERSION=\"$(VERSION)\"" >> ~/bin/${ROH}
-	@tail -n +2 ./${ROH}.sh >> ~/bin/${ROH}
+	gv --bash ~/bin/${ROH}
 	@chmod +x ~/bin/${ROH}
 #	
 	@cp -v ./${ROH_FPATH}.sh ~/bin/${ROH_FPATH} # this will get clobbered !
-	@echo "#!/bin/bash" > ~/bin/${ROH_FPATH}
-	@echo "" >> ~/bin/${ROH_FPATH}
-	@echo "VERSION=\"$(VERSION)\"" >> ~/bin/${ROH_FPATH}
-	@tail -n +2 ./${ROH_FPATH}.sh >> ~/bin/${ROH_FPATH}
+	gv --bash ~/bin/${ROH_FPATH}
 	@chmod +x ~/bin/${ROH_FPATH}
 #
 	@cp -v ./${ROH_GIT}.sh ~/bin/${ROH_GIT} # this will get clobbered !
-	@echo "#!/bin/bash" > ~/bin/${ROH_GIT}
-	@echo "" >> ~/bin/${ROH_GIT}
-	@echo "VERSION=\"$(VERSION)\"" >> ~/bin/${ROH_GIT}
-	@tail -n +2 ./${ROH_GIT}.sh >> ~/bin/${ROH_GIT}
+	gv --bash ~/bin/${ROH_GIT}
 	@chmod +x ~/bin/${ROH_GIT}
 #
 	@cp -v ./${ROH_COPY}.sh ~/bin/${ROH_COPY} # this will get clobbered !
-	@echo "#!/bin/bash" > ~/bin/${ROH_COPY}
-	@echo "" >> ~/bin/${ROH_COPY}
-	@echo "VERSION=\"$(VERSION)\"" >> ~/bin/${ROH_COPY}
-	@tail -n +2 ./${ROH_COPY}.sh >> ~/bin/${ROH_COPY}
+	gv --bash ~/bin/${ROH_COPY}
 	@chmod +x ~/bin/${ROH_COPY}
 #
 	@echo "Done."

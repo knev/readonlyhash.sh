@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION=
+
 #set -x
 
 usage() {
@@ -72,7 +74,7 @@ while getopts ":iazxC:h-:" opt; do
 		  archive_version="v2"
 		  ;;
 	    version)
-	      echo "$(basename "$0") version: $VERSION"
+	      echo "$(basename "$0") version: v$VERSION"
 		  echo
 	      exit 0
 	      ;;

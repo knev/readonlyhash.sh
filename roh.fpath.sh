@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION=
+
 shopt -s nullglob
 
 #set -x
@@ -70,7 +72,6 @@ usage() {
 #TODO: prune all index hashes that point to files that no longer exist
 #TODO: ? write parts in C++ or rust to improve performance
 #TODO: when using --roh-dir, perhaps the output paths should show that the roh-dir is different than the file location.
-#TODO: rm -rf .roh.git.rslsc
 
 KEEP_PROGRESS_BAR="false"
 
@@ -1521,7 +1522,7 @@ while getopts "vh-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
 	v)
-	  echo "$(basename "$0") version: $VERSION"
+	  echo "$(basename "$0") version: v$VERSION"
 	  echo
 	  exit 0
 	  ;;
@@ -1559,7 +1560,7 @@ while getopts "vh-:" opt; do
 		  VERBOSE_MODE="true"
 		  ;;
 	    version)
-	      echo "$(basename "$0") version: $VERSION"
+	      echo "$(basename "$0") version: v$VERSION"
 		  echo
 	      exit 0
 	      ;;

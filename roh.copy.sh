@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION=
+
 usage() {
     echo "Usage:"
 	echo "      $(basename "$0") <[OPTIONS]|--rebase [\"]BASEPATH:TARGET_BASEPATH[\"]> <PATHSPEC>"

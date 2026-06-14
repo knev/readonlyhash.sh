@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION=
+
 FPATH_BIN="roh.fpath"
 GIT_BIN="roh.git"
 HASH="sha256"
@@ -157,7 +159,7 @@ while getopts "h-:" opt; do
           shift 2
           ;;
 	    version)
-	      echo "$(basename "$0") version: $VERSION"
+	      echo "$(basename "$0") version: v$VERSION"
 		  echo
 	      exit 0
 	      ;;
