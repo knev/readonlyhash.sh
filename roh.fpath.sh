@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=
+VERSION="2.2.2"
 
 shopt -s nullglob
 
