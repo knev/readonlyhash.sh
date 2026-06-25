@@ -13,7 +13,7 @@ usage() {
 	echo "  -[a|z]         Archive the roh.git storage"
 	echo "  -x             Extract the roh.git storage"
 	echo "  -C             Specify the working directory"
-    echo "      --force    Force operation"
+    echo "  -f, --force    Force operation"
 	echo "      --v1       Use the legacy tar+zip routine (pre-content-hash format)"
 	echo "      --v2       Use the deterministic tar+content-hash routine (default)"
     echo "      --version  Display the version and exit"
@@ -61,7 +61,7 @@ force_mode="false"
 archive_version="v2"
 
 # Parse command line options
-while getopts ":iazxC:h-:" opt; do
+while getopts ":iazxC:fh-:" opt; do
   case $opt in
 	i)
 	  commands+=("init")
@@ -75,6 +75,9 @@ while getopts ":iazxC:h-:" opt; do
     C)
 	  CWD="$OPTARG"
       ;;
+	f)
+	  force_mode="true"
+	  ;;
     h)
       usage
       exit 0

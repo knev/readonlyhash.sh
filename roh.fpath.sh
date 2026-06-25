@@ -37,7 +37,7 @@ usage() {
 	echo
 	echo "Options:"
 	echo "        --verbose        Verbose operational output"
-	echo "        --force          Force operation even if hash files do not match"
+	echo "  -f,   --force          Force operation even if hash files do not match"
 	echo "        --roh-dir        Specify the readonly hash path"
 	echo "        --db             Explicity specify the location of the database file"
 	echo "        --only-files     Only process files, do not run hash maintanence"
@@ -1551,13 +1551,16 @@ done
 set -- "${_mfn_args[@]}"
 unset _mfn_args _mfn_a
 
-while getopts "vh-:" opt; do
+while getopts "vfh-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
   case $opt in
 	v)
 	  echo "$(basename "$0") version: v$VERSION"
 	  echo
 	  exit 0
+	  ;;
+	f)
+	  force_mode="true"
 	  ;;
     h)
       usage
