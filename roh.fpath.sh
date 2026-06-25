@@ -600,6 +600,18 @@ hex_decode() {
 	printf '%s' "$1" | xxd -r -p
 }
 
+# roh_sqlite3_query <db> <sql>
+#   sqlite3 wrapper for value-returning queries. The native Windows sqlite3
+#   emits CRLF line endings, so a trailing \r contaminates the last parsed
+#   field (numbers fail -eq, hashes/paths miscompare). Strip CR with a bash
+#   builtin (no tr) while preserving sqlite3's exit status. No-op on LF
+#   platforms (macOS/Linux). Use for SELECTs; INSERT/schema calls don't need it.
+roh_sqlite3_query() {
+    local out
+    out=$(sqlite3 "$@") || return $?
+    printf '%s\n' "${out//$'\r'/}"
+}
+
 roh_sqlite3_db_init() {
     local db="$1"
 
@@ -673,8 +685,12 @@ roh_sqlite3_db_find_hash() {
 		log_abort "[$db] -- can not access database file"
 	fi
 
-	sqlite3 "$db" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
-	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath'
+	# Fields joined with '|' (not char(13)/CR): newer sqlite3 CLIs escape CR in
+	# output to "^M", which breaks an IFS=$'\r' split. '|' passes through raw and
+	# never appears in the values (hex-encoded paths, the '<NULL>' sentinel, hex
+	# hash). Parsed with IFS='|' by the callers.
+	roh_sqlite3_query "$db" "SELECT IFNULL(fpath, '<NULL>') || '|' || roh_hash_fpath FROM hashes WHERE hash = '$stored';"
+	# '$enc_abs_fpath' | '$enc_abs_roh_hash_fpath'
 }
 
 roh_sqlite3_db_find_fn() {
@@ -686,8 +702,8 @@ roh_sqlite3_db_find_fn() {
 	fi
 
     local enc_fn=$(hex_encode "$fn")
-	sqlite3 "$db" "SELECT IFNULL(fpath, '<NULL>') || char(13) || roh_hash_fpath || char(13) || hash FROM hashes WHERE filename = '$enc_fn';"
-	# '$enc_abs_fpath' \r '$enc_abs_roh_hash_fpath' \r '$stored'
+	roh_sqlite3_query "$db" "SELECT IFNULL(fpath, '<NULL>') || '|' || roh_hash_fpath || '|' || hash FROM hashes WHERE filename = '$enc_fn';"
+	# '$enc_abs_fpath' | '$enc_abs_roh_hash_fpath' | '$stored'  (see find_hash note re '|')
 }
 
 roh_sqlite3_db_fpath_exists() {
@@ -701,11 +717,11 @@ roh_sqlite3_db_fpath_exists() {
 
 	# readlink of missing file on linux returns a path, on macOS returns empty string
 	if ! stat "$fpath" >/dev/null 2>&1; then
-		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE hash = '$stored' AND fpath IS NULL;"
+		roh_sqlite3_query "$db" "SELECT COUNT(*) FROM hashes WHERE hash = '$stored' AND fpath IS NULL;"
 	else
 		local abs_fpath=$(readlink -f "$fpath")
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
-		sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE fpath = '$enc_abs_fpath';"	
+		roh_sqlite3_query "$db" "SELECT COUNT(*) FROM hashes WHERE fpath = '$enc_abs_fpath';"	
 	fi
 }
 
@@ -723,7 +739,7 @@ roh_sqlite3_db_get_1fpath_hash() {
 	else
 		local abs_fpath=$(readlink -f "$fpath")
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
-		sqlite3 "$db" "SELECT hash FROM hashes WHERE fpath = '$enc_abs_fpath';"
+		roh_sqlite3_query "$db" "SELECT hash FROM hashes WHERE fpath = '$enc_abs_fpath';"
 		# '$stored'
 	fi
 }
@@ -739,7 +755,7 @@ roh_sqlite3_db_roh_hash_fpath_exists() {
     local abs_roh_hash_fpath=$(readlink -f "$roh_hash_fpath")
     local enc_abs_roh_hash_fpath=$(hex_encode "$abs_roh_hash_fpath")
 
-	sqlite3 "$db" "SELECT COUNT(*) FROM hashes WHERE roh_hash_fpath = '$enc_abs_roh_hash_fpath';"
+	roh_sqlite3_query "$db" "SELECT COUNT(*) FROM hashes WHERE roh_hash_fpath = '$enc_abs_roh_hash_fpath';"
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -773,7 +789,7 @@ find_matching_fn()
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
 			if [ -n "$found" ]; then
-				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
+				IFS='|' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath found_hash <<< "$found"
 
 				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
 				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
@@ -1814,7 +1830,7 @@ recover_hash() {
 	    # Only print non-empty paths
 	    while IFS= read -r found; do
 	        if [ -n "$found" ]; then
-				IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath <<< "$found"
+				IFS='|' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath <<< "$found"
 
 				local found_abs_fpath=$(hex_decode "$found_enc_abs_fpath")
 				local found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
@@ -2310,7 +2326,7 @@ process_query() {
 	fi
 
 	[ -z "$list_roh_hash_fpaths" ] && echo "  --"
-	while IFS=$'\r' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath; do
+	while IFS='|' read -r found_enc_abs_fpath found_enc_abs_roh_hash_fpath; do
 		#[ -n "$found_enc_abs_fpath" ] && echo "[$fpath:$roh_hash_fpath]"
 		if [ -n "$found_enc_abs_roh_hash_fpath" ]; then
 			found_abs_roh_hash_fpath=$(hex_decode "$found_enc_abs_roh_hash_fpath")
