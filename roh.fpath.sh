@@ -181,7 +181,7 @@ generate_hash() {
     # echo $($SHA256_BIN "$file" | awk '{print $1}')
 	# echo $(stdbuf -i0 shasum -a 256 "$file" | cut -c1-64) # brew install coreutils || gstdbuf Instead
 	# echo $(stdbuf -i0 openssl sha256 "$file" | tail -c 65) # brew install coreutils || gstdbuf Instead
-	echo $(openssl sha256 "$file" | tail -c 65) # brew install coreutils || gstdbuf Instead
+	echo $(openssl sha256 "$file" | awk '{print $NF}' | head -c 64) # hash is last field; read 256 bits from its front (CRLF-safe)
 }
 
 stored_hash() {

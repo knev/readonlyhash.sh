@@ -370,7 +370,7 @@ archive_roh() {
 		exit 1
 	fi
 	local new_hash
-	new_hash=$(shasum -a 256 "$tmp_tar" | awk '{print $1}')
+	new_hash=$(openssl sha256 "$tmp_tar" | awk '{print $NF}' | head -c 64) # match roh.fpath generate_hash() (CRLF-safe)
 
 	if [ -n "$prev_hash" ]; then
 		if [ "$prev_hash" != "$new_hash" ]; then
