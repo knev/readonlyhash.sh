@@ -45,6 +45,23 @@ usage() {
     echo
 }
 
+# check_pre_reqs <cmd>...
+# Abort with a clear message listing every required external tool that is
+# missing. command -v is a shell builtin, so this works even on environments
+# where `which` itself isn't installed (e.g. some Git-Bash setups).
+check_pre_reqs() {
+    local req missing=()
+    for req in "$@"; do
+        command -v "$req" >/dev/null 2>&1 || missing+=("$req")
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "ERROR: $(basename "$0") requires missing tool(s): ${missing[*]}" >&2
+        echo "Abort." >&2
+        echo >&2
+        exit 1
+    fi
+}
+
 # Check if a command is provided
 if [ $# -eq 0 ]; then
 	usage
@@ -134,6 +151,12 @@ done
 
 # Reset positional parameters to remaining arguments only
 shift $((i-1))   # now $1 is the first -something argument
+
+# This script orchestrates the two worker scripts, so its only direct prereqs
+# are that they resolve (on PATH normally, or ./roh.*.sh under --debug). Each
+# worker self-checks its own external tools (openssl/sqlite3/xxd for roh.fpath;
+# git/zip/unzip/tar/openssl for roh.git), so we don't restate those here.
+check_pre_reqs "$FPATH_BIN" "$GIT_BIN"
 
 # -----
 

@@ -39,6 +39,23 @@ contains() {
     return 1
 }
 
+# check_pre_reqs <cmd>...
+# Abort with a clear message listing every required external tool that is
+# missing. command -v is a shell builtin, so this works even on environments
+# where `which` itself isn't installed (e.g. some Git-Bash setups).
+check_pre_reqs() {
+    local req missing=()
+    for req in "$@"; do
+        command -v "$req" >/dev/null 2>&1 || missing+=("$req")
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "ERROR: $(basename "$0") requires missing tool(s): ${missing[*]}" >&2
+        echo "Abort." >&2
+        echo >&2
+        exit 1
+    fi
+}
+
 CWD=""
 force_mode="false"
 archive_version="v2"
@@ -133,6 +150,16 @@ if [ -z "$CWD" ] || ! [ -d "$CWD" ]; then
 	usage
 	exit 1
 fi
+
+# Required external tools depend on the operation, so check now that the command
+# is known but before any git/archive work. git is always needed (this is a git
+# wrapper, including the bare -C passthrough). archive writes a zip, reads the
+# prior zip (unzip), builds a tar, and hashes it (openssl). extract reads the
+# zip (unzip) and, on --v1, untars.
+reqs=(git)
+contains "archive" && reqs+=(zip unzip tar openssl)
+contains "extract" && reqs+=(unzip tar)
+check_pre_reqs "${reqs[@]}"
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -1397,6 +1397,23 @@ process_entry()
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
+# check_pre_reqs <cmd>...
+# Abort with a clear message listing every required external tool that is
+# missing. command -v is a shell builtin, so this works even on environments
+# where `which` itself isn't installed (e.g. some Git-Bash setups).
+check_pre_reqs() {
+    local req missing=()
+    for req in "$@"; do
+        command -v "$req" >/dev/null 2>&1 || missing+=("$req")
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "ERROR: $(basename "$0") requires missing tool(s): ${missing[*]}" >&2
+        echo "Abort." >&2
+        echo >&2
+        exit 1
+    fi
+}
+
 # Check if a command is provided
 if [ $# -eq 0 ]; then
 	usage
@@ -1685,8 +1702,19 @@ elif [ ${#commands[@]} -eq 1 ]; then
 else
 	echo "ERROR: invalid command combination [${commands[@]}]" >&2
 	usage
-	exit 1	
+	exit 1
 fi
+
+# Required external tools: openssl is always needed (generate_hash). The
+# DB-backed commands (index/query/recover) additionally need sqlite3 and xxd
+# (hex-encode of paths). Checked only after the command combination is known to
+# be valid, so bad combinations report their own error first. Fail fast before
+# processing any files.
+reqs=(openssl)
+if contains "index" || contains "query" || contains "recover"; then
+	reqs+=(sqlite3 xxd)
+fi
+check_pre_reqs "${reqs[@]}"
 
 # Check for force_mode usage
 if [ "$force_mode" = "true" ] && ! contains "write" && ! contains "show" && ! contains "hide"; then
