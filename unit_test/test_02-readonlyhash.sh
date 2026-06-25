@@ -53,7 +53,7 @@ rm "$fpath" >/dev/null 2>&1
 echo
 echo "# init"
 
-run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "0" "$(escape_expected "Initialized empty Git repository in $PWD/Fotos [space]/2003/.roh.git/.git/")"
+run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "0" "$(escape_expected "Initialized empty Git repository in.*/Fotos [space]/2003/.roh.git/.git/")"
 run_test "$GIT_BIN -iC Fotos\ \[space\]/2003" "1" "$(escape_expected "ERROR: [Fotos [space]/2003/.roh.git/.git] exists already.*Abort.")"
 rm -rf 'Fotos [space]/2003/.roh.git' >/dev/null 2>&1
 

@@ -605,6 +605,19 @@ hex_decode() {
 	printf '%s' "$1" | xxd -r -p
 }
 
+# native_path <path>
+#   Return a path that native Windows tools (sqlite3) can open. MSYS mangles a
+#   POSIX absolute path containing '[' or ']' when handing it as an argument to
+#   a native exe, so convert to a Windows path via cygpath there. On macOS/Linux
+#   cygpath is absent and the path is returned unchanged.
+native_path() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$1"
+    else
+        printf '%s' "$1"
+    fi
+}
+
 # roh_sqlite3_query <db> <sql>
 #   sqlite3 wrapper for value-returning queries. The native Windows sqlite3
 #   emits CRLF line endings, so a trailing \r contaminates the last parsed
@@ -612,8 +625,9 @@ hex_decode() {
 #   builtin (no tr) while preserving sqlite3's exit status. No-op on LF
 #   platforms (macOS/Linux). Use for SELECTs; INSERT/schema calls don't need it.
 roh_sqlite3_query() {
+    local db="$1"; shift
     local out
-    out=$(sqlite3 "$@") || return $?
+    out=$(sqlite3 "$(native_path "$db")" "$@") || return $?
     printf '%s\n' "${out//$'\r'/}"
 }
 
@@ -627,7 +641,7 @@ roh_sqlite3_db_init() {
 	fi
 
     # Create or open the SQLite database with a new schema
-    sqlite3 "$db" <<EOF
+    sqlite3 "$(native_path "$db")" <<EOF
 CREATE TABLE IF NOT EXISTS hashes (
     id INTEGER PRIMARY KEY,
     hash TEXT NOT NULL,
@@ -673,12 +687,12 @@ roh_sqlite3_db_insert() {
 	# readlink of missing file on linux returns a path, on macOS returns empty string
 	if ! stat "$fpath" >/dev/null 2>&1; then
 		# echo "roh_sqlite3_db_insert: abs_fpath NULL" >&2
-		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', NULL, '$enc_abs_roh_hash_fpath');"
+		sqlite3 "$(native_path "$db")" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', NULL, '$enc_abs_roh_hash_fpath');"
 	else
 		# echo "roh_sqlite3_db_insert: abs_fpath $abs_fpath" >&2
     	local abs_fpath=$(readlink -f "$fpath")
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
-		sqlite3 "$db" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', '$enc_abs_fpath', '$enc_abs_roh_hash_fpath');"
+		sqlite3 "$(native_path "$db")" "INSERT INTO hashes (hash, filename, fpath, roh_hash_fpath) VALUES ('$stored', '$enc_fn', '$enc_abs_fpath', '$enc_abs_roh_hash_fpath');"
 	fi
 }
 
