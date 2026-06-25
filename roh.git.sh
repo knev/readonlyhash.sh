@@ -56,6 +56,19 @@ check_pre_reqs() {
     fi
 }
 
+# git_path <path>
+#   Return a path that native git can chdir into. Git for Windows can't `git -C`
+#   into a POSIX-style absolute path containing '[' or ']' (it mangles them), so
+#   convert to a Windows path via cygpath there. On macOS/Linux cygpath is
+#   absent and the path is returned unchanged.
+git_path() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$1"
+    else
+        printf '%s' "$1"
+    fi
+}
+
 CWD=""
 force_mode="false"
 archive_version="v2"
@@ -183,18 +196,18 @@ init_roh() {
 	export GIT_CONFIG_KEY_0=advice.defaultBranchName
 	export GIT_CONFIG_VALUE_0="false"
 
-	git -C "$dir/$ROH_DIR" init
+	git -C "$(git_path "$dir/$ROH_DIR")" init
 
 	echo ".DS_Store.$HASH" > "$dir/$ROH_DIR"/.gitignore
-	git -C "$dir/$ROH_DIR" add .gitignore
-	git -C "$dir/$ROH_DIR" commit -m "Initial ignores."
+	git -C "$(git_path "$dir/$ROH_DIR")" add .gitignore
+	git -C "$(git_path "$dir/$ROH_DIR")" commit -m "Initial ignores."
 	# git -C "$CWD/$ROH_DIR" status
 
-	git_status=$(git -C "$dir/$ROH_DIR" status)
+	git_status=$(git -C "$(git_path "$dir/$ROH_DIR")" status)
 	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-		git -C "$dir/$ROH_DIR" add "*"
-		git -C "$dir/$ROH_DIR" commit -m "Initial hashes."
-		git -C "$dir/$ROH_DIR" status
+		git -C "$(git_path "$dir/$ROH_DIR")" add "*"
+		git -C "$(git_path "$dir/$ROH_DIR")" commit -m "Initial hashes."
+		git -C "$(git_path "$dir/$ROH_DIR")" status
 	fi
 
 	unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
@@ -245,7 +258,7 @@ archive_roh_v1() {
 		return 1
 	fi
 
-	git_status=$(git -C "$dir/$ROH_DIR" status)
+	git_status=$(git -C "$(git_path "$dir/$ROH_DIR")" status)
 	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
         echo "ERROR: local repo [$dir/$ROH_DIR] not clean"
 		echo "Abort."
@@ -356,7 +369,7 @@ archive_roh() {
 		return 1
 	fi
 
-	git_dirty=$(git -C "$dir/$ROH_DIR" status --porcelain 2>/dev/null)
+	git_dirty=$(git -C "$(git_path "$dir/$ROH_DIR")" status --porcelain 2>/dev/null)
 	if [ -n "$git_dirty" ]; then
         echo "ERROR: local repo [$dir/$ROH_DIR] not clean"
 		echo "Abort."
@@ -554,7 +567,7 @@ else
 	export GIT_ADVICE_IMPLICIT_IDENTITY=false
 
 	# Now, $@ contains all arguments after -C PATH
-	git -C "$CWD/$ROH_DIR" "$@"
+	git -C "$(git_path "$CWD/$ROH_DIR")" "$@"
 
 	unset GIT_ADVICE_IMPLICIT_IDENTITY
 	unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
