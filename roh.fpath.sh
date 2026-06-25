@@ -181,7 +181,12 @@ generate_hash() {
     # echo $($SHA256_BIN "$file" | awk '{print $1}')
 	# echo $(stdbuf -i0 shasum -a 256 "$file" | cut -c1-64) # brew install coreutils || gstdbuf Instead
 	# echo $(stdbuf -i0 openssl sha256 "$file" | tail -c 65) # brew install coreutils || gstdbuf Instead
-	echo $(openssl sha256 "$file" | awk '{print $NF}' | head -c 64) # hash is last field; read 256 bits from its front (CRLF-safe)
+	# Feed the file via stdin (bash opens it) rather than as an openssl argument:
+	# the native Windows openssl can't fopen an absolute MSYS path that contains a
+	# single quote (and other chars MSYS arg path-conversion mangles). stdin
+	# sidesteps that entirely. Output is "(stdin)= <hash>", so $NF is still the
+	# hash; head -c 64 reads 256 bits from its front (CRLF-safe).
+	echo $(openssl sha256 < "$file" | awk '{print $NF}' | head -c 64)
 }
 
 stored_hash() {
