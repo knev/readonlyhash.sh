@@ -857,7 +857,7 @@ run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose
 
 # indexed but missing
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt" # orphan the hash
-run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[/Users/dev/Project-@knev/readonlyhash.sh.git/test/sub-dir copy :slash.ro/sub-sub-directory/xgy'.txt] -- indexed, but missing")"
+run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[$PWD/test/sub-dir copy :slash.ro/sub-sub-directory/xgy'.txt] -- indexed, but missing")"
 echo "XGY" >> "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt" # orphan the hash
 
 echo "4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256"
