@@ -237,16 +237,63 @@ rm -f "$TEST/.roh.git.zip~"
 echo
 echo "# write"
 
-# Weird b3-Excito cyclic symlink
-pushd "$TEST" >/dev/null 2>&1
-ln -s . X11
-popd >/dev/null 2>&1
-run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "Avoiding symlink [test/X11] like the Plague")"
-rm "$TEST/X11"
+# Native symlinks aren't available on stock Git Bash/MSYS (needs Developer Mode
+# + MSYS=winsymlinks:*): `ln -s` silently copies instead of linking, and the
+# cyclic link below ELOOPs at creation time. Probe once and skip the symlink
+# tests where real links can't be made, so the suite still runs on Windows.
+symlinks_supported() {
+	local d ok=1
+	d=$(mktemp -d) || return 1
+	: > "$d/real"
+	if ln -s real "$d/link" 2>/dev/null && [ -L "$d/link" ]; then
+		ok=0
+	fi
+	rm -rf "$d"
+	return $ok
+}
+if symlinks_supported; then
+	SYMLINKS_OK="true"
+else
+	SYMLINKS_OK="false"
+	echo "# SKIP: native symlinks unavailable (e.g. Git Bash/MSYS without Developer Mode) -- symlink tests skipped"
+fi
 
-chmod 000 "$TEST/file with spaces.txt"
-run_test "$FPATH_BIN write --verbose --force $TEST" "0" "$(escape_expected "ERROR: [test/file with spaces.txt] file -- not readable or permission denied.*computed [0000000000000000000000000000000000000000000000000000000000000000]: [test/file with spaces.txt]")"
-chmod 644 "$TEST/file with spaces.txt"
+# chmod mode bits aren't enforced for the owner on Windows/Git Bash: `chmod 000`
+# leaves a file readable and a directory writable, so the permission-denied
+# tests below can't be exercised. Probe once and skip them where chmod has no
+# effect, mirroring the symlink guard above.
+chmod_enforced() {
+	local d f ok=1
+	d=$(mktemp -d) || return 1
+	f="$d/probe"
+	: > "$f"
+	chmod 000 "$f"
+	[ ! -r "$f" ] && ok=0
+	chmod 644 "$f" 2>/dev/null
+	rm -rf "$d"
+	return $ok
+}
+if chmod_enforced; then
+	CHMOD_OK="true"
+else
+	CHMOD_OK="false"
+	echo "# SKIP: chmod mode bits not enforced (e.g. Git Bash/MSYS) -- permission tests skipped"
+fi
+
+# Weird b3-Excito cyclic symlink
+if [ "$SYMLINKS_OK" = "true" ]; then
+	pushd "$TEST" >/dev/null 2>&1
+	ln -s . X11
+	popd >/dev/null 2>&1
+	run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "Avoiding symlink [test/X11] like the Plague")"
+	rm "$TEST/X11"
+fi
+
+if [ "$CHMOD_OK" = "true" ]; then
+	chmod 000 "$TEST/file with spaces.txt"
+	run_test "$FPATH_BIN write --verbose --force $TEST" "0" "$(escape_expected "ERROR: [test/file with spaces.txt] file -- not readable or permission denied.*computed [0000000000000000000000000000000000000000000000000000000000000000]: [test/file with spaces.txt]")"
+	chmod 644 "$TEST/file with spaces.txt"
+fi
 
 echo "#NEW_FILE#" >> "$TEST/new-file.txt"
 run_test "$FPATH_BIN write --verbose $TEST -- new-file.txt" "0" "$(escape_expected "OK: [d76a514430a56c7d071db6099fc6a3d3917f90f94ed731ae09220e29b09466ab]: [test/new-file.txt] -- file hash written")"
@@ -324,9 +371,11 @@ rm "$ROH_DIR/file with spaces.txt.$HASH"
 run_test "$FPATH_BIN write --verbose $TEST" "0" "$(escape_expected "  OK: [349cac0f5dfc74f7e03715cdca2cf2616fb5506e9c7fa58ac0e70a6a0426ecff]: [$TEST/file with spaces.txt] -- file hash written")"
 
 rm "$ROH_DIR/file with spaces.txt.$HASH" 
-chmod 000 "$ROH_DIR"
-run_test "$FPATH_BIN write $TEST" "1" "$(escape_expected "ERROR: [$TEST/file with spaces.txt] -- failed to write hash to [test/.roh.git/file with spaces.txt.sha256]")"
-chmod 700 "$ROH_DIR"
+if [ "$CHMOD_OK" = "true" ]; then
+	chmod 000 "$ROH_DIR"
+	run_test "$FPATH_BIN write $TEST" "1" "$(escape_expected "ERROR: [$TEST/file with spaces.txt] -- failed to write hash to [test/.roh.git/file with spaces.txt.sha256]")"
+	chmod 700 "$ROH_DIR"
+fi
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 run_test "$FPATH_BIN write $TEST" "0" "$(escape_expected "  OK: ")" "true"
@@ -490,11 +539,13 @@ run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "WARN: [test/sub-direc
 $FPATH_BIN write "$TEST" >/dev/null 2>&1
 
 # weird symlink to existing file
-mkdir  "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH"
-ln -s "../../pno.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH/a-symlink"
-run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
-rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH/a-symlink"
-rmdir  "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH"
+if [ "$SYMLINKS_OK" = "true" ]; then
+	mkdir  "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH"
+	ln -s "../../pno.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH/a-symlink"
+	run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
+	rm "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH/a-symlink"
+	rmdir  "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/BLAH"
+fi
 
 mkdir "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/tmp-empty" 
 run_test "$FPATH_BIN verify $TEST" "0" "$(escape_expected "NEW DIRECTORY!?")" "true"
@@ -994,9 +1045,11 @@ echo "# show/hide"
 # $FPATH_BIN show "$TEST" >/dev/null 2>&1
 # run_test "$FPATH_BIN verify $TEST" "1" "$(escape_expected "ERROR:.* -- hash file [.*] exists/(NOT hidden)")"
 # $FPATH_BIN hide "$TEST" >/dev/null 2>&1
-chmod 000 "$ROH_DIR"
-run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test/.roh.git] -- missing or inaccessible.*Abort.")"
-chmod 755 "$ROH_DIR"
+if [ "$CHMOD_OK" = "true" ]; then
+	chmod 000 "$ROH_DIR"
+	run_test "$FPATH_BIN show $TEST" "1" "$(escape_expected "ERROR: [test/.roh.git] -- missing or inaccessible.*Abort.")"
+	chmod 755 "$ROH_DIR"
+fi
 
 # equal hashes on both sides: show should silently move, no --force needed
 cp "$ROH_DIR/file with spaces.txt.sha256" "$TEST/file with spaces.txt.sha256"
