@@ -58,7 +58,25 @@ TEST="test"
 ROH_DIR="$TEST/.roh.git"
 SUBDIR_WITH_SPACES="sub-directory with spaces"
 SUBSUBDIR="sub-sub-directory"
-SUBDIR_COPY_SLASH_RO="sub-dir copy :slash".ro 
+
+# ':' is legal in POSIX filenames but illegal on Windows/NTFS. MSYS/Git Bash
+# stores such a name via a private-use Unicode remap that MSYS-aware tools
+# handle, but the native mingw64 openssl used for hashing can't fopen it
+# ("Invalid argument"). Probe whether a colon filename is actually hashable
+# here; if not, swap in a safe stand-in so the weird-char fixture still
+# exercises spaces/quotes. On macOS/Linux COLON stays ':' (fixture unchanged).
+colon_hashable() {
+	local d ok=1
+	d=$(mktemp -d) || return 1
+	if ( : > "$d/a:b" ) 2>/dev/null && openssl sha256 "$d/a:b" >/dev/null 2>&1; then
+		ok=0
+	fi
+	rm -rf "$d"
+	return $ok
+}
+if colon_hashable; then COLON=":"; else COLON="~"; echo "# NOTE: ':' not hashable here (Windows/NTFS) -- using '~' in fixture paths"; fi
+
+SUBDIR_COPY_SLASH_RO="sub-dir copy ${COLON}slash".ro
 SUBDIR_WITH_SPACES_RO="$SUBDIR_WITH_SPACES".ro
 if [ -d $TEST ]; then 
 	chmod -R 777 $TEST
@@ -700,17 +718,17 @@ mv "$TEST/$SUBDIR_WITH_SPACES/JKL~.txt" "$TEST/$SUBDIR_WITH_SPACES/$SUBSUBDIR/jk
 # ----
 
 $FPATH_BIN delete --verbose "$TEST" >/dev/null 2>&1
-cp -R "$TEST/$SUBDIR_WITH_SPACES" "$TEST/sub-dir copy :slash"
+cp -R "$TEST/$SUBDIR_WITH_SPACES" "$TEST/sub-dir copy ${COLON}slash"
 echo "rxn" > "$TEST/$SUBDIR_WITH_SPACES/rxn.txt"
 
-# db doesn't exist at $TEST/sub-dir\ copy\ :slash/.roh.sqlite3
+# db doesn't exist at $TEST/sub-dir\ copy\ ${COLON}slash/.roh.sqlite3
 run_test "$FPATH_BIN recover --verbose \"$TEST/$SUBDIR_WITH_SPACES\"" "1" "$(escape_expected "ERROR: [test/$SUBDIR_WITH_SPACES/.roh.sqlite3] -- database file not found")"
 
 echo "XGY" > "$TEST/$SUBDIR_WITH_SPACES/xgy'.txt"
 $FPATH_BIN write --verbose "$TEST/$SUBDIR_WITH_SPACES" >/dev/null 2>&1
-$FPATH_BIN write --verbose "$TEST/sub-dir copy :slash" >/dev/null 2>&1
+$FPATH_BIN write --verbose "$TEST/sub-dir copy ${COLON}slash" >/dev/null 2>&1
 mv "$TEST/$SUBDIR_WITH_SPACES" "$TEST/$SUBDIR_WITH_SPACES_RO"
-mv "$TEST/sub-dir copy :slash" "$TEST/$SUBDIR_COPY_SLASH_RO"
+mv "$TEST/sub-dir copy ${COLON}slash" "$TEST/$SUBDIR_COPY_SLASH_RO"
 
 mv "$TEST/$SUBDIR_WITH_SPACES_RO/rxn.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/rxn-renamed.txt"
 run_test "$FPATH_BIN index recover \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "0" "$(escape_expected "IDX: >d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af<: [test/sub-directory with spaces.ro/rxn-renamed.txt] -- written INDEXED.*RECOVER: [d64e30c3f3448b7979506807650f9b703f9ea276bbbe64fc56442da1d1a471af]: [test/sub-directory with spaces.ro/.roh.git/rxn.txt.sha256] orphaned hash -- DELETED!")"
@@ -860,7 +878,7 @@ cp "$TEST/omn's_.txt" "$TEST/omn'''s_.txt"
 cp "$TEST/omn's_.txt" "$TEST/omn''''s_.txt"
 
 $FPATH_BIN index --db $TEST/.roh.sqlite3 --verbose "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
-$FPATH_BIN index --db $TEST/.roh.sqlite3 --verbose "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1 # [test/sub-dir copy :slash.ro/.roh.git/omn's_.txt.sha256] -- orphaned hash
+$FPATH_BIN index --db $TEST/.roh.sqlite3 --verbose "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1 # [test/sub-dir copy ${COLON}slash.ro/.roh.git/omn's_.txt.sha256] -- orphaned hash
 run_test "$FPATH_BIN write index $TEST" "1" "$(escape_expected "WARN: [$TEST/$SUBDIR_COPY_SLASH_RO] is a readonlyhash directory -- SKIPPING.*WARN: [$TEST/$SUBDIR_WITH_SPACES_RO] is a readonlyhash directory -- SKIPPING")"
 
 run_test "$FPATH_BIN recover --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "0" "$(escape_expected "... [$PWD/test/sub-directory with spaces.ro/omn's_.txt] -- duplicate FOUND.*■: DELETED!")"
@@ -903,12 +921,12 @@ echo "XGY" > "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt" # NEW location
 # catalyst
 rm "$TEST/$SUBDIR_WITH_SPACES_RO/xgy'.txt" # orphan the hash
 echo "9dcccfb25c7ed7e3fb5c910d9a28ec8df138a35a2f8f5e15de797a37ae9fe6ec" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256" # change the hash
-run_test "$FPATH_BIN write index --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "OK: [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [test/sub-dir copy :slash.ro/xgy'.txt] -- file hash written.*IDX: >4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793<: [test/sub-dir copy :slash.ro/.roh.git/xgy'.txt.sha256] -- INDEXED")"
-run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERR: orphaned hash not in IDX [test/sub-directory with spaces.ro/xgy'.txt] -- file MISSING.*FILENAME matches.*[4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [$PWD/test/sub-dir copy :slash.ro/xgy'.txt]")"
+run_test "$FPATH_BIN write index --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "OK: [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [test/sub-dir copy ${COLON}slash.ro/xgy'.txt] -- file hash written.*IDX: >4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793<: [test/sub-dir copy ${COLON}slash.ro/.roh.git/xgy'.txt.sha256] -- INDEXED")"
+run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "ERR: orphaned hash not in IDX [test/sub-directory with spaces.ro/xgy'.txt] -- file MISSING.*FILENAME matches.*[4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [$PWD/test/sub-dir copy ${COLON}slash.ro/xgy'.txt]")"
 
 # indexed but missing
 rm "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt" # orphan the hash
-run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[$PWD/test/sub-dir copy :slash.ro/sub-sub-directory/xgy'.txt] -- indexed, but missing")"
+run_test "$FPATH_BIN recover --match-filenames --db $TEST/.roh.sqlite3 --verbose \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "[$PWD/test/sub-dir copy ${COLON}slash.ro/sub-sub-directory/xgy'.txt] -- indexed, but missing")"
 echo "XGY" >> "$TEST/$SUBDIR_COPY_SLASH_RO/$SUBSUBDIR/xgy'.txt" # orphan the hash
 
 echo "4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793" > "$TEST/$SUBDIR_WITH_SPACES_RO/.roh.git/xgy'.txt.sha256"
@@ -939,8 +957,8 @@ mv "$TEST/$SUBDIR_COPY_SLASH_RO/xgy'.txt" "$TEST/$SUBDIR_WITH_SPACES_RO/$SUBSUBD
 run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "WARN: [1656fd07685d515a7c4cae4e1cad7a99447d8db7aac1eb2814b2572df0e6181f]: [test/sub-directory with spaces.ro/pno copy.txt] -- NEW.*[test/sub-directory with spaces.ro/sub-sub-directory/iop.txt] -- NO corresponding file")"
 run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_WITH_SPACES_RO\"" "1" "$(escape_expected "WARN: [4b89c7c236e2422752ebb01e9d8e2aafef94cd1e559ee5dc45ee4b013b535793]: [test/sub-directory with spaces.ro/sub-sub-directory/xgy'.txt] -- NEW.*[test/sub-directory with spaces.ro/rxn.txt] -- NO corresponding file")"
 
-run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "WARN: [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/sub-dir copy :slash.ro/iop.txt] -- NEW.*[test/sub-dir copy :slash.ro/pno.txt] -- NO corresponding file")"
-run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "WARN: [e251ad71d0c88bf9ec02f9de65edd8e07655ab946e1014e6181077ee27f7c580]: [test/sub-dir copy :slash.ro/rxn.txt] -- NEW.*[test/sub-dir copy :slash.ro/xgy'.txt] -- NO corresponding file")"
+run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "WARN: [48ab83fb303c2bb91a0b15a0a9a1e35b05918f0d482d11f03c30d3be400054d3]: [test/sub-dir copy ${COLON}slash.ro/iop.txt] -- NEW.*[test/sub-dir copy ${COLON}slash.ro/pno.txt] -- NO corresponding file")"
+run_test "$FPATH_BIN verify --verbose --db $TEST/.roh.sqlite3 \"$TEST/$SUBDIR_COPY_SLASH_RO\"" "1" "$(escape_expected "WARN: [e251ad71d0c88bf9ec02f9de65edd8e07655ab946e1014e6181077ee27f7c580]: [test/sub-dir copy ${COLON}slash.ro/rxn.txt] -- NEW.*[test/sub-dir copy ${COLON}slash.ro/xgy'.txt] -- NO corresponding file")"
 
 $FPATH_BIN index --verbose --db $TEST/.roh.sqlite3 "$TEST/$SUBDIR_WITH_SPACES_RO" >/dev/null 2>&1
 $FPATH_BIN index --verbose --db $TEST/.roh.sqlite3 "$TEST/$SUBDIR_COPY_SLASH_RO" >/dev/null 2>&1
