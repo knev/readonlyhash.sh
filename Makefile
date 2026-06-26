@@ -7,14 +7,22 @@ ROH_COPY=roh.copy
 
 OUT= build
 
-# Resolve the user's real home. Under msys2 `make` (Git Bash) the recipe shell
-# resets HOME to the msys home (/home/<user>) -- not on the Git Bash PATH and
-# often unwritable -- so invoke Git Bash's `bash` explicitly to get the real
-# HOME (/c/Users/<user>). On macOS/Linux this is just $HOME. (Same fix as
-# ../gv.git/Makefile.)
-TARGET := $(shell bash -c 'echo $$HOME')
 UNAME_S := $(shell uname -s)
 VERSION := $(shell grep -m1 '^VERSION=' ./$(ROH).sh | cut -d'"' -f2)
+
+# Resolve the install root as a POSIX path. On Windows $HOME differs between Git
+# Bash (/c/Users/<user>) and the MSYS2 shell (/home/<user>), so `make install`
+# could land in two different places depending on which shell runs make.
+# %USERPROFILE% is the same Windows value in both runtimes; cygpath turns it into
+# a POSIX path. macOS/Linux: $HOME is already correct. (Same as ../gv.git/Makefile.)
+ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)))
+ifeq (,$(USERPROFILE))
+$(error %USERPROFILE% is empty -- run native make from Git Bash, or msys64 make from the MSYS2 shell; do NOT run msys64 make from Git Bash (the two msys-2.0.dll runtimes mismarshal the environment))
+endif
+TARGET := $(shell cygpath -u "$$USERPROFILE")
+else
+TARGET := $(HOME)
+endif
 
 .PHONY: nothing install obf repo clean test gv
 
@@ -55,10 +63,10 @@ install:
 	@chmod +x $(TARGET)/bin/${ROH_COPY}
 #
 ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)))
-	@printf '@echo off\r\n"C:\\Program Files\\Git\\bin\\bash.exe" "%%~dp0${ROH}" %%*\r\n' > $(TARGET)/bin/${ROH}.cmd
-	@printf '@echo off\r\n"C:\\Program Files\\Git\\bin\\bash.exe" "%%~dp0${ROH_FPATH}" %%*\r\n' > $(TARGET)/bin/${ROH_FPATH}.cmd
-	@printf '@echo off\r\n"C:\\Program Files\\Git\\bin\\bash.exe" "%%~dp0${ROH_GIT}" %%*\r\n' > $(TARGET)/bin/${ROH_GIT}.cmd
-	@printf '@echo off\r\n"C:\\Program Files\\Git\\bin\\bash.exe" "%%~dp0${ROH_COPY}" %%*\r\n' > $(TARGET)/bin/${ROH_COPY}.cmd
+	@printf '%s\r\n' '@echo off' '"C:\Program Files\Git\bin\bash.exe" "%~dp0${ROH}" %*' > $(TARGET)/bin/${ROH}.cmd
+	@printf '%s\r\n' '@echo off' '"C:\Program Files\Git\bin\bash.exe" "%~dp0${ROH_FPATH}" %*' > $(TARGET)/bin/${ROH_FPATH}.cmd
+	@printf '%s\r\n' '@echo off' '"C:\Program Files\Git\bin\bash.exe" "%~dp0${ROH_GIT}" %*' > $(TARGET)/bin/${ROH_GIT}.cmd
+	@printf '%s\r\n' '@echo off' '"C:\Program Files\Git\bin\bash.exe" "%~dp0${ROH_COPY}" %*' > $(TARGET)/bin/${ROH_COPY}.cmd
 	@echo "created .cmd shims (cmd.exe/PowerShell)"
 endif
 	@echo "Done."
