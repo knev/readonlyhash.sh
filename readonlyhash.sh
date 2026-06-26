@@ -62,6 +62,79 @@ check_pre_reqs() {
     fi
 }
 
+# --install: self-install the readonlyhash suite (this orchestrator + its three
+# worker scripts) into the user's bin. This is the single, authoritative source
+# of truth for installation (no Makefile). Run it from the source tree, e.g.
+# `./readonlyhash.sh --install`; the worker .sh files must sit alongside it.
+install_self() {
+    local uname_s self dir src_dir bin_dir name src
+    uname_s="$(uname -s)"
+
+    # Resolve this script's own absolute directory (following any symlinks).
+    self="${BASH_SOURCE[0]}"
+    while [ -h "$self" ]; do
+        dir="$(cd -P "$(dirname "$self")" && pwd)"
+        self="$(readlink "$self")"
+        [[ "$self" != /* ]] && self="$dir/$self"
+    done
+    src_dir="$(cd -P "$(dirname "$self")" && pwd)"
+
+    # Resolve the install root as a POSIX path. On Windows %USERPROFILE% is the
+    # stable Windows home in both Git Bash and the MSYS2 shell (unlike $HOME,
+    # which differs between them); cygpath converts it to a POSIX path.
+    case "$uname_s" in
+        MINGW*|MSYS*|CYGWIN* )
+            if [ -z "$USERPROFILE" ]; then
+                echo "ERROR: %USERPROFILE% is empty; cannot resolve the install dir (run from Git Bash, or the MSYS2 shell)." >&2
+                return 1
+            fi
+            bin_dir="$(cygpath -u "$USERPROFILE")/bin"
+            ;;
+        * )
+            bin_dir="$HOME/bin"
+            ;;
+    esac
+
+    mkdir -p "$bin_dir" || return 1
+
+    # The suite: orchestrator + workers. Each <name>.sh installs as <name>.
+    for name in readonlyhash roh.fpath roh.git roh.copy; do
+        src="$src_dir/$name.sh"
+        if [ ! -f "$src" ]; then
+            echo "ERROR: missing source script [$src] -- run --install-self from the source tree." >&2
+            return 1
+        fi
+        if [ "$src" -ef "$bin_dir/$name" ]; then
+            echo "Already in place: $bin_dir/$name (skipping copy)"
+        else
+            cp -v "$src" "$bin_dir/$name" || return 1
+            chmod +x "$bin_dir/$name"
+        fi
+
+        # Windows: write a .cmd shim so cmd.exe/PowerShell can run the
+        # extensionless bash script. The path is a printf %s *argument* (not the
+        # format string) so no backslash is interpreted as an escape.
+        case "$uname_s" in
+            MINGW*|MSYS*|CYGWIN* )
+                printf '%s\r\n' '@echo off' "\"C:\\Program Files\\Git\\bin\\bash.exe\" \"%~dp0$name\" %*" > "$bin_dir/$name.cmd"
+                echo "created $bin_dir/$name.cmd"
+                ;;
+        esac
+    done
+
+    echo "Installed suite into: $bin_dir"
+    return 0
+}
+
+# Handle --install-self before the command parser and the roh.fpath/roh.git
+# prereq check below, since at install time those workers may not be on PATH yet.
+for a in "$@"; do
+    if [ "$a" = "--install-self" ]; then
+        install_self
+        exit $?
+    fi
+done
+
 # Check if a command is provided
 if [ $# -eq 0 ]; then
 	usage

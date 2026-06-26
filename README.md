@@ -12,15 +12,19 @@ Note: ROH does not follow symlnks.
 
 ## Installation
 
-Executing `make install` in the terminal copies the scripts the local `~/bin` directory and sets the executable permissions. You will need to add `~/bin` to your `$PATH` if you want to be able to use the script from a relative path.
+Run `./readonlyhash.sh --install-self` from the source tree. It copies the suite
+(`readonlyhash`, `roh.fpath`, `roh.git`, `roh.copy`) into `~/bin` (`$HOME/bin` on
+macOS/Linux, `%USERPROFILE%\bin` on Windows / Git Bash), sets executable
+permissions, and on Windows also writes `.cmd` shims so cmd.exe/PowerShell can
+run them. `readonlyhash` self-installs — there is no Makefile. You will need to
+add `~/bin` to your `$PATH` to use the scripts from a relative path.
 
-There is a `make clean` for your convenience.
 #### Requires
-`make` (apt: `build-essential`) and `sqlite3`
+`sqlite3`
 
 ## Unit testing
 
-Before using the mini-suite, it is suggested to run `test.sh` or `make test` to make sure the scripts are compatible with your system. 
+Before using the mini-suite, it is suggested to run `./test.sh` to make sure the scripts are compatible with your system. 
 
 ```
 readonlyhash.sh.git $ ./test.sh
