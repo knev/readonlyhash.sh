@@ -916,7 +916,7 @@ recover_file() {
 	# no matching hash found, file identical file names
 
 	log WARN "$(tok_file "$computed_hash" "$fpath") -- NEW!?"
-	[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
+	export_log "$fpath" "$EXPORT_FILE_NEW"
 
 	[ "$match_filenames" = "true" ] &&find_matching_fn "$db" "$fpath" "$roh_hash_fpath" "$computed_hash"
 	return 0
@@ -1011,7 +1011,7 @@ verify_hash() {
 		return $?
 	else
 		log WARN "$(tok_file "$computed_hash" "$fpath") -- NEW!?"
-		[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
+		export_log "$fpath" "$EXPORT_FILE_NEW"
 	fi
 	return 0
 }
@@ -1054,7 +1054,7 @@ write_hash() {
 			computed_hash=$(generate_hash "$fpath")
 			if [ -n "$(roh_sqlite3_db_find_hash "$DB_SQL" "$computed_hash")" ]; then
 				log IDX "$(tok_file "$computed_hash" "$fpath") -- duplicate, skipped (--dedup)"
-				[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_NEW"
+				export_log "$fpath" "$EXPORT_FILE_NEW"
 				return 0
 			fi
 		fi
@@ -1210,13 +1210,13 @@ delete_hash() {
     if [ -f "$dir_hash_fpath" ]; then
 		rm "$dir_hash_fpath"
 		log_v OK "[$fpath] -- hash file [$dir_hash_fpath] -- deleted"
-		[ "$EXPORT_MODE" = "true" ] && echo "$dir_hash_fpath" >> "$EXPORT_HASH_DELETED"
+		export_log "$dir_hash_fpath" "$EXPORT_HASH_DELETED"
 	fi
 
     if [ -f "$roh_hash_fpath" ]; then
 		rm "$roh_hash_fpath"
 		log_v OK "[$fpath] -- hash file [$roh_hash_fpath] -- deleted"
-		[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_HASH_DELETED"
+		export_log "$roh_hash_fpath" "$EXPORT_HASH_DELETED"
     fi
 
 	return 0
@@ -1332,10 +1332,7 @@ process_entry()
 
 	if should_ignore "$entry"; then
 		log_v INFO "Ignoring [$entry] (matches .rohignore)"
-		if [ "$EXPORT_MODE" = "true" ]; then
-			mkdir -p "$ROH_LOGS"
-			echo "$entry" >> "$EXPORT_FILE_IGNORED"
-		fi
+		export_log "$entry" "$EXPORT_FILE_IGNORED"
 		return 0
 	fi
 
@@ -1347,8 +1344,7 @@ process_entry()
     elif [ -d "$entry" ]; then
 
 		if find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
-			mkdir -p "$ROH_LOGS"
-			[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FILE_IGNORED"
+			export_log "$entry" "$EXPORT_FILE_IGNORED"
 		fi
 	
 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
@@ -1371,7 +1367,7 @@ process_entry()
 				
 				if [ -n "$has_real_files" ] && [ -z "$has_hashes" ]; then
 				    log WARN "[$entry] -- NEW DIRECTORY!?"
-					[ "$EXPORT_MODE" = "true" ] && echo "$entry" >> "$EXPORT_FILE_NEW"
+					export_log "$entry" "$EXPORT_FILE_NEW"
 					_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_entry_bytes "$entry") ))
 					_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_entry_count "$entry") ))
 					progress_update "$_PROG_CURRENT_BYTES"
@@ -1782,7 +1778,10 @@ else
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
-ROH_LOGS="$ROH_DIR/../.roh.logs"
+# NOTE: use dirname, NOT "$ROH_DIR/../.roh.logs". The latter embeds ".roh.git/.."
+# literally, so `mkdir -p "$ROH_LOGS"` materialises an empty .roh.git before
+# resolving the "..", creating the hash store as a side-effect on read-only runs.
+ROH_LOGS="$(dirname "$ROH_DIR")/.roh.logs"
 if [ -d "$ROH_LOGS" ]; then
 	rm -rf "$ROH_LOGS"
 fi
@@ -1790,6 +1789,15 @@ EXPORT_FILE_NEW="$ROH_LOGS/files-new.exported.txt"
 EXPORT_FILE_MISSING="$ROH_LOGS/files-missing.exported.txt"
 EXPORT_FILE_IGNORED="$ROH_LOGS/files-ignored.exported.txt"
 EXPORT_HASH_DELETED="$ROH_LOGS/hashes-deleted.exported.txt"
+
+# Append <line> to export log <file>, creating $ROH_LOGS lazily so read-only or
+# no-op runs (verify/show with nothing to report) don't leave an empty .roh.logs
+# behind. No-op unless EXPORT_MODE is enabled.
+export_log() {
+	[ "$EXPORT_MODE" = "true" ] || return 0
+	mkdir -p "$ROH_LOGS"
+	printf '%s\n' "$1" >> "$2"
+}
 
 load_rohignore
 
@@ -1926,7 +1934,7 @@ recover_hash() {
  				else
  					log RECOVER "$(tok_hash "$stored" "$roh_hash_fpath") orphaned hash -- DELETED!"
  				fi
-				[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_HASH_DELETED"
+				export_log "$roh_hash_fpath" "$EXPORT_HASH_DELETED"
  			else
  				log ERROR "Failed to remove hash [$roh_hash_fpath]"
  			fi
@@ -1943,7 +1951,7 @@ recover_hash() {
 	else
 		log ERROR "[$stored] -- orphaned hash not in IDX [$fpath] -- file MISSING !?"
 	fi
-	[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_MISSING"
+	export_log "$fpath" "$EXPORT_FILE_MISSING"
 
 #	list_roh_hash_fpaths=$(roh_sqlite3_db_find_fn "$db" "$fn") || return 1
 #	if [ -n "$list_roh_hash_fpaths" ]; then
@@ -2048,10 +2056,8 @@ run_directory_process() {
 			else
 				log_abort "[$ROH_DIR] -- missing or inaccessible"
 			fi
-		fi 
+		fi
 	fi
-
-	mkdir -p "$ROH_LOGS"
 
 	if [ -e "$entry" ]; then
 		: # echo "Processing directory: [$dir]"
@@ -2136,7 +2142,7 @@ process_hash_entry()
  
  				if [ ! -d "$dir_fpath" ]; then
 					log ERROR "[$recursive_dir] -- orphaned hash DIRECTORY!"
-					[ "$EXPORT_MODE" = "true" ] && echo "$recursive_dir" >> "$EXPORT_HASH_DELETED"
+					export_log "$recursive_dir" "$EXPORT_HASH_DELETED"
 					_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_hash_bytes "$recursive_dir") ))
 					_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_hash_count "$recursive_dir") ))
 					progress_update "$_PROG_CURRENT_BYTES"
@@ -2159,7 +2165,7 @@ process_hash_entry()
 						log ROH_DIR "[$ROH_DIR] -- DELETED"
 					else
 						log_v OK "orphaned hash directory [$recursive_dir] -- DELETED"
-						[ "$EXPORT_MODE" = "true" ] && echo "$recursive_dir" >> "$EXPORT_HASH_DELETED"
+						export_log "$recursive_dir" "$EXPORT_HASH_DELETED"
 					fi
 				fi
 			fi
@@ -2187,13 +2193,13 @@ process_hash_entry()
 			if contains "sweep"; then
 				if rm "$roh_hash_fpath"; then
 					log_v OK "$(tok_hash "$stored" "$roh_hash_fpath") hash for ignored file -- DELETED"
-					[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_HASH_DELETED"
+					export_log "$roh_hash_fpath" "$EXPORT_HASH_DELETED"
 				else
 					log ERROR "Failed to remove hash [$roh_hash_fpath]"
 				fi
 			elif contains "verify"; then
 				log WARN "$(tok_hash "$stored" "$roh_hash_fpath") hash for ignored file [$fpath] -- run sweep to clean"
-				[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_FILE_IGNORED"
+				export_log "$roh_hash_fpath" "$EXPORT_FILE_IGNORED"
 			elif contains "recover" || contains "index"; then
 				log_v INFO "[$fpath] is ignored -- not processing hash [$roh_hash_fpath]"
 			fi
@@ -2205,7 +2211,7 @@ process_hash_entry()
  			if contains "sweep"; then
  				if rm "$roh_hash_fpath"; then
  					log_v OK "$(tok_hash "$stored" "$roh_hash_fpath") orphaned hash -- DELETED"
-					[ "$EXPORT_MODE" = "true" ] && echo "$roh_hash_fpath" >> "$EXPORT_HASH_DELETED"
+					export_log "$roh_hash_fpath" "$EXPORT_HASH_DELETED"
 					return 0
 				else
  					log ERROR "Failed to remove hash [$roh_hash_fpath]"
@@ -2219,7 +2225,7 @@ process_hash_entry()
 				fi
  				#                                    "       [dfc5388fd5213984e345a62ff6fac21e0f0ec71df44f05340b0209e9cac489db]: [$roh_hash_fpath] -- orphaned hash"
  				ellipsis_block_v 1 "$(phantom "$stored")[$fpath] -- NO corresponding file"
-				[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_MISSING"
+				export_log "$fpath" "$EXPORT_FILE_MISSING"
  			fi
 
  			if contains "index"; then
@@ -2241,7 +2247,7 @@ process_hash_entry()
 						roh_sqlite3_db_insert "$DB_SQL" "$fpath" "$roh_hash_fpath" "$stored"
 						log_v IDX "$(tok_hash_new "$stored" "$roh_hash_fpath") orphaned hash -- INDEXED"
 						ellipsis_block_v 1 "$(phantom "$stored")[$fpath] -- NO corresponding file"
-						[ "$EXPORT_MODE" = "true" ] && echo "$fpath" >> "$EXPORT_FILE_MISSING"
+						export_log "$fpath" "$EXPORT_FILE_MISSING"
 					fi
 		        else
 					log_v IDX "$(tok_hash "$stored" "$roh_hash_fpath") orphaned hash -- already indexed, skipping"
@@ -2299,8 +2305,6 @@ hash_maintanence() {
 
 	# ROH_DIR must exist and be accessible for the while loop to execute
 	[ ! -d "$ROH_DIR" ] || ! [ -x "$ROH_DIR" ] && return 0;
-
-	mkdir -p "$ROH_LOGS"
 
 	#----
 
