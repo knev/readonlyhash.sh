@@ -1344,8 +1344,21 @@ process_entry()
 	# If the entry is a directory, process it recursively
     elif [ -d "$entry" ]; then
 
-		if find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh.*' -print -quit | grep -q .; then
-			export_log "$entry" "$EXPORT_FILE_IGNORED"
+		# Flag this directory only if it holds a hidden entry that is neither one
+		# of our own .roh* files nor covered by .rohignore. The exclusion is
+		# dot-less (.roh* not .roh.*) on purpose so it also covers .rohignore
+		# itself; every other hidden entry is run through should_ignore, so a
+		# folder whose only hidden content is ignored (e.g. .DS_Store) is quiet.
+		local _hidden _h
+		_hidden=$(find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh*')
+		if [ -n "$_hidden" ]; then
+			while IFS= read -r _h; do
+				[ -z "$_h" ] && continue
+				if ! should_ignore "$_h"; then
+					export_log "$entry" "$EXPORT_FILE_IGNORED"
+					break
+				fi
+			done <<< "$_hidden"
 		fi
 	
 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
