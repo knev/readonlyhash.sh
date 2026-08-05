@@ -484,7 +484,7 @@ rm "$TEST/file with spaces.txt.sha256"
 # state: hidden only — exclusive-hidden is the post-condition expected by tests downstream
 
 touch "$TEST/.HIDDEN_FILE"
-run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: ignored entries (hidden and/or .rohignore matches) were detected and exported.*[test/.roh.git/../.roh.logs/files-ignored.exported.txt]")"
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: ignored entries (hidden and/or .rohignore matches) were detected and exported.*[test/.roh.logs/files-ignored.exported.txt]")"
 rm "$TEST/.HIDDEN_FILE"
 rm "$TEST/.roh.logs/files-ignored.exported.txt"
 

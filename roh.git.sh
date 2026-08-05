@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.2"
+VERSION="2.2.18"
 
 #set -x
 
