@@ -23,6 +23,7 @@ usage() {
 	echo "        d|delete         Delete all hashes with a corresponding file"
 	echo "        h|hide           Move hash files from the files location to ROH_DIR"
 	echo "        s|show           Move hash files from ROH_DIR to next to the file's location"
+	echo "        hide sweep       Hide hashes by processing files, and sweep orphaned/mismatched hashes afterwards"
 	echo "        show sweep       Show hashes by processing files, and sweep for empty directories afterwards"
 	echo "        write hide       Write and hide hashes by processing files"
 	echo "        write show       Write and show hashes by processing files"
@@ -1720,7 +1721,7 @@ elif [ ${#commands[@]} -eq 2 ]; then
 		:
 	elif contains "index" && ( contains "query" || contains "recover" || contains "verify" || contains "write"); then
 		:
-	elif contains "sweep" && ( contains "write" || contains "delete" || contains "show" ); then
+	elif contains "sweep" && ( contains "write" || contains "delete" || contains "show" || contains "hide" ); then
 		:
 	elif contains "write" && contains "show"; then
 		visibility_mode="show"
