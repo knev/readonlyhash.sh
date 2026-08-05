@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.2"
+VERSION="2.2.18"
 
 FPATH_BIN="roh.fpath"
 GIT_BIN="roh.git"
