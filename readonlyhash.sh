@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.18"
+VERSION="2.2.22"
 
 FPATH_BIN="roh.fpath"
 GIT_BIN="roh.git"
@@ -326,7 +326,7 @@ verify_directory() {
 	if [ -f "$dir/$archive_name" ]; then
 		echo "ERROR: found archived ROH_DIR [$dir/$archive_name] at [$dir]"
 		echo
-		return 0
+		exit 1
 
 # 		tmp_dir=$(mktemp -d)
 # 		echo "tmp_dir [$tmp_dir]"
