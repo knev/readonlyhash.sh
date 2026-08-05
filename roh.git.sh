@@ -2,6 +2,8 @@
 
 VERSION="2.2.18"
 
+HASH="sha256"
+
 #set -x
 
 usage() {
