@@ -472,16 +472,12 @@ while IFS= read -r dir; do
 		continue
 	fi
 
-	echo "Looping on: [$dir]"
-
-	#---
-
+	# --resume-at: skip silently until the resume point; output simply starts
+	# at the first "Looping on:" of the directory that matched.
 	base_dir=${dir%.ro}
 	base_resume_string=${resume_string%.ro}
 	# echo "* base_dir: [$base_dir]"
 	if [ "$skipping_mode" = "true" ] && [[ ! "$base_dir" == *"$base_resume_string" ]]; then
-		echo "OK: directory entry [$dir] -- SKIPPING"
-		echo "■"
 		if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
 			echo "#SKIPPED: $dir" >> "$ALT_TXT"
 		fi
@@ -490,6 +486,8 @@ while IFS= read -r dir; do
 	skipping_mode="false"
 
 	#---
+
+	echo "Looping on: [$dir]"
 
     # Check if the directory exists
     if [ -d "$dir" ]; then
