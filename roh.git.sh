@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.18"
+VERSION="2.2.21"
 
 HASH="sha256"
 
@@ -24,6 +24,10 @@ usage() {
 	echo "Examples:"
 	echo "      \$ $(basename "$0") -zC <PATH>"
 	echo "      \$ $(basename "$0") -C <PATH> add \"*\""
+	echo
+	echo "Passthrough git (after -C PATH), plus one synthesized command:"
+	echo "      \$ $(basename "$0") -C <PATH> status"
+	echo "      \$ $(basename "$0") -C <PATH> commit -A [-m \"message\"]   # git add -A + commit (incl. untracked)"
 	echo
 	echo "Other operations: "
 	echo "      git restore --staged \$(git diff --cached --name-only --diff-filter=D) # unstage deleted files"
@@ -528,6 +532,48 @@ extract_roh() {
     fi
 }
 
+# commit_all <dir> <gpath> <commit-args...>
+#   Handle the synthesized `commit -A`. Git has NO single verb that stages
+#   untracked files and commits (`commit -a`/`--all` skip untracked, and
+#   `commit -A` is a plain error), so we intercept it: run `git add -A` to
+#   stage everything (tracked mods/deletes AND untracked), then `git commit`
+#   with the -A token stripped and every other arg (-m "msg", etc.) passed
+#   straight through. Env guards are set by the caller (the passthrough below).
+#   Post-condition: the repo MUST be clean afterward — anything left means the
+#   commit failed or state changed under us, so surface it rather than succeed.
+commit_all() {
+    local dir="$1"
+    local gpath="$2"
+    shift 2
+
+	# Rebuild the commit args without the synthetic -A token.
+	local commit_args=() a
+	for a in "$@"; do
+		[ "$a" = "-A" ] || commit_args+=("$a")
+	done
+
+	if ! git -C "$gpath" add -A; then
+		echo "ERROR: [git add -A] failed in [$dir/$ROH_DIR]"
+		echo "Abort."
+		echo
+		return 1
+	fi
+
+	git -C "$gpath" "${commit_args[@]}"
+
+	local dirty
+	dirty=$(git -C "$gpath" status --porcelain 2>/dev/null)
+	if [ -n "$dirty" ]; then
+		echo "ERROR: local repo [$dir/$ROH_DIR] not clean after commit"
+		echo "$dirty"
+		echo "Abort."
+		echo
+		return 1
+	fi
+
+	return 0
+}
+
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 if contains "init"; then
@@ -552,7 +598,7 @@ else
 	# fatal: detected dubious ownership in repository at '/Volumes/Fractal/o1oc/INST.ro/.roh.git'
 	# To add an exception for this directory, call:
 	# git config --global --add safe.directory <PATH>
-	
+
 	# GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$CWD/$ROH_DIR" git status
 	export GIT_CONFIG_COUNT=1
 	export GIT_CONFIG_KEY_0=safe.directory
@@ -568,8 +614,23 @@ else
 	#     git commit --amend --reset-author
 	export GIT_ADVICE_IMPLICIT_IDENTITY=false
 
-	# Now, $@ contains all arguments after -C PATH
-	git -C "$(git_path "$CWD/$ROH_DIR")" "$@"
+	gpath="$(git_path "$CWD/$ROH_DIR")"
+
+	# `commit -A` is not a real git command (git errors on -A for commit). We
+	# define it as stage-all-including-untracked + commit — see commit_all().
+	# Detect a standalone -A token following `commit`; everything else (status,
+	# log, a plain `commit -m`, etc.) passes straight through to git untouched.
+	has_A=false
+	for a in "$@"; do
+		if [ "$a" = "-A" ]; then has_A=true; break; fi
+	done
+
+	if [ "$1" = "commit" ] && [ "$has_A" = "true" ]; then
+		commit_all "$CWD" "$gpath" "$@"
+	else
+		# Now, $@ contains all arguments after -C PATH
+		git -C "$gpath" "$@"
+	fi
 
 	unset GIT_ADVICE_IMPLICIT_IDENTITY
 	unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
