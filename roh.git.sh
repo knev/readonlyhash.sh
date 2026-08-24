@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.21"
+VERSION="2.2.26"
 
 HASH="sha256"
 
@@ -183,6 +183,13 @@ contains "archive" && reqs+=(zip unzip tar openssl)
 contains "extract" && reqs+=(unzip tar)
 check_pre_reqs "${reqs[@]}"
 
+# Archives normalize all mtimes to the epoch for reproducible tar bytes, and
+# GNU tar (Linux, Git Bash) warns "implausibly old time stamp" on extracting
+# any member with mtime <= 0. Suppress that known-benign warning where the
+# flag exists; bsdtar (macOS) has neither the warning nor the flag.
+TAR_NO_TS_WARN=""
+tar --version 2>/dev/null | grep -q GNU && TAR_NO_TS_WARN="--warning=no-timestamp"
+
 #------------------------------------------------------------------------------------------------------------------------------------------
 
 init_roh() {
@@ -309,7 +316,7 @@ extract_roh_v1() {
 	fi
 
 	if [ -f "$dir/$archive_name" ]; then
-		unzip -jq "$dir/$archive_name" -d "$dir" && tar -xf "$dir/$ROH_DIR.tar" -C "$dir" && rm -f "$dir/$ROH_DIR.tar" "$dir/$archive_name"
+		unzip -jq "$dir/$archive_name" -d "$dir" && tar -xf "$dir/$ROH_DIR.tar" $TAR_NO_TS_WARN -C "$dir" && rm -f "$dir/$ROH_DIR.tar" "$dir/$archive_name"
 		if [ $? -eq 0 ]; then
 		    echo "Extracted [$dir/$ROH_DIR] from [$archive_name]"
 		else
@@ -509,7 +516,7 @@ extract_roh() {
 		local content_tar=".SHA256-HASHES.tar"
 		local content_hash_file=".SHA256-HASHES.tar.sha256"
 		if [ -f "$dir/$ROH_DIR/$content_tar" ]; then
-			tar -xf "$dir/$ROH_DIR/$content_tar" -C "$dir/$ROH_DIR"
+			tar -xf "$dir/$ROH_DIR/$content_tar" $TAR_NO_TS_WARN -C "$dir/$ROH_DIR"
 			rm -f "$dir/$ROH_DIR/$content_tar"
 		fi
 		rm -f "$dir/$ROH_DIR/$content_hash_file"
