@@ -75,10 +75,11 @@ mv $PWD/2002 $PWD/2002.ro
 
 #run_test "ls -al $fpath_ro" "0" "$fpath_ro"
 
-# test skipping function
+# test skipping function: entries before the resume point are skipped
+# silently (f845440); output starts at the first "Looping on:" of the match.
 echo "$PWD/1999" > "Fake.roh.txt"
 cat "$fpath" >> "Fake.roh.txt"
-run_test "$ROH_BIN verify --resume-at Fotos\ \[space\]/1999 < Fake.roh.txt" "0" "$(escape_expected "OK: directory entry [$PWD/1999] -- SKIPPING")"
+run_test "$ROH_BIN verify --resume-at Fotos\ \[space\]/1999 < Fake.roh.txt" "0" "$(escape_expected "[$PWD/1999]")" "true"
 rm "Fake.roh.txt"
 
 run_test "$ROH_BIN verify --resume_at 2002 < $fpath" "1" "$(escape_expected "ERROR: invalid option [--resume_at]")"

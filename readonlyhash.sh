@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.22"
+VERSION="2.2.26"
 
 FPATH_BIN="roh.fpath"
 GIT_BIN="roh.git"
@@ -172,22 +172,22 @@ contains() {
 
 i=1
 while [ $i -le $# ]; do
-    arg=$(eval echo "\$$i")
+    arg="${!i}"
 
     # Stop on any switch-like argument
     case "$arg" in
         -*) break ;;
     esac
 
-    # 1. Try full word match
-    if echo "$valid_long" | grep -qw "$arg"; then
+    # 1. Try full word match (word-boundary lookup without a grep spawn)
+    if [[ " $valid_long " == *" $arg "* ]]; then
         commands+=("$arg")
         i=$((i+1))
         continue
     fi
 
     # 2. Try short letters (consecutive, no separators)
-    if echo "$arg" | grep -qE '^[viax]+$'; then
+    if [[ "$arg" =~ ^[viax]+$ ]]; then
         invalid=0
         for ((j=0; j<${#arg}; j++)); do
             c="${arg:$j:1}"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.18"
+VERSION="2.2.26"
 
 shopt -s nullglob
 
@@ -115,7 +115,7 @@ should_ignore() {
     local entry="$1"
     [ ${#ROHIGNORE_PATTERNS[@]} -eq 0 ] && return 1
     local base rel pat clean
-    base="$(basename "$entry")"
+    base="${entry##*/}"
     rel="$(remove_top_dir "$ROOT" "$entry")"
     for pat in "${ROHIGNORE_PATTERNS[@]}"; do
         if [[ "$pat" == */* ]]; then
@@ -155,13 +155,13 @@ _rohignore_find_prune_args() {
 check_extension() {
     local file="$1"
 
-    # Convert comma separated list to a space separated list for easier comparison
-    local extensions=$(echo "$EXTENSIONS_TO_AVOID" | tr ',' ' ')
-    
     # Get only the extension part of the filename, supporting double extensions
     local file_extension="${file##*.}"
-    # Check if the file's extension matches any in our list
-    for ext in $extensions; do
+    # Split the comma-separated list with IFS (local, so no global side-effect)
+    # instead of echo|tr — that pipeline cost two process spawns per file.
+    local IFS=','
+    local ext
+    for ext in $EXTENSIONS_TO_AVOID; do
         if [[ "$file_extension" == "$ext" ]]; then
             return 0  # Extension found, exit with success (0) for the function
         fi
@@ -185,14 +185,28 @@ generate_hash() {
 	# Feed the file via stdin (bash opens it) rather than as an openssl argument:
 	# the native Windows openssl can't fopen an absolute MSYS path that contains a
 	# single quote (and other chars MSYS arg path-conversion mangles). stdin
-	# sidesteps that entirely. Output is "(stdin)= <hash>", so $NF is still the
-	# hash; head -c 64 reads 256 bits from its front (CRLF-safe).
-	echo $(openssl sha256 < "$file" | awk '{print $NF}' | head -c 64)
+	# sidesteps that entirely. Output is "(stdin)= <hash>"; the hash is parsed
+	# out with bash expansions (CR-stripped, first 64 chars) instead of
+	# awk|head — two fewer process spawns per file, which dominates on Windows.
+	local out
+	out=$(openssl sha256 < "$file")
+	out="${out##* }"
+	out="${out%$'\r'}"
+	echo "${out:0:64}"
 }
 
 stored_hash() {
-    local hash_file="$1"
-    head -c 64 "$hash_file" 2>/dev/null || echo "0000000000000000000000000000000000000000000000000000000000000000"
+    # First 64 chars of the first line, read with the bash builtin instead of
+    # `head -c 64` (a process spawn per call). Same fallbacks as head: zeros
+    # when the path is missing/unreadable/a directory, empty for an empty file.
+    local hash_file="$1" line=""
+    if [ -f "$hash_file" ] && [ -r "$hash_file" ]; then
+        IFS= read -r line < "$hash_file"
+        line="${line%$'\r'}"
+        printf '%s\n' "${line:0:64}"
+    else
+        echo "0000000000000000000000000000000000000000000000000000000000000000"
+    fi
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------
@@ -207,9 +221,12 @@ remove_top_dir() {
     return
   fi
 
-  # Normalize base_dir: remove trailing slashes and replace multiple slashes with a single slash
-  base_dir=$(echo "$base_dir" | sed 's:/*$::' | sed 's://*:/:g')
-  full_path=$(echo "$full_path" | sed 's://*:/:g')
+  # Normalize base_dir: remove trailing slashes and replace multiple slashes
+  # with a single slash. Pure bash expansions — the previous sed pipelines
+  # cost three process spawns per call in the per-file hot path.
+  while [[ "$base_dir" == *//* ]]; do base_dir="${base_dir//\/\//\/}"; done
+  while [[ "$base_dir" == */ ]]; do base_dir="${base_dir%/}"; done
+  while [[ "$full_path" == *//* ]]; do full_path="${full_path//\/\//\/}"; done
 
   # Append a trailing slash to base_dir for matching
   base_dir="${base_dir}/"
@@ -239,7 +256,7 @@ fpath_to_hash_fpath() {
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
     local fpath="$2"
 
-    local hash_fname="$(basename "$fpath").$HASH"
+    local hash_fname="${fpath##*/}.$HASH"
     local roh_hash_path="$ROH_DIR${sub_dir:+/}$sub_dir/$hash_fname"
     echo "$roh_hash_path"
 }
@@ -249,7 +266,7 @@ fpath_to_dir_hash_fpath() {
     local dir="$1"
     local fpath="$2"
 
-    local hash_fname="$(basename "$fpath").$HASH"
+    local hash_fname="${fpath##*/}.$HASH"
     echo "$dir/$hash_fname"
 }
 
@@ -266,164 +283,193 @@ hash_fpath_to_fpath() {
 
 # ── Internal helpers ─────────────────────────────────────────────
 
-_prog_human_size() {
-  awk -v bytes="$1" 'BEGIN {
-    mb = bytes / 1048576
-    if      (mb >= 1048576) { v = mb / 1048576; u = "TB" }
-    else if (mb >= 1024)    { v = mb / 1024;    u = "GB" }
-    else                    { v = mb;           u = "MB" }
-    if      (v >= 100) printf "%.0f %s", v, u
-    else if (v >= 10)  printf "%.1f %s", v, u
-    else               printf "%.2f %s", v, u
-  }'
+# The progress helpers below are pure bash (integer math, no awk/tput/date
+# per redraw): each external process in this per-file hot path costs tens of
+# milliseconds on Windows (MSYS fork emulation). Results are passed back in
+# _PROG_* globals instead of command substitution to avoid subshells too.
+
+# _prog_fmt <numerator> <denominator> <unit> <sep>
+#   %.0f/%.1f/%.2f-style rendering chosen by magnitude (like the old awk),
+#   integer-only with half-up rounding. Result in _PROG_FMT.
+_prog_fmt() {
+  local num=$1 denom=$2 unit=$3 sep=$4 r
+  if [ "$num" -ge $(( 100 * denom )) ]; then
+    printf -v _PROG_FMT '%d%s%s' "$(( (num + denom / 2) / denom ))" "$sep" "$unit"
+  elif [ "$num" -ge $(( 10 * denom )) ]; then
+    r=$(( (num * 10 + denom / 2) / denom ))
+    printf -v _PROG_FMT '%d.%d%s%s' "$(( r / 10 ))" "$(( r % 10 ))" "$sep" "$unit"
+  else
+    r=$(( (num * 100 + denom / 2) / denom ))
+    printf -v _PROG_FMT '%d.%02d%s%s' "$(( r / 100 ))" "$(( r % 100 ))" "$sep" "$unit"
+  fi
 }
 
-_prog_human_count() {
-  awk -v n="$1" 'BEGIN {
-    if      (n >= 1000000000) { v = n / 1000000000; u = "B" }
-    else if (n >= 1000000)    { v = n / 1000000;    u = "M" }
-    else if (n >= 1000)       { v = n / 1000;       u = "K" }
-    else                      { printf "%d", n; exit }
-    if      (v >= 100) printf "%.0f%s", v, u
-    else if (v >= 10)  printf "%.1f%s", v, u
-    else               printf "%.2f%s", v, u
-  }'
+_prog_human_size() {  # result in _PROG_FMT
+  local bytes=$1
+  if   [ "$bytes" -ge 1099511627776 ]; then _prog_fmt "$bytes" 1099511627776 "TB" " "
+  elif [ "$bytes" -ge 1073741824 ];    then _prog_fmt "$bytes" 1073741824 "GB" " "
+  else                                      _prog_fmt "$bytes" 1048576 "MB" " "
+  fi
 }
 
+_prog_human_count() {  # result in _PROG_FMT
+  local n=$1
+  if   [ "$n" -ge 1000000000 ]; then _prog_fmt "$n" 1000000000 "B" ""
+  elif [ "$n" -ge 1000000 ];    then _prog_fmt "$n" 1000000 "M" ""
+  elif [ "$n" -ge 1000 ];       then _prog_fmt "$n" 1000 "K" ""
+  else _PROG_FMT=$n
+  fi
+}
+
+# _prog_pct_eta <cur_bytes> <elapsed>
+#   Combined byte/file percentage and ETA. Results in _PROG_PCT / _PROG_ETA.
+_prog_pct_eta() {
+  local cur_bytes=$1 elapsed=$2
+  local byte_pct=0 file_pct=0 p
+  [ "$_PROG_TOTAL" -gt 0 ] && byte_pct=$(( cur_bytes * 100 / _PROG_TOTAL ))
+  [ "$_PROG_TOTAL_FILES" -gt 0 ] && file_pct=$(( _PROG_CURRENT_FILES * 100 / _PROG_TOTAL_FILES ))
+  if [ "$_PROG_TOTAL" -eq 0 ] && [ "$_PROG_TOTAL_FILES" -eq 0 ]; then p=100
+  elif [ "$_PROG_TOTAL" -eq 0 ]; then p=$file_pct
+  elif [ "$_PROG_TOTAL_FILES" -eq 0 ]; then p=$byte_pct
+  else p=$(( (byte_pct + file_pct) / 2 ))
+  fi
+  [ "$p" -gt 100 ] && p=100
+  _PROG_PCT=$p
+
+  local byte_eta=0 file_eta=0 n=0 rem
+  if [ "$cur_bytes" -gt 0 ]; then
+    byte_eta=$(( (_PROG_TOTAL - cur_bytes) * elapsed / cur_bytes )); n=$(( n + 1 ))
+  fi
+  if [ "$_PROG_CURRENT_FILES" -gt 0 ] && [ "$_PROG_TOTAL_FILES" -gt 0 ]; then
+    file_eta=$(( (_PROG_TOTAL_FILES - _PROG_CURRENT_FILES) * elapsed / _PROG_CURRENT_FILES )); n=$(( n + 1 ))
+  fi
+  if [ "$n" -eq 0 ]; then
+    _PROG_ETA="--:--"
+  else
+    rem=$(( (byte_eta + file_eta) / n ))
+    [ "$rem" -lt 0 ] && rem=0
+    printf -v _PROG_ETA '%02dm%02ds' "$(( rem / 60 ))" "$(( rem % 60 ))"
+  fi
+}
+
+# _prog_render_suffix <cur_bytes>
+#   The "NN%  files/files  size/size  ETA" tail. Result in _PROG_SUFFIX.
+_prog_render_suffix() {
+  local cur_bytes=$1
+  local down_h total_h cur_files_h total_files_h
+  _prog_human_size "$cur_bytes";            down_h=$_PROG_FMT
+  _prog_human_size "$_PROG_TOTAL";          total_h=$_PROG_FMT
+  _prog_human_count "$_PROG_CURRENT_FILES"; cur_files_h=$_PROG_FMT
+  _prog_human_count "$_PROG_TOTAL_FILES";   total_files_h=$_PROG_FMT
+  printf -v _PROG_SUFFIX "%3d%%  %s/%s  %s/%s  %s" \
+    "$_PROG_PCT" "$cur_files_h" "$total_files_h" "$down_h" "$total_h" "$_PROG_ETA"
+}
+
+# _prog_draw_bar <pct> <suffix_len>
+#   Builds the bar with per-glyph appends (locale-safe for the multi-byte
+#   █/░ — substring slicing would cut them apart under a non-UTF-8 locale);
+#   the terminal width is probed once in progress_init, not per redraw.
+#   Result in _PROG_BAR.
 _prog_draw_bar() {
   local pct=$1 suffix_len=$2
-  local cols=$(tput cols)
-  local bar_width=$(( cols - suffix_len - 3 ))  # 3 = "[" + "] "
+  local bar_width=$(( ${_PROG_COLS:-80} - suffix_len - 3 ))  # 3 = "[" + "] "
   (( bar_width < 10 )) && bar_width=10
   local filled=$(( pct * bar_width / 100 ))
   local empty=$(( bar_width - filled ))
-  local bar=""
-  for ((i=0; i<filled; i++)); do bar+="█"; done
-  for ((i=0; i<empty; i++)); do bar+="░"; done
-  printf "%s" "$bar"
+  local i
+  _PROG_BAR=""
+  for ((i=0; i<filled; i++)); do _PROG_BAR+="█"; done
+  for ((i=0; i<empty; i++)); do _PROG_BAR+="░"; done
 }
 
 # ── Public API ───────────────────────────────────────────────────
 
 # progress_init <total_bytes> <total_files> [label]
-#   Call once before updates. Hides cursor, prints label.
+#   Call once before updates. Hides cursor, prints label. The bar only
+#   animates on a terminal (_PROG_ACTIVE); when output is piped or captured
+#   the redraws (and the per-file stat calls that feed them) are pure
+#   overhead, so everything except the label is skipped.
 progress_init() {
   _PROG_TOTAL="${1:?usage: progress_init <total_bytes> <total_files> [label]}"
   _PROG_TOTAL_FILES="${2:-0}"
   _PROG_LABEL="${3:-Processing...}"
   _PROG_PREV_BYTES=0
   _PROG_CURRENT_FILES=0
-  _PROG_START_SEC=$(date +%s)
+  _PROG_START_SEC=$SECONDS
+  _PROG_LAST_PCT=-1
+  _PROG_LAST_SEC=-1
 
-  printf "\033[?25l"  # hide cursor
+  if [ -t 1 ]; then
+    _PROG_ACTIVE="true"
+    _PROG_COLS=$(tput cols 2>/dev/null)
+    [ -z "$_PROG_COLS" ] && _PROG_COLS=80
+    printf "\033[?25l"  # hide cursor
+  else
+    _PROG_ACTIVE="false"
+  fi
   printf "%s\n" "$_PROG_LABEL"
 }
 
 # progress_update <current_bytes>
-#   Call repeatedly with the current processed byte count.
+#   Call repeatedly with the current processed byte count. Redraws are
+#   throttled to percentage changes and clock ticks; intermediate calls only
+#   record the byte count.
 progress_update() {
   local cur_bytes="${1:?usage: progress_update <current_bytes>}"
 
-  local now=$(date +%s)
-  local elapsed=$(( now - _PROG_START_SEC ))
-  (( elapsed < 1 )) && elapsed=1
-
-  local pct_eta=$(awk "BEGIN {
-    byte_pct = 0; file_pct = 0
-    if (${_PROG_TOTAL} > 0) byte_pct = ${cur_bytes} * 100 / ${_PROG_TOTAL}
-    if (${_PROG_TOTAL_FILES} > 0) file_pct = ${_PROG_CURRENT_FILES} * 100 / ${_PROG_TOTAL_FILES}
-    if (${_PROG_TOTAL} == 0 && ${_PROG_TOTAL_FILES} == 0) p = 100
-    else if (${_PROG_TOTAL} == 0) p = int(file_pct)
-    else if (${_PROG_TOTAL_FILES} == 0) p = int(byte_pct)
-    else p = int((byte_pct + file_pct) / 2)
-    if (p > 100) p = 100
-
-    byte_eta = 0; file_eta = 0; n = 0
-    if (${cur_bytes} > 0) { byte_eta = (${_PROG_TOTAL} - ${cur_bytes}) * ${elapsed} / ${cur_bytes}; n++ }
-    if (${_PROG_CURRENT_FILES} > 0 && ${_PROG_TOTAL_FILES} > 0) { file_eta = (${_PROG_TOTAL_FILES} - ${_PROG_CURRENT_FILES}) * ${elapsed} / ${_PROG_CURRENT_FILES}; n++ }
-    if (n == 0) { printf \"%d --:--\", p }
-    else {
-      rem = (byte_eta + file_eta) / n
-      if (rem < 0) rem = 0
-      m = int(rem / 60); s = int(rem) % 60
-      printf \"%d %02dm%02ds\", p, m, s
-    }
-  }")
-  local pct=${pct_eta%% *}
-  local eta=${pct_eta#* }
-
   _PROG_PREV_BYTES="$cur_bytes"
+  [ "$_PROG_ACTIVE" = "true" ] || return 0
 
-  local down_h=$(_prog_human_size "$cur_bytes")
-  local total_h=$(_prog_human_size "$_PROG_TOTAL")
+  local elapsed=$(( SECONDS - _PROG_START_SEC ))
+  (( elapsed < 1 )) && elapsed=1
+  _prog_pct_eta "$cur_bytes" "$elapsed"
 
-  local cur_files_h=$(_prog_human_count "$_PROG_CURRENT_FILES")
-  local total_files_h=$(_prog_human_count "$_PROG_TOTAL_FILES")
-  local suffix=$(printf "%3d%%  %s/%s  %s/%s  %s" "$pct" "$cur_files_h" "$total_files_h" "$down_h" "$total_h" "$eta")
+  if [ "$_PROG_PCT" = "$_PROG_LAST_PCT" ] && [ "$SECONDS" = "$_PROG_LAST_SEC" ]; then
+    return 0
+  fi
+  _PROG_LAST_PCT=$_PROG_PCT
+  _PROG_LAST_SEC=$SECONDS
 
-  printf "\r[%s] %s" \
-    "$(_prog_draw_bar "$pct" "${#suffix}")" "$suffix"
+  _prog_render_suffix "$cur_bytes"
+  _prog_draw_bar "$_PROG_PCT" "${#_PROG_SUFFIX}"
+  printf "\r[%s] %s" "$_PROG_BAR" "$_PROG_SUFFIX"
 }
 
 # progress_log <message>
 #   Print a message above the progress bar without disturbing it.
 progress_log() {
   # If progress bar isn't active, just echo
-  if [ -z "$_PROG_TOTAL" ]; then
+  if [ -z "$_PROG_TOTAL" ] || [ "$_PROG_ACTIVE" != "true" ]; then
     printf "%s\n" "$*"
     return
   fi
   # Clear bar, print message, redraw bar — all in one write to minimize flicker
   local cur_bytes="${_PROG_PREV_BYTES:-0}"
-  local now=$(date +%s)
-  local elapsed=$(( now - _PROG_START_SEC ))
+  local elapsed=$(( SECONDS - _PROG_START_SEC ))
   (( elapsed < 1 )) && elapsed=1
 
-  local pct_eta=$(awk "BEGIN {
-    byte_pct = 0; file_pct = 0
-    if (${_PROG_TOTAL} > 0) byte_pct = ${cur_bytes} * 100 / ${_PROG_TOTAL}
-    if (${_PROG_TOTAL_FILES} > 0) file_pct = ${_PROG_CURRENT_FILES} * 100 / ${_PROG_TOTAL_FILES}
-    if (${_PROG_TOTAL} == 0 && ${_PROG_TOTAL_FILES} == 0) p = 100
-    else if (${_PROG_TOTAL} == 0) p = int(file_pct)
-    else if (${_PROG_TOTAL_FILES} == 0) p = int(byte_pct)
-    else p = int((byte_pct + file_pct) / 2)
-    if (p > 100) p = 100
-
-    byte_eta = 0; file_eta = 0; n = 0
-    if (${cur_bytes} > 0) { byte_eta = (${_PROG_TOTAL} - ${cur_bytes}) * ${elapsed} / ${cur_bytes}; n++ }
-    if (${_PROG_CURRENT_FILES} > 0 && ${_PROG_TOTAL_FILES} > 0) { file_eta = (${_PROG_TOTAL_FILES} - ${_PROG_CURRENT_FILES}) * ${elapsed} / ${_PROG_CURRENT_FILES}; n++ }
-    if (n == 0) { printf \"%d --:--\", p }
-    else {
-      rem = (byte_eta + file_eta) / n
-      if (rem < 0) rem = 0
-      m = int(rem / 60); s = int(rem) % 60
-      printf \"%d %02dm%02ds\", p, m, s
-    }
-  }")
-  local pct=${pct_eta%% *}
-  local eta=${pct_eta#* }
-
-  local down_h=$(_prog_human_size "$cur_bytes")
-  local total_h=$(_prog_human_size "$_PROG_TOTAL")
-  local cur_files_h=$(_prog_human_count "$_PROG_CURRENT_FILES")
-  local total_files_h=$(_prog_human_count "$_PROG_TOTAL_FILES")
-  local suffix=$(printf "%3d%%  %s/%s  %s/%s  %s" "$pct" "$cur_files_h" "$total_files_h" "$down_h" "$total_h" "$eta")
-  local bar=$(_prog_draw_bar "$pct" "${#suffix}")
-  printf "\r\033[2K%s\n\r[%s] %s" "$*" "$bar" "$suffix"
+  _prog_pct_eta "$cur_bytes" "$elapsed"
+  _prog_render_suffix "$cur_bytes"
+  _prog_draw_bar "$_PROG_PCT" "${#_PROG_SUFFIX}"
+  printf "\r\033[2K%s\n\r[%s] %s" "$*" "$_PROG_BAR" "$_PROG_SUFFIX"
 }
 
 # progress_done
 #   Fills bar to 100%, prints newline, restores cursor. Clears _PROG_TOTAL so
 #   any post-done progress_log/log calls print plainly (no stale bar redraw).
 progress_done() {
-  if [ "$KEEP_PROGRESS_BAR" = "true" ]; then
-    progress_update "$_PROG_TOTAL"
-    printf "\n"
-  else
-    printf "\r\033[2K"
+  if [ "$_PROG_ACTIVE" = "true" ]; then
+    if [ "$KEEP_PROGRESS_BAR" = "true" ]; then
+      _PROG_LAST_PCT=-1  # force the final redraw past the throttle
+      progress_update "$_PROG_TOTAL"
+      printf "\n"
+    else
+      printf "\r\033[2K"
+    fi
+    printf "\033[?25h"  # show cursor
   fi
-  printf "\033[?25h"  # show cursor
   _PROG_TOTAL=""
+  _PROG_ACTIVE="false"
 }
 
 # Internal: resolve LEVEL -> printable prefix, bumping counters where needed.
@@ -1250,7 +1296,8 @@ manage_hash_visibility() {
 	# # src no,  dest yes -> check dest hash, if computed=dest; OK else err
 	# # src no,  dest no  -> err
 	
-	local past_tense=$([ "$action" = "show" ] && echo "shown" || echo "hidden")
+	local past_tense="hidden"
+	[ "$action" = "show" ] && past_tense="shown"
 
 	if [ -f "$src_fpath" ]; then
 		if [ -f "$dest_fpath" ] && [ "$force_mode" = "false" ]; then
@@ -1349,23 +1396,26 @@ process_entry()
 		# dot-less (.roh* not .roh.*) on purpose so it also covers .rohignore
 		# itself; every other hidden entry is run through should_ignore, so a
 		# folder whose only hidden content is ignored (e.g. .DS_Store) is quiet.
-		local _hidden _h
-		_hidden=$(find "$entry" -mindepth 1 -maxdepth 1 -name '.*' ! -name '.roh*')
-		if [ -n "$_hidden" ]; then
-			while IFS= read -r _h; do
-				[ -z "$_h" ] && continue
-				if ! should_ignore "$_h"; then
-					export_log "$entry" "$EXPORT_FILE_IGNORED"
-					break
-				fi
-			done <<< "$_hidden"
-		fi
+		# Glob instead of find(1): `.[!.]*` + `..?*` together match every
+		# dot-entry except `.`/`..` (nullglob is on), saving a process spawn
+		# per directory. `-e || -L` keeps broken symlinks visible, as find did.
+		local _h
+		for _h in "$entry"/.[!.]* "$entry"/..?*; do
+			[ -e "$_h" ] || [ -L "$_h" ] || continue
+			case "${_h##*/}" in .roh*) continue ;; esac
+			if ! should_ignore "$_h"; then
+				export_log "$entry" "$EXPORT_FILE_IGNORED"
+				break
+			fi
+		done
 	
 		if [ "$entry" != "$ROOT" ] && ([ -d "$entry/.roh.git" ] || [ -f "$entry/_.roh.git.zip" ]); then
 			log WARN "[$entry] is a readonlyhash directory -- SKIPPING"
-			_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_entry_bytes "$entry") ))
-			_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_entry_count "$entry") ))
-			progress_update "$_PROG_CURRENT_BYTES"
+			if [ "$_PROG_ACTIVE" = "true" ]; then
+				_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_entry_bytes "$entry") ))
+				_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_entry_count "$entry") ))
+				progress_update "$_PROG_CURRENT_BYTES"
+			fi
 			return 0
 		fi
 
@@ -1382,9 +1432,11 @@ process_entry()
 				if [ -n "$has_real_files" ] && [ -z "$has_hashes" ]; then
 				    log WARN "[$entry] -- NEW DIRECTORY!?"
 					export_log "$entry" "$EXPORT_FILE_NEW"
-					_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_entry_bytes "$entry") ))
-					_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_entry_count "$entry") ))
-					progress_update "$_PROG_CURRENT_BYTES"
+					if [ "$_PROG_ACTIVE" = "true" ]; then
+						_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_entry_bytes "$entry") ))
+						_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_entry_count "$entry") ))
+						progress_update "$_PROG_CURRENT_BYTES"
+					fi
 				    return 0
 				fi
 			fi
@@ -1398,17 +1450,21 @@ process_entry()
 
 	# else ...
     elif [ -f "$entry" ]; then
-		if [[ $(basename "$entry") =~ \.${HASH}$ ]]; then # && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
-			return 0
-		fi
+		case "$entry" in *.$HASH) # && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
+			return 0 ;;
+		esac
 
-		local entry_bytes
-		if [ "$_STAT_FMT" = "bsd" ]; then
-			entry_bytes=$(stat -f%z "$entry")
-		else
-			entry_bytes=$(stat -c%s "$entry")
+		# stat only feeds the progress bar's byte counter — skip its process
+		# spawn per file when the bar is inactive.
+		if [ "$_PROG_ACTIVE" = "true" ]; then
+			local entry_bytes
+			if [ "$_STAT_FMT" = "bsd" ]; then
+				entry_bytes=$(stat -f%z "$entry")
+			else
+				entry_bytes=$(stat -c%s "$entry")
+			fi
+			_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + entry_bytes ))
 		fi
-		_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + entry_bytes ))
 		(( _PROG_CURRENT_FILES++ ))
 		progress_update "$_PROG_CURRENT_BYTES"
 
@@ -1503,22 +1559,22 @@ contains() {
 
 i=1
 while [ $i -le $# ]; do
-    arg=$(eval echo "\$$i")
+    arg="${!i}"
 
     # Stop on any switch-like argument
     case "$arg" in
         -*) break ;;
     esac
 
-    # 1. Try full word match
-    if echo "$valid_long" | grep -qw "$arg"; then
+    # 1. Try full word match (word-boundary lookup without a grep spawn)
+    if [[ " $valid_long " == *" $arg "* ]]; then
         commands+=("$arg")
         i=$((i+1))
         continue
     fi
 
     # 2. Try short letters (consecutive, no separators)
-    if echo "$arg" | grep -qE '^[vwidhsqre]+$'; then
+    if [[ "$arg" =~ ^[vwidhsqre]+$ ]]; then
         invalid=0
         for ((j=0; j<${#arg}; j++)); do
             c="${arg:$j:1}"
@@ -1792,10 +1848,18 @@ else
 fi
 # echo "* ROH_DIR [$ROH_DIR]"
 
-# NOTE: use dirname, NOT "$ROH_DIR/../.roh.logs". The latter embeds ".roh.git/.."
-# literally, so `mkdir -p "$ROH_LOGS"` materialises an empty .roh.git before
-# resolving the "..", creating the hash store as a side-effect on read-only runs.
-ROH_LOGS="$(dirname "$ROH_DIR")/.roh.logs"
+# NOTE: use the parent path, NOT "$ROH_DIR/../.roh.logs". The latter embeds
+# ".roh.git/.." literally, so `mkdir -p "$ROH_LOGS"` materialises an empty
+# .roh.git before resolving the "..", creating the hash store as a side-effect
+# on read-only runs. dirname semantics via bash expansion (no process spawn):
+# strip a trailing slash, then everything after the last slash; "." when the
+# path has no directory part.
+_roh_logs_parent="${ROH_DIR%/}"
+case "$_roh_logs_parent" in
+    */*) _roh_logs_parent="${_roh_logs_parent%/*}" ;;
+    *)   _roh_logs_parent="." ;;
+esac
+ROH_LOGS="$_roh_logs_parent/.roh.logs"
 if [ -d "$ROH_LOGS" ]; then
 	rm -rf "$ROH_LOGS"
 fi
@@ -2083,10 +2147,17 @@ run_directory_process() {
 	#----
 
 	_PROG_CURRENT_BYTES=0
-	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
+	case "$OSTYPE" in darwin*) _STAT_FMT="bsd" ;; *) _STAT_FMT="gnu" ;; esac
 
-	total_bytes=$(_prog_entry_bytes "$entry")
-	total_files=$(_prog_entry_count "$entry")
+	# The totals only feed the progress bar; when stdout is not a terminal the
+	# bar never draws, so skip the two find sweeps that compute them.
+	if [ -t 1 ]; then
+		total_bytes=$(_prog_entry_bytes "$entry")
+		total_files=$(_prog_entry_count "$entry")
+	else
+		total_bytes=0
+		total_files=0
+	fi
 
 	trap 'printf "\033[?25h"; exit' INT TERM
 	progress_init "$total_bytes" "$total_files" "# Processing files ... [$entry]"
@@ -2157,9 +2228,11 @@ process_hash_entry()
  				if [ ! -d "$dir_fpath" ]; then
 					log ERROR "[$recursive_dir] -- orphaned hash DIRECTORY!"
 					export_log "$recursive_dir" "$EXPORT_HASH_DELETED"
-					_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_hash_bytes "$recursive_dir") ))
-					_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_hash_count "$recursive_dir") ))
-					progress_update "$_PROG_CURRENT_BYTES"
+					if [ "$_PROG_ACTIVE" = "true" ]; then
+						_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + $(_prog_hash_bytes "$recursive_dir") ))
+						_PROG_CURRENT_FILES=$(( _PROG_CURRENT_FILES + $(_prog_hash_count "$recursive_dir") ))
+						progress_update "$_PROG_CURRENT_BYTES"
+					fi
 					return 0
  				fi
  
@@ -2187,13 +2260,16 @@ process_hash_entry()
 
     elif [ -f "$roh_hash_fpath" ]; then
 
-		local entry_bytes
-		if [ "$_STAT_FMT" = "bsd" ]; then
-			entry_bytes=$(stat -f%z "$roh_hash_fpath")
-		else
-			entry_bytes=$(stat -c%s "$roh_hash_fpath")
+		# stat only feeds the progress bar's byte counter (see process_entry).
+		if [ "$_PROG_ACTIVE" = "true" ]; then
+			local entry_bytes
+			if [ "$_STAT_FMT" = "bsd" ]; then
+				entry_bytes=$(stat -f%z "$roh_hash_fpath")
+			else
+				entry_bytes=$(stat -c%s "$roh_hash_fpath")
+			fi
+			_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + entry_bytes ))
 		fi
-		_PROG_CURRENT_BYTES=$(( _PROG_CURRENT_BYTES + entry_bytes ))
 		(( _PROG_CURRENT_FILES++ ))
 		progress_update "$_PROG_CURRENT_BYTES"
 
@@ -2323,10 +2399,16 @@ hash_maintanence() {
 	#----
 
 	_PROG_CURRENT_BYTES=0
-	if [ "$(uname)" = "Darwin" ]; then _STAT_FMT="bsd"; else _STAT_FMT="gnu"; fi
+	case "$OSTYPE" in darwin*) _STAT_FMT="bsd" ;; *) _STAT_FMT="gnu" ;; esac
 
-	total_bytes=$(_prog_hash_bytes "$dir")
-	total_files=$(_prog_hash_count "$dir")
+	# See run_directory_process: totals are progress-bar-only.
+	if [ -t 1 ]; then
+		total_bytes=$(_prog_hash_bytes "$dir")
+		total_files=$(_prog_hash_count "$dir")
+	else
+		total_bytes=0
+		total_files=0
+	fi
 
 	trap 'printf "\033[?25h"; exit' INT TERM
 	progress_init "$total_bytes" "$total_files" "# Hash maintanence ... [$dir]"
