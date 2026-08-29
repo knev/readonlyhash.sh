@@ -117,6 +117,21 @@ mkdir 2002
 cp "$PWD/2002.ro/_.roh.git.zip" "2002/."
 mv "2002.ro" "2002.ro.ORIG"
 run_test "$GIT_BIN -xC 2002" "0" "$(escape_expected "Extracted [2002/.roh.git] from [_.roh.git.zip].*Backed: up [2002/_.roh.git.zip] as [2002/.roh.git.zip~]")"
+# revert: refuses on dirty repo / drift unless --force; restores the archive when unchanged
+run_test "$GIT_BIN -x_C 2002" "1" "$(escape_expected "ERROR: archive, extract and revert operations are mutually exclusive.")"
+echo "junk" > "2002/.roh.git/junk.sha256"
+run_test "$GIT_BIN -_C 2002" "1" "$(escape_expected "ERROR: local repo [2002/.roh.git] not clean -- archive with -z, or --force to discard")"
+run_test "ls 2002/.roh.git.zip~" "0" "zip~"
+git -C "2002/.roh.git" add . >/dev/null 2>&1; git -C "2002/.roh.git" commit -m junk. >/dev/null 2>&1
+run_test "$GIT_BIN -_C 2002" "1" "$(escape_expected "ERROR: [2002/.roh.git] content differs from [2002/.roh.git.zip~] -- archive with -z, or --force to discard")"
+run_test "ls 2002/.roh.git.zip~" "0" "zip~"
+run_test "$GIT_BIN --force --revert -C 2002" "0" "$(escape_expected "Discarding [2002/.roh.git] (FORCED)!.*Removed [2002/.roh.git].*Reverted [2002/.roh.git.zip~] to [2002/_.roh.git.zip]")"
+run_test "ls 2002/.roh.git.zip~" "1" "No such file"
+run_test "$GIT_BIN -_C 2002" "1" "$(escape_expected "ERROR: directory [.roh.git] does NOT exist in [2002]")"
+run_test "$GIT_BIN -xC 2002" "0" "Extracted"
+run_test "$GIT_BIN -_C 2002" "0" "$(escape_expected "Reverted [2002/.roh.git.zip~] to [2002/_.roh.git.zip]")"
+run_test "ls 2002/.roh.git.zip~" "1" "No such file"
+run_test "$GIT_BIN -_C 2002" "1" "$(escape_expected "ERROR: directory [.roh.git] does NOT exist in [2002]")"
 rm -rf 2002
 mv "2002.ro.ORIG" "2002.ro"
 
@@ -163,42 +178,32 @@ run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
 echo
 echo "# extract && verify"
 
-# verify/index against archived ROH_DIRs (no extraction): the archive is
-# unpacked via roh.git -x into a temp dir, used through --roh-dir, and removed.
+# verify/index against archived ROH_DIRs: extracted in place, processed in
+# the normal layout, then reverted (roh.git -r); the archive is untouched.
 run_test "$ROH_BIN archive < $fpath" "0" "$(escape_expected "Removed [$PWD/2002.ro/.roh.git]")"
 run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
-run_test "$ROH_BIN verify < $fpath" "0" "$(escape_expected "Extracted [.*/.roh.git] from [_.roh.git.zip].*ROH_DIR: using [.*/.roh.git].*nothing to commit, working tree clean.*Removed [.*].*Extracted [.*/.roh.git] from [_.roh.git.zip].*nothing to commit, working tree clean.*Removed [.*]")"
 run_test "$ROH_BIN verify < $fpath" "0" "_.roh.git.zip] -- NEW" "true"
-tmp_staged=$($ROH_BIN verify < $fpath 2>/dev/null | sed -n 's/^OK: staging .* in \[\(.*\)\]$/\1/p' | head -1)
-run_test "ls -d $tmp_staged" "1" "No such file or directory"
-run_test "$ROH_BIN va < $fpath" "1" "$(escape_expected "ERROR: [archive] cannot be combined with other commands: [verify archive]")"
-mkdir "2002.ro/.roh.git"
-run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: both [$PWD/2002.ro/_.roh.git.zip] and [$PWD/2002.ro/.roh.git] exist")"
-rmdir "2002.ro/.roh.git"
+run_test "$ROH_BIN verify < $fpath" "0" "$(escape_expected "Extracted [$PWD/2002.ro/.roh.git] from [_.roh.git.zip].*nothing to commit, working tree clean.*Removed [$PWD/2002.ro/.roh.git].*Reverted [$PWD/2002.ro/.roh.git.zip~] to [$PWD/2002.ro/_.roh.git.zip]")"
 run_test "ls -al $PWD/2002.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/2002.ro/_.roh.git.zip")"
 run_test "ls -al $PWD/2002.ro/.roh.git" "1" "No such file or directory"
-run_test "$ROH_BIN verify index < $fpath" "0" "$(escape_expected "DB_SQL:.*2002.ro/.roh.sqlite3] -- initialized")"
-rm "$PWD/2002.ro/.roh.sqlite3"
-run_test "$ROH_BIN index < $fpath" "0" "$(escape_expected "DB_SQL:.*2002.ro/.roh.sqlite3] -- initialized")"
-run_test "$ROH_BIN index < $fpath" "0" "nothing to commit" "true"
-rm "$PWD/Fotos [space]/2003/.roh.sqlite3"
-rm "$PWD/Fotos [space]/1999/.roh.sqlite3"
-rm "$PWD/2002.ro/.roh.sqlite3"
+run_test "ls -al $PWD/2002.ro/.roh.git.zip~" "1" "No such file or directory"
+run_test "$ROH_BIN va < $fpath" "1" "$(escape_expected "ERROR: [archive] cannot be combined with other commands: [verify archive]")"
+mkdir "2002.ro/.roh.git"
+run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: directory [.roh.git] exists in [$PWD/2002.ro]")"
+rmdir "2002.ro/.roh.git"
+# index is refused while archived (2003 is the first dir in the list)
+run_test "$ROH_BIN verify index < $fpath" "1" "$(escape_expected "ERROR: [$PWD/Fotos [space]/2003] is archived -- index requires an extracted ROH_DIR")"
+run_test "$ROH_BIN index < $fpath" "1" "$(escape_expected "ERROR: [$PWD/Fotos [space]/2003] is archived -- index requires an extracted ROH_DIR")"
+run_test "ls -al $PWD/Fotos\ \[space\]/2003/.roh.git" "1" "No such file or directory"
+run_test "$ROH_BIN index --db all.sqlite3 < $fpath" "1" "$(escape_expected "ERROR: invalid option [--db]")"
 
-# --db: one database for every listed dir (archived or not), nothing next to them
-run_test "$ROH_BIN verify --db all.sqlite3 < $fpath" "1" "$(escape_expected "ERROR: [--db] can only be used with: index")"
-run_test "$ROH_BIN index --db < $fpath" "1" "$(escape_expected "ERROR: --db requires a value")"
-run_test "$ROH_BIN index --db all.sqlite3 < $fpath" "0" "$(escape_expected "Using DB_SQL [all.sqlite3].*Using DB_SQL [all.sqlite3].*Using DB_SQL [all.sqlite3]")"
-run_test "ls -al $PWD/2002.ro/.roh.sqlite3" "1" "No such file or directory"
-run_test "sqlite3 all.sqlite3 'select count(*) from hashes'" "0" "^[1-9][0-9]*$"
-run_test "$ROH_BIN vi --resume-at 2002 --db all.sqlite3 < $fpath" "0" "$(escape_expected "Using DB_SQL [all.sqlite3]")"
-rm all.sqlite3
-
-# a content change is caught against the archived hashes; the temp dir is
-# still removed on the failing path.
+# a content change is caught against the archived hashes; on failure the
+# directory is left extracted (with its .zip~ backup) for inspection.
 cp "2002.ro/2002_FIRE!/Untitled-001.jpg" "Untitled-001.jpg.ORIG"
 echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/2002_FIRE!/Untitled-001.jpg"
-run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: hash mismatch.*Removed [.*]")"
+run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: hash mismatch")"
+run_test "ls -d $PWD/2002.ro/.roh.git $PWD/2002.ro/.roh.git.zip~" "0" "zip~"
+run_test "$GIT_BIN --revert -C $PWD/2002.ro" "0" "Reverted"
 mv "Untitled-001.jpg.ORIG" "2002.ro/2002_FIRE!/Untitled-001.jpg"
 run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
 run_test "$ROH_BIN extract < $fpath" "0" "$(escape_expected "Extracted [$PWD/2002.ro/.roh.git] from [_.roh.git.zip]")"
