@@ -282,7 +282,7 @@ hash_fpath_to_fpath() {
 
 # ── Internal helpers ─────────────────────────────────────────────
 
-# The progress helpers below are pure bash (integer math, no awk/tput/date
+# The progress helpers below are pure bash (integer math, no awk/date
 # per redraw): each external process in this per-file hot path costs tens of
 # milliseconds on Windows (MSYS fork emulation). Results are passed back in
 # _PROG_* globals instead of command substitution to avoid subshells too.
@@ -388,6 +388,19 @@ _prog_draw_bar() {
 #   animates on a terminal (_PROG_ACTIVE); when output is piped or captured
 #   the redraws (and the per-file stat calls that feed them) are pure
 #   overhead, so everything except the label is skipped.
+# _prog_cols
+#   Terminal width. Ask the controlling tty via stty first (works even when
+#   stdin is redirected, as under readonlyhash), then tput, then $COLUMNS,
+#   then 80. Called per (throttled, <=1/s) redraw so a resize is followed.
+_prog_cols() {
+  local c
+  c=$(stty size 2>/dev/null </dev/tty); c=${c##* }
+  if [ -n "$c" ] && [ "$c" -gt 0 ] 2>/dev/null; then echo "$c"; return; fi
+  c=$(tput cols 2>/dev/null)
+  if [ -n "$c" ] && [ "$c" -gt 0 ] 2>/dev/null; then echo "$c"; return; fi
+  echo "${COLUMNS:-80}"
+}
+
 progress_init() {
   _PROG_TOTAL="${1:?usage: progress_init <total_bytes> <total_files> [label]}"
   _PROG_TOTAL_FILES="${2:-0}"
@@ -400,8 +413,7 @@ progress_init() {
 
   if [ -t 1 ]; then
     _PROG_ACTIVE="true"
-    _PROG_COLS=$(tput cols 2>/dev/null)
-    [ -z "$_PROG_COLS" ] && _PROG_COLS=80
+    _PROG_COLS=$(_prog_cols)
     printf "\033[?25l"  # hide cursor
   else
     _PROG_ACTIVE="false"
@@ -429,9 +441,10 @@ progress_update() {
   _PROG_LAST_PCT=$_PROG_PCT
   _PROG_LAST_SEC=$SECONDS
 
+  _PROG_COLS=$(_prog_cols)
   _prog_render_suffix "$cur_bytes"
   _prog_draw_bar "$_PROG_PCT" "${#_PROG_SUFFIX}"
-  printf "\r[%s] %s" "$_PROG_BAR" "$_PROG_SUFFIX"
+  printf "\r\033[K[%s] %s" "$_PROG_BAR" "$_PROG_SUFFIX"
 }
 
 # progress_log <message>
@@ -2170,7 +2183,7 @@ run_directory_process() {
 		total_files=0
 	fi
 
-	trap 'printf "\033[?25h"; exit' INT TERM
+	trap 'printf "\033[?25h"; exit 130' INT TERM
 	progress_init "$total_bytes" "$total_files" "# Processing files ... [$entry]"
 
 	#process_directory "$@" || return 1
@@ -2421,7 +2434,7 @@ hash_maintanence() {
 		total_files=0
 	fi
 
-	trap 'printf "\033[?25h"; exit' INT TERM
+	trap 'printf "\033[?25h"; exit 130' INT TERM
 	progress_init "$total_bytes" "$total_files" "# Hash maintanence ... [$dir]"
 
 	process_hash_entry "$dir"

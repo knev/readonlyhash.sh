@@ -351,7 +351,9 @@ cleanup_tmp_roh_root() {
 	fi
 	TMP_ROH_ROOT=""
 }
-trap cleanup_tmp_roh_root EXIT INT TERM
+trap cleanup_tmp_roh_root EXIT
+# On a signal, clean up and stop; a bare trap would resume the loop afterwards.
+trap 'cleanup_tmp_roh_root; trap - EXIT; exit 130' INT TERM
 
 # unpack_archive_to_tmp <dir>
 #   Unpack <dir>/_.roh.git.zip into a fresh temp dir using roh.git's own
