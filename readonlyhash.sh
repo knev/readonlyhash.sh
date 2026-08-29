@@ -30,8 +30,9 @@ usage() {
 	echo 
     echo "Commands:"
 	echo "      v|verify     Verify files and make sure git repo is clean"
-	echo "      i|index      Index while verifying"
-	echo "      a|archive    Achive ROH_DIR and remove an existing index file"
+	echo "      i|index      Index (alone, or while verifying)"
+	echo "                   verify/index work on an archived ROH_DIR too, by unpacking it to a temp dir"
+	echo "      a|archive    Archive ROH_DIR and remove an existing index file"
 	echo "      x|extract    Extract _.roh.git.zip as ROH_DIR"
 	echo 
     echo "Options:"
@@ -225,6 +226,21 @@ done
 # Reset positional parameters to remaining arguments only
 shift $((i-1))   # now $1 is the first -something argument
 
+# verify and index may be combined; archive and extract must stand alone.
+# Anything else would be silently dropped by the dispatcher, so reject it here.
+# (Pure bash: no sort/tr, so it behaves the same on macOS, Linux and Git Bash.)
+for c in "${commands[@]}"; do
+	case "$c" in
+		archive|extract)
+			if [ ${#commands[@]} -ne 1 ]; then
+				echo "ERROR: [$c] cannot be combined with other commands: [${commands[*]}]" >&2
+				usage
+				exit 1
+			fi
+			;;
+	esac
+done
+
 # This script orchestrates the two worker scripts, so its only direct prereqs
 # are that they resolve (on PATH normally, or ./roh.*.sh under --debug). Each
 # worker self-checks its own external tools (openssl/sqlite3/xxd for roh.fpath;
@@ -319,88 +335,142 @@ rename_to_ro() {
 
 #------------------------------------------------------------------------------------------------------------------------------------------
 
-verify_directory() {
+ROH_DIR_NAME=".roh.git"
+ARCHIVE_NAME="_${ROH_DIR_NAME}.zip"
+
+# Temp dir holding a ROH_DIR unpacked from an archive (see unpack_archive_to_tmp).
+# Cleaned up on every exit path so a failing verify never leaves it behind.
+TMP_ROH_ROOT=""
+cleanup_tmp_roh_root() {
+	if [ -n "$TMP_ROH_ROOT" ] && [ -d "$TMP_ROH_ROOT" ]; then
+		rm -rf "$TMP_ROH_ROOT"
+		echo "Removed [$TMP_ROH_ROOT]"
+	fi
+	TMP_ROH_ROOT=""
+}
+trap cleanup_tmp_roh_root EXIT INT TERM
+
+# unpack_archive_to_tmp <dir>
+#   Unpack <dir>/_.roh.git.zip into a fresh temp dir using roh.git's own
+#   extractor (so the archive format lives in exactly one place). Sets
+#   TMP_ROH_ROOT; the unpacked ROH_DIR is "$TMP_ROH_ROOT/$ROH_DIR_NAME".
+unpack_archive_to_tmp() {
 	local dir="$1"
 
-	local archive_name="_.roh.git.zip"
-	if [ -f "$dir/$archive_name" ]; then
-		echo "ERROR: found archived ROH_DIR [$dir/$archive_name] at [$dir]"
+	TMP_ROH_ROOT=$(mktemp -d)
+	if [ $? -ne 0 ] || [ -z "$TMP_ROH_ROOT" ]; then
+		echo "ERROR: could not create a temp dir for [$dir/$ARCHIVE_NAME]"
 		echo
 		exit 1
-
-# 		tmp_dir=$(mktemp -d)
-# 		echo "tmp_dir [$tmp_dir]"
-# 
-# 		#TODO: should use roh.git with a --ROH_DIR flag perhaps?
-# 		unzip -jq "$dir/$archive_name" -d "$tmp_dir" && tar -xf "$tmp_dir/.roh.git.tar" -C "$tmp_dir" && rm -f "$tmp_dir/.roh.git.tar"
-# 		if [ $? -eq 0 ]; then
-# 		    echo "Extracted [$tmp_dir] from [$dir/$archive_name]"
-# 		else
-# 		    echo "ERROR: failed to extract [$tmp_dir] from [$dir/$archive_name]"
-# 		    echo
-# 		    exit 1
-# 		fi
-# 
-# 		ROH_DIR="$tmp_dir/.roh.git"
-# 
-# 		$FPATH_BIN verify --roh-dir "$ROH_DIR" "$dir"
-# 		# $FPATH_BIN verify "$dir"
-# 		if [ $? -ne 0 ]; then
-# 	        echo "ERROR: [$FPATH_BIN verify --roh-dir] failed for directory: [$dir]"
-# 			echo
-# 			exit 1
-# 		fi		
-# 		git_status=$($GIT_BIN -C "$tmp_dir" status)
-# 		echo "$git_status"
-# 		if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-# 			echo
-# 	        echo "ERROR: local repo [$ROH_DIR] not clean"
-# 			echo
-# 			exit 1
-# 		fi
-# 
-# 		rm -r "$tmp_dir"
-# 		echo "Removed [$tmp_dir]"
-
-	else
-		ROH_DIR="$dir/.roh.git"
-
-		if contains "index"; then
-			$FPATH_BIN verify index "$dir"
-		else
-			$FPATH_BIN verify "$dir"
-		fi
-		if [ $? -ne 0 ]; then
-	        echo "ERROR: [$FPATH_BIN verify] failed for directory: [$dir]"
-			echo
-			exit 1
-		fi		
-
-		if [ ! -d "$ROH_DIR/.git" ]; then
-			echo "ERROR: local repo [$ROH_DIR/.git] does not exist"
-			echo
-			exit 1
-		fi
-
-		git_status=$($GIT_BIN -C "$dir" status)
-		echo "$git_status"
-		if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
-			echo
-	        echo "ERROR: local repo [$ROH_DIR] not clean"
-			echo
-			exit 1
-		fi
-
 	fi
+	echo "OK: staging [$dir/$ARCHIVE_NAME] in [$TMP_ROH_ROOT]"
+
+	if ! cp "$dir/$ARCHIVE_NAME" "$TMP_ROH_ROOT/$ARCHIVE_NAME"; then
+		echo "ERROR: could not copy [$dir/$ARCHIVE_NAME] to [$TMP_ROH_ROOT]"
+		echo
+		exit 1
+	fi
+	$GIT_BIN -xC "$TMP_ROH_ROOT"
+	if [ $? -ne 0 ] || [ ! -d "$TMP_ROH_ROOT/$ROH_DIR_NAME" ]; then
+		echo "ERROR: could not stage archived ROH_DIR from [$dir/$ARCHIVE_NAME]"
+		echo
+		exit 1
+	fi
+}
+
+# run_fpath_commands <dir> <roh_root> <cmd>...
+#   Run roh.fpath <cmd>... on <dir>. If <roh_root> differs from <dir>, hashes
+#   are read from <roh_root>/.roh.git via --roh-dir. The index (.roh.sqlite3)
+#   is always written next to <dir>.
+run_fpath_commands() {
+	local dir="$1"
+	local roh_root="$2"
+	shift 2
+
+	local opts=()
+	if [ "$roh_root" != "$dir" ]; then
+		opts+=(--roh-dir "$roh_root/$ROH_DIR_NAME")
+	fi
+
+	$FPATH_BIN "$@" "${opts[@]}" "$dir"
+	if [ $? -ne 0 ]; then
+        echo "ERROR: [$FPATH_BIN $* ${opts[*]} $dir] failed"
+		echo
+		exit 1
+	fi
+}
+
+# git_assert_clean <roh_root> <label>
+#   Fail unless the repo in <roh_root>/.roh.git exists and has a clean tree.
+#   <label> names the ROH_DIR (or archive) as the user knows it, so the error
+#   is actionable even when <roh_root> is a temp dir.
+git_assert_clean() {
+	local roh_root="$1"
+	local label="$2"
+	local git_status
+
+	if [ ! -d "$roh_root/$ROH_DIR_NAME/.git" ]; then
+		echo "ERROR: local repo [$label/.git] does not exist"
+		echo
+		exit 1
+	fi
+
+	git_status=$($GIT_BIN -C "$roh_root" status)
+	echo "$git_status"
+	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
+		echo
+        echo "ERROR: local repo [$label] not clean"
+		echo
+		exit 1
+	fi
+}
+
+# verify_index_directory <dir>
+#   verify and/or index <dir>. If its ROH_DIR is archived (_.roh.git.zip
+#   present), unpack it to a temp dir and work from there so the archive is
+#   never extracted in place -- verify/index without extracting.
+verify_index_directory() {
+	local dir="$1"
+	local roh_dir="$dir/$ROH_DIR_NAME"
+	local roh_root="$dir"
+	local label="$roh_dir"
+
+	if [ -f "$dir/$ARCHIVE_NAME" ]; then
+		if [ -d "$roh_dir" ]; then
+			echo "ERROR: both [$dir/$ARCHIVE_NAME] and [$roh_dir] exist"
+			echo
+			exit 1
+		fi
+		unpack_archive_to_tmp "$dir"
+		roh_root="$TMP_ROH_ROOT"
+		label="$dir/$ARCHIVE_NAME"
+	fi
+
+	local cmds=()
+	contains "verify" && cmds+=("verify")
+	contains "index"  && cmds+=("index")
+	run_fpath_commands "$dir" "$roh_root" "${cmds[@]}"
+
+	if contains "verify"; then
+		git_assert_clean "$roh_root" "$label"
+	fi
+
+	# roh.fpath keeps its export logs next to ROH_DIR; when that is the temp
+	# dir, move them next to <dir> before the temp dir goes away.
+	if [ "$roh_root" != "$dir" ] && [ -d "$roh_root/.roh.logs" ]; then
+		rm -rf "$dir/.roh.logs"
+		mv "$roh_root/.roh.logs" "$dir/.roh.logs"
+		echo "OK: moved export logs to [$dir/.roh.logs]"
+	fi
+
+	cleanup_tmp_roh_root
 }
 
 archive_directory() {
 	local dir="$1"
 
-	ROH_DIR="$dir/.roh.git"
-
-	if [ -f "$dir/_.roh.git.zip" ]; then
-		echo "SKIP: directory [$dir] -- [$dir/_.roh.git.zip] exists"
+	if [ -f "$dir/$ARCHIVE_NAME" ]; then
+		echo "SKIP: directory [$dir] -- [$dir/$ARCHIVE_NAME] exists"
 	else
 		$GIT_BIN -zC "$dir" 
 		[ $? -ne 0 ] && exit 1
@@ -492,11 +562,11 @@ while IFS= read -r dir; do
     # Check if the directory exists
     if [ -d "$dir" ]; then
 
-		if contains "verify"; then
+		if contains "verify" || contains "index"; then
 #			if [ "$rebase_mode" = "true" ]; then
 #				verify_target "$dir" "$rebase_string"
 #			else
-			verify_directory "$dir"
+			verify_index_directory "$dir"
 
 		elif contains "archive"; then
 			archive_directory "$dir"

@@ -157,8 +157,36 @@ run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
 echo
 echo "# extract && verify"
 
-#REINSTATE run_test "$ROH_BIN verify $fpath" "0" "$(escape_expected "Removed [/var/folders/.*/tmp.*].*Removed [/var/folders/.*/tmp.*]")" "true"
-#REINSTATE run_test "$ROH_BIN verify $fpath" "0" "$(escape_expected "Done..*On branch master.*nothing to commit, working tree clean.*Done..*On branch master.*nothing to commit, working tree clean")"
+# verify/index against archived ROH_DIRs (no extraction): the archive is
+# unpacked via roh.git -x into a temp dir, used through --roh-dir, and removed.
+run_test "$ROH_BIN archive < $fpath" "0" "$(escape_expected "Removed [$PWD/2002.ro/.roh.git]")"
+run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
+run_test "$ROH_BIN verify < $fpath" "0" "$(escape_expected "Extracted [.*/.roh.git] from [_.roh.git.zip].*ROH_DIR: using [.*/.roh.git].*nothing to commit, working tree clean.*Removed [.*].*Extracted [.*/.roh.git] from [_.roh.git.zip].*nothing to commit, working tree clean.*Removed [.*]")"
+tmp_staged=$($ROH_BIN verify < $fpath 2>/dev/null | sed -n 's/^OK: staging .* in \[\(.*\)\]$/\1/p' | head -1)
+run_test "ls -d $tmp_staged" "1" "No such file or directory"
+run_test "$ROH_BIN va < $fpath" "1" "$(escape_expected "ERROR: [archive] cannot be combined with other commands: [verify archive]")"
+mkdir "2002.ro/.roh.git"
+run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: both [$PWD/2002.ro/_.roh.git.zip] and [$PWD/2002.ro/.roh.git] exist")"
+rmdir "2002.ro/.roh.git"
+run_test "ls -al $PWD/2002.ro/_.roh.git.zip" "0" "$(escape_expected "$PWD/2002.ro/_.roh.git.zip")"
+run_test "ls -al $PWD/2002.ro/.roh.git" "1" "No such file or directory"
+run_test "$ROH_BIN verify index < $fpath" "0" "$(escape_expected "DB_SQL:.*2002.ro/.roh.sqlite3] -- initialized")"
+rm "$PWD/2002.ro/.roh.sqlite3"
+run_test "$ROH_BIN index < $fpath" "0" "$(escape_expected "DB_SQL:.*2002.ro/.roh.sqlite3] -- initialized")"
+run_test "$ROH_BIN index < $fpath" "0" "nothing to commit" "true"
+rm "$PWD/Fotos [space]/2003/.roh.sqlite3"
+rm "$PWD/Fotos [space]/1999/.roh.sqlite3"
+rm "$PWD/2002.ro/.roh.sqlite3"
+
+# a content change is caught against the archived hashes; the temp dir is
+# still removed on the failing path.
+cp "2002.ro/2002_FIRE!/Untitled-001.jpg" "Untitled-001.jpg.ORIG"
+echo "0000000000000000000000000000000000000000000000000000000000000000" > "2002.ro/2002_FIRE!/Untitled-001.jpg"
+run_test "$ROH_BIN verify < $fpath" "1" "$(escape_expected "ERROR: hash mismatch.*Removed [.*]")"
+mv "Untitled-001.jpg.ORIG" "2002.ro/2002_FIRE!/Untitled-001.jpg"
+run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
+run_test "$ROH_BIN extract < $fpath" "0" "$(escape_expected "Extracted [$PWD/2002.ro/.roh.git] from [_.roh.git.zip]")"
+run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
 
 
 # roh.copy --rebase

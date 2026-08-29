@@ -60,7 +60,6 @@ usage() {
 # Done.
 
 # readonlyhash
-#TODO: reinstate ability to verify without extracting?
 #TODO: readonlyhash commit
 
 # roh.copy
@@ -2123,7 +2122,11 @@ run_directory_process() {
 			mkdir "$ROH_DIR"
 		fi
  	elif contains "verify" || contains "recover" || ( contains "show" && ! contains "write" ); then
-		if [ -f "$entry/_.roh.git.zip" ]; then
+		# An archive at ROOT means "forgot to extract" -- but only when the
+		# ROH_DIR in use is the one that archive would produce. With --roh-dir
+		# pointing elsewhere (e.g. readonlyhash staging the archive in a temp
+		# dir) the archive is expected and irrelevant.
+		if [ "${ROH_DIR%/}" = "${entry%/}/.roh.git" ] && [ -f "$entry/_.roh.git.zip" ]; then
 			log ERROR "found archived ROH_DIR [$entry/_.roh.git.zip] at [$entry]"
 			return 0
 		fi
