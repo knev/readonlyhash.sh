@@ -30,14 +30,13 @@ usage() {
 	echo 
     echo "Commands:"
 	echo "      v|verify     Verify files and make sure git repo is clean"
-	echo "      i|index      Index (alone, or while verifying)"
-	echo "                   verify/index work on an archived ROH_DIR too (extract, process, revert)"
+	echo "      i|index      Index (alone, or while verifying); requires an extracted ROH_DIR"
+	echo "                   verify works on an archived ROH_DIR too (extract, verify, revert)"
 	echo "      a|archive    Archive ROH_DIR and remove an existing index file"
 	echo "      x|extract    Extract _.roh.git.zip as ROH_DIR"
 	echo 
     echo "Options:"
 	echo "      --resume-at <STRING>    Resume on directory with STRING as suffix"
-	echo "      --db <PATH>             Index every directory into this one database (index only)"
 	echo "      --debug                 Use local ./roh.fpath.sh and ./roh.git.sh instead of installed bins"
     echo "      --version               Display the version and exit"
     echo "  -h, --help                  Display this help and exit"
@@ -252,7 +251,6 @@ check_pre_reqs "$FPATH_BIN" "$GIT_BIN"
 
 skipping_mode="false"
 resume_string=""
-db=""
 
 while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
@@ -270,14 +268,6 @@ while getopts "h-:" opt; do
           fi
 		  skipping_mode="true"
           resume_string="${!OPTIND}"
-          OPTIND=$((OPTIND + 1))
-          ;;
-	    db)
-          if [ $OPTIND -gt $# ]; then
-            echo "ERROR: --db requires a value" >&2
-            exit 1
-          fi
-          db="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;
 	    version)
@@ -312,11 +302,6 @@ done
 # capture all remaining arguments after the options have been processed
 shift $((OPTIND-1))
 
-if [ -n "$db" ] && ! contains "index"; then
-	echo "ERROR: [--db] can only be used with: index" >&2
-	usage
-	exit 1
-fi
 
 # ----
 
@@ -342,19 +327,14 @@ ROH_DIR_NAME=".roh.git"
 ARCHIVE_NAME="_${ROH_DIR_NAME}.zip"
 
 # run_fpath_commands <dir> <cmd>...
-#   Run roh.fpath <cmd>... on <dir>, forwarding --db when given.
+#   Run roh.fpath <cmd>... on <dir>.
 run_fpath_commands() {
 	local dir="$1"
 	shift
 
-	local opts=()
-	if [ -n "$db" ]; then
-		opts+=(--db "$db")
-	fi
-
-	$FPATH_BIN "$@" "${opts[@]}" "$dir"
+	$FPATH_BIN "$@" "$dir"
 	if [ $? -ne 0 ]; then
-        echo "ERROR: [$FPATH_BIN $* ${opts[*]} $dir] failed"
+        echo "ERROR: [$FPATH_BIN $* $dir] failed"
 		echo
 		exit 1
 	fi
@@ -385,15 +365,23 @@ git_assert_clean() {
 
 # verify_index_directory <dir>
 #   verify and/or index <dir>. If its ROH_DIR is archived (_.roh.git.zip
-#   present) the archive is extracted in place for the duration and then
-#   reverted (roh.git -r), which itself refuses if anything changed -- so a
-#   verify/index never alters the archive. On any failure the directory is
-#   left extracted (with its .roh.git.zip~ backup) for inspection.
+#   present), verify extracts it in place for the duration and then reverts
+#   (roh.git --revert), which itself refuses if anything changed -- so a
+#   verify never alters the archive. On any failure the directory is left
+#   extracted (with its .roh.git.zip~ backup) for inspection.
+#   index is refused on an archived dir: the index would point at hash files
+#   that are back inside the zip once reverted, and recover's index/disk
+#   consistency check would then (correctly) fail on them.
 verify_index_directory() {
 	local dir="$1"
 	local archived="false"
 
 	if [ -f "$dir/$ARCHIVE_NAME" ]; then
+		if contains "index"; then
+			echo "ERROR: [$dir] is archived -- index requires an extracted ROH_DIR"
+			echo
+			exit 1
+		fi
 		archived="true"
 		$GIT_BIN -xC "$dir"
 		[ $? -ne 0 ] && exit 1
