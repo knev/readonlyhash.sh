@@ -72,19 +72,11 @@ You can instruct `readonlyhash` to continue at a particular line by providing a 
 
 Verify each listed directory, with the added check to see if the git repository for each is also clean.
 
-If a listed directory is archived (`_.roh.git.zip` present, no `.roh.git`), `verify` does **not** extract it in place: the archive is unpacked with `roh.git -x` into a temporary directory, `roh.fpath` is run with `--roh-dir` pointing there, and the temporary directory is removed afterwards. The archive is not extracted in place.
+If a listed directory is archived (`_.roh.git.zip` present, no `.roh.git`), `verify` round-trips it: `roh.git -x` extracts the archive in place, `roh.fpath` runs in the normal layout, the git repo is checked for cleanliness, and `roh.git --revert` discards the extracted `ROH_DIR` and puts the archive back. `--revert` refuses if the hashes changed, so a `verify`/`index` can never silently alter an archive. If any step fails, the directory is left extracted (with its `.roh.git.zip~` backup) for inspection; fix or `roh.git --revert -C DIR` by hand.
 
 ### Command: `i|index`
 
-Indexing while verifying is basically free, so allow for `verify index` in `readonlyhash`. `index` can also be used on its own. Either way, an archived directory is handled as described under `verify`, so hashes can be indexed without extracting; the index (`.roh.sqlite3`) is written next to the listed directory as usual.
-
-#### Option: `--db <PATH>`
-
-Index every listed directory into one database instead of a `.roh.sqlite3` per directory. The value is passed straight through to `roh.fpath index --db`, so the same rules apply (a relative `PATH` is relative to the current directory, not to each listed directory). Only valid together with `index`.
-
-```
-readonlyhash index --db all.sqlite3 < johndoe.roh.txt
-```
+Indexing while verifying is basically free, so allow for `verify index` in `readonlyhash`. `index` can also be used on its own. Unlike `verify`, it refuses an archived directory: the index records where each hash file lives, and once the archive is reverted those files are back inside the zip, so a later `recover` would (correctly) fail its index/disk consistency check. Extract first (`readonlyhash extract`), then index.
 
 ### Command: `a|archive`
 
@@ -317,7 +309,13 @@ roh.git -iC test
 #### Switch: `-z`
 Archives the `ROH_DIR` to `_.roh.git.zip`
 #### Switch: `-x`
-Extracts the `_.roh.git.zip` to `ROH_DIR`
+Extracts the `_.roh.git.zip` to `ROH_DIR`, keeping the archive as `.roh.git.zip~`.
+#### Switch: `-_`, `--revert`
+Undoes an extract without re-archiving: discards `ROH_DIR` and restores `.roh.git.zip~` as `_.roh.git.zip`. Refuses if that would throw something away -- a dirty repo, or hash content that differs from what the backup records (the same content hash `-z` uses for drift detection). `--force` discards anyway; that is the way to undo a mistake in the extracted tree when the archive is the truth.
+```
+roh.git -_C test
+roh.git --revert -C test
+```
 
 #### Switches: `--v1`, `--v2`
 
