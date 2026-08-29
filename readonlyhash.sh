@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.30"
+VERSION="2.2.52"
 
 FPATH_BIN="roh.fpath"
 GIT_BIN="roh.git"
@@ -37,6 +37,7 @@ usage() {
 	echo 
     echo "Options:"
 	echo "      --resume-at <STRING>    Resume on directory with STRING as suffix"
+	echo "      --db <PATH>             Index every directory into this one database (index only)"
 	echo "      --debug                 Use local ./roh.fpath.sh and ./roh.git.sh instead of installed bins"
     echo "      --version               Display the version and exit"
     echo "  -h, --help                  Display this help and exit"
@@ -251,6 +252,7 @@ check_pre_reqs "$FPATH_BIN" "$GIT_BIN"
 
 skipping_mode="false"
 resume_string=""
+db=""
 
 while getopts "h-:" opt; do
   # echo "Option: $opt, Arg: $OPTARG, OPTIND: $OPTIND"
@@ -262,13 +264,21 @@ while getopts "h-:" opt; do
     -)
       case "${OPTARG}" in
 	    resume-at)
-          if [[ $# -lt 2 ]]; then
-            echo "Error: --resume-at requires a value" >&2
+          if [ $OPTIND -gt $# ]; then
+            echo "ERROR: --resume-at requires a value" >&2
             exit 1
           fi
 		  skipping_mode="true"
-          resume_string="$2"
-          shift 2
+          resume_string="${!OPTIND}"
+          OPTIND=$((OPTIND + 1))
+          ;;
+	    db)
+          if [ $OPTIND -gt $# ]; then
+            echo "ERROR: --db requires a value" >&2
+            exit 1
+          fi
+          db="${!OPTIND}"
+          OPTIND=$((OPTIND + 1))
           ;;
 	    version)
 	      echo "$(basename "$0") version: v$VERSION"
@@ -301,6 +311,12 @@ done
 
 # capture all remaining arguments after the options have been processed
 shift $((OPTIND-1))
+
+if [ -n "$db" ] && ! contains "index"; then
+	echo "ERROR: [--db] can only be used with: index" >&2
+	usage
+	exit 1
+fi
 
 # ----
 
@@ -367,8 +383,8 @@ unpack_archive_to_tmp() {
 
 # run_fpath_commands <dir> <roh_root> <cmd>...
 #   Run roh.fpath <cmd>... on <dir>. If <roh_root> differs from <dir>, hashes
-#   are read from <roh_root>/.roh.git via --roh-dir. The index (.roh.sqlite3)
-#   is always written next to <dir>.
+#   are read from <roh_root>/.roh.git via --roh-dir. The index goes to --db
+#   when given (one database for every listed dir), else next to <dir>.
 run_fpath_commands() {
 	local dir="$1"
 	local roh_root="$2"
@@ -377,6 +393,9 @@ run_fpath_commands() {
 	local opts=()
 	if [ "$roh_root" != "$dir" ]; then
 		opts+=(--roh-dir "$roh_root/$ROH_DIR_NAME")
+	fi
+	if [ -n "$db" ]; then
+		opts+=(--db "$db")
 	fi
 
 	$FPATH_BIN "$@" "${opts[@]}" "$dir"

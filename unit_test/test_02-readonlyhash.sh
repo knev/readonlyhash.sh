@@ -184,6 +184,15 @@ rm "$PWD/Fotos [space]/2003/.roh.sqlite3"
 rm "$PWD/Fotos [space]/1999/.roh.sqlite3"
 rm "$PWD/2002.ro/.roh.sqlite3"
 
+# --db: one database for every listed dir (archived or not), nothing next to them
+run_test "$ROH_BIN verify --db all.sqlite3 < $fpath" "1" "$(escape_expected "ERROR: [--db] can only be used with: index")"
+run_test "$ROH_BIN index --db < $fpath" "1" "$(escape_expected "ERROR: --db requires a value")"
+run_test "$ROH_BIN index --db all.sqlite3 < $fpath" "0" "$(escape_expected "Using DB_SQL [all.sqlite3].*Using DB_SQL [all.sqlite3].*Using DB_SQL [all.sqlite3]")"
+run_test "ls -al $PWD/2002.ro/.roh.sqlite3" "1" "No such file or directory"
+run_test "sqlite3 all.sqlite3 'select count(*) from hashes'" "0" "^[1-9][0-9]*$"
+run_test "$ROH_BIN vi --resume-at 2002 --db all.sqlite3 < $fpath" "0" "$(escape_expected "Using DB_SQL [all.sqlite3]")"
+rm all.sqlite3
+
 # a content change is caught against the archived hashes; the temp dir is
 # still removed on the failing path.
 cp "2002.ro/2002_FIRE!/Untitled-001.jpg" "Untitled-001.jpg.ORIG"
