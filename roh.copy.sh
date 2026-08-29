@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.18"
+VERSION="2.2.60"
 
 usage() {
     echo "Usage:"

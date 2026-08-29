@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.26"
+VERSION="2.2.60"
 
 HASH="sha256"
 
