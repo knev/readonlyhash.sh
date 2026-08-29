@@ -78,6 +78,14 @@ If a listed directory is archived (`_.roh.git.zip` present, no `.roh.git`), `ver
 
 Indexing while verifying is basically free, so allow for `verify index` in `readonlyhash`. `index` can also be used on its own. Either way, an archived directory is handled as described under `verify`, so hashes can be indexed without extracting; the index (`.roh.sqlite3`) is written next to the listed directory as usual.
 
+#### Option: `--db <PATH>`
+
+Index every listed directory into one database instead of a `.roh.sqlite3` per directory. The value is passed straight through to `roh.fpath index --db`, so the same rules apply (a relative `PATH` is relative to the current directory, not to each listed directory). Only valid together with `index`.
+
+```
+readonlyhash index --db all.sqlite3 < johndoe.roh.txt
+```
+
 ### Command: `a|archive`
 
 `readonlyhash archive ...`
