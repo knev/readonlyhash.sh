@@ -82,6 +82,12 @@ cat "$fpath" >> "Fake.roh.txt"
 run_test "$ROH_BIN verify --resume-at Fotos\ \[space\]/1999 < Fake.roh.txt" "0" "$(escape_expected "[$PWD/1999]")" "true"
 rm "Fake.roh.txt"
 
+# comment lines are skipped silently (no stray redirect error on stderr)
+printf '# a comment\n' > "Comment.roh.txt"
+cat "$fpath" >> "Comment.roh.txt"
+run_test "$ROH_BIN verify < Comment.roh.txt 2>&1" "0" "ambiguous redirect" "true"
+rm "Comment.roh.txt"
+
 run_test "$ROH_BIN verify --resume_at 2002 < $fpath" "1" "$(escape_expected "ERROR: invalid option [--resume_at]")"
 run_test "$ROH_BIN verify --resume-at 2002 < $fpath" "0" "$(escape_expected "Looping on: [$PWD/2002].* -- SKIPPING")" "true"
 run_test "$ROH_BIN verify --resume-at 2002.ro < $fpath" "0" "$(escape_expected "Looping on: [$PWD/2002].* -- SKIPPING")" "true"

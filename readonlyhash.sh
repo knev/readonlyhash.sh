@@ -322,19 +322,6 @@ fi
 #------------------------------------------------------------------------------------------------------------------------------------------
 # captured output : NO spurious echo/printf outputs!
 
-rename_to_ro() {
-    local dir="$1"
-    local dir_ro="${dir}"
-
-	# Rename the directory by adding '.ro' if it doesn't already have it
-    if [[ "$dir" != "." && "$dir" != ".." && ! $dir == *.ro ]]; then
-        dir_ro="${dir}.ro"
-    fi
-    echo "$dir_ro"	
-}
-
-#------------------------------------------------------------------------------------------------------------------------------------------
-
 ROH_DIR_NAME=".roh.git"
 ARCHIVE_NAME="_${ROH_DIR_NAME}.zip"
 
@@ -538,7 +525,6 @@ extract_directory() {
 while IFS= read -r dir; do
 	# Skip lines that start with '#'
 	if [[ "$dir" =~ ^#.* ]]; then
-		echo "$dir" >> "$ALT_TXT"
 		continue
 	fi
 
@@ -548,9 +534,6 @@ while IFS= read -r dir; do
 	base_resume_string=${resume_string%.ro}
 	# echo "* base_dir: [$base_dir]"
 	if [ "$skipping_mode" = "true" ] && [[ ! "$base_dir" == *"$base_resume_string" ]]; then
-		if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
-			echo "#SKIPPED: $dir" >> "$ALT_TXT"
-		fi
 		continue
 	fi
 	skipping_mode="false"
@@ -584,11 +567,4 @@ while IFS= read -r dir; do
 	echo "■"
 
 done
-
-if [ "$cmd" = "init" ] || [ "$cmd" = "copy" ]; then
-	# Filter out comments at the end of lines and compare
-	if diff <(sed 's/#.*$//' "$ROH_TXT") <(sed 's/#.*$//' "$ALT_TXT") > /dev/null 2>&1; then
-		rm "$ALT_TXT"
-	fi
-fi
 
