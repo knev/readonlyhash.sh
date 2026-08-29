@@ -16,7 +16,7 @@ usage() {
 	echo "        v|verify         Verify computed hashes against stored hashes; check for orphaned hashes"
 	echo "        verify hide      Verify, ERROR for any hash NOT exclusively hidden (default)"
 	echo "        verify show      Verify, ERROR for any hash NOT exclusively shown"
-	echo "        w|write          Write SHA256 hashes (hidden by default) for existing files"
+	echo "        w|write          Write SHA hashes (hidden by default) for existing files"
 	echo "        i|index          Index hash files in a DB (sqlite3 required), including orphaned hashes"
 	echo "        verify index     Verify by processing files and create index by maintaining hashes"
 	echo "        write index      Write hashes by processing files and create index by maintaining hashes"
@@ -41,6 +41,7 @@ usage() {
 	echo "  -f,   --force          Force operation even if hash files do not match"
 	echo "        --roh-dir        Specify the readonly hash path"
 	echo "        --db             Explicity specify the location of the database file"
+	echo "        --sha <BITS>     Hash algorithm: 256 (default), 384 or 512; sets the openssl digest and the .sha<BITS> extension"
 	echo "        --only-files     Only process files, do not run hash maintanence"
 	echo "        --only-hashes    Do not process files, only run hash maintanence"
 	echo "  -mfn, --match-filenames When recovering also search for matching filenames"
@@ -89,7 +90,23 @@ PATHSPEC="_INVALID_"
 ROH_DIR="_INVALID_"
 DB_SQL="_INVALID_"
 
-HASH="sha256"
+# Hash algorithm, selected with --sha <256|384|512>. HASH names the openssl
+# digest and the hash-file extension; HASH_LEN is the hex digest length and
+# ZERO_HASH the all-zero sentinel for "no hash" (unreadable, missing, ...).
+# Set via set_hash_algo() so the three never disagree.
+HASH="_INVALID_"
+HASH_LEN=0
+ZERO_HASH=""
+set_hash_algo() {
+	case "$1" in
+		256|384|512) ;;
+		*) echo "ERROR: --sha must be one of 256, 384 or 512 (got [$1])" >&2; exit 1 ;;
+	esac
+	HASH="sha$1"
+	HASH_LEN=$(( $1 / 4 ))
+	ZERO_HASH=$(printf '%*s' "$HASH_LEN" '' | tr ' ' '0')
+}
+set_hash_algo 256
 
 ERROR_COUNT=0
 WARN_COUNT=0
@@ -175,7 +192,7 @@ generate_hash() {
 	if [ ! -r "$file" ]; then
         echo >&2
         echo "ERROR: [$file] file -- not readable or permission denied" >&2
-		echo "0000000000000000000000000000000000000000000000000000000000000000"
+		echo "$ZERO_HASH"
 		return
     fi
     # echo $($SHA256_BIN "$file" | awk '{print $1}')
@@ -188,23 +205,23 @@ generate_hash() {
 	# out with bash expansions (CR-stripped, first 64 chars) instead of
 	# awk|head — two fewer process spawns per file, which dominates on Windows.
 	local out
-	out=$(openssl sha256 < "$file")
+	out=$(openssl "$HASH" < "$file")
 	out="${out##* }"
 	out="${out%$'\r'}"
-	echo "${out:0:64}"
+	echo "${out:0:$HASH_LEN}"
 }
 
 stored_hash() {
-    # First 64 chars of the first line, read with the bash builtin instead of
-    # `head -c 64` (a process spawn per call). Same fallbacks as head: zeros
+    # First HASH_LEN chars of the first line, read with the bash builtin instead
+    # of `head -c N` (a process spawn per call). Same fallbacks as head: zeros
     # when the path is missing/unreadable/a directory, empty for an empty file.
     local hash_file="$1" line=""
     if [ -f "$hash_file" ] && [ -r "$hash_file" ]; then
         IFS= read -r line < "$hash_file"
         line="${line%$'\r'}"
-        printf '%s\n' "${line:0:64}"
+        printf '%s\n' "${line:0:$HASH_LEN}"
     else
-        echo "0000000000000000000000000000000000000000000000000000000000000000"
+        echo "$ZERO_HASH"
     fi
 }
 
@@ -813,7 +830,7 @@ roh_sqlite3_db_get_1fpath_hash() {
 
 	# readlink of missing file on linux returns a path, on macOS returns empty string
 	if ! stat "$fpath" >/dev/null 2>&1; then
-		return "0000000000000000000000000000000000000000000000000000000000000000";
+		return "$ZERO_HASH";
 	else
 		local abs_fpath=$(readlink -f "$fpath")
 		local enc_abs_fpath=$(hex_encode "$abs_fpath")
@@ -1085,7 +1102,7 @@ write_hash() {
 	local sub_dir="$(remove_top_dir "$ROOT" "$dir")"
 	local roh_hash_fpath=$(fpath_to_hash_fpath "$dir" "$fpath")
 	local dir_hash_fpath=$(fpath_to_dir_hash_fpath "$dir" "$fpath")
-	local computed_hash="0000000000000000000000000000000000000000000000000000000000000000"
+	local computed_hash="$ZERO_HASH"
 
 	# optimization for if we run "write index" more than once; also the --dedup hash check
 	if contains "index"; then
@@ -1094,7 +1111,7 @@ write_hash() {
 			echo
 			log_abort "[$fpath] -- file unexpectedly missing during write index"
 		fi
-		local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "0000000000000000000000000000000000000000000000000000000000000000") || return 1
+		local fpath_exists=$(roh_sqlite3_db_fpath_exists "$DB_SQL" "$fpath" "$ZERO_HASH") || return 1
 		if [ "$fpath_exists" -eq 0 ]; then
 			:
 		elif [ "$fpath_exists" -eq 1 ]; then
@@ -1135,7 +1152,7 @@ write_hash() {
 	# exist-R=T (eq-R=T), exist-D=F
 
 	# compute if not already done by the --dedup branch above
-	if [ "$computed_hash" = "0000000000000000000000000000000000000000000000000000000000000000" ]; then
+	if [ "$computed_hash" = "$ZERO_HASH" ]; then
 		if [ "$force_mode" = "true" ] || ( ! [ -f "$dir_hash_fpath" ] && ! [ -f "$roh_hash_fpath" ] ); then
 			computed_hash=$(generate_hash "$fpath")
 		fi
@@ -1149,7 +1166,7 @@ write_hash() {
 				# Free piggy-back: if an upstream branch (e.g. --dedup) already
 				# computed the hash, compare and warn on mismatch. Otherwise
 				# stay fast: plain `write` over an existing tree must NOT rehash.
-				if [ "$computed_hash" != "0000000000000000000000000000000000000000000000000000000000000000" ] \
+				if [ "$computed_hash" != "$ZERO_HASH" ] \
 				   && [ "$computed_hash" != "$stored" ]; then
 					log_block WARN "hash mismatch" \
 					    computed "$(tok_file "$computed_hash" "$fpath")" \
@@ -1173,7 +1190,7 @@ write_hash() {
 		if [ -f "$dir_hash_fpath" ]; then
 			local stored=$(stored_hash "$dir_hash_fpath")
 			if [ "$force_mode" = "false" ]; then
-				if [ "$computed_hash" != "0000000000000000000000000000000000000000000000000000000000000000" ] \
+				if [ "$computed_hash" != "$ZERO_HASH" ] \
 				   && [ "$computed_hash" != "$stored" ]; then
 					log_block WARN "hash mismatch" \
 					    computed "$(tok_file "$computed_hash" "$fpath")" \
@@ -1439,7 +1456,7 @@ process_entry()
 			if [ ! -d "$roh_hash_path" ]; then
 				# Stuff that is NOT REAL: symlinks (files or dirs), hidden files, empty subdirs (any depth)
 				has_real_files=$(find "$entry" -mindepth 1 -not -name '.*' ! -type l ! -type d -print | head -n 1)
-				has_hashes=$(find "$entry" -type f -name '*.sha256' -print | head -n 1)
+				has_hashes=$(find "$entry" -type f -name "*.$HASH" -print | head -n 1)
 				
 				if [ -n "$has_real_files" ] && [ -z "$has_hashes" ]; then
 				    log WARN "[$entry] -- NEW DIRECTORY!?"
@@ -1541,7 +1558,7 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-QUERY_HASH="0000000000000000000000000000000000000000000000000000000000000000"
+QUERY_HASH=""
 
 # ----
 
@@ -1682,6 +1699,10 @@ while getopts "vfh-:" opt; do
           db="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
+        sha)
+          set_hash_algo "${!OPTIND}"
+          OPTIND=$((OPTIND + 1))
+          ;;
         force)
           force_mode="true"
           ;;
@@ -2410,7 +2431,7 @@ hash_maintanence() {
 
 	# searching for hashes, because .git exists
 	if contains "index"; then
-		if [ -z "$(find "$ROH_DIR" -mindepth 1 -name "*.sha256" -print -quit)" ]; then
+		if [ -z "$(find "$ROH_DIR" -mindepth 1 -name "*.$HASH" -print -quit)" ]; then
 			log ERROR "nothing to index [$ROH_DIR]"
 			echo
 			return 1
@@ -2501,7 +2522,7 @@ if [ "$globspec_mode" = "true" ]; then
 			continue
 		fi
 
-		[[ "${fpath}" = *.sha256 ]] && continue
+		[[ "${fpath}" = *.$HASH ]] && continue
 	
 		if ! [ -f "$fpath" ]; then
 			log WARN "[$fpath] not a file -- SKIPPING"
