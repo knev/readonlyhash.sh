@@ -168,6 +168,7 @@ echo "# extract && verify"
 run_test "$ROH_BIN archive < $fpath" "0" "$(escape_expected "Removed [$PWD/2002.ro/.roh.git]")"
 run_test "$ROH_BIN verify < $fpath" "0" "ERROR:" "true"
 run_test "$ROH_BIN verify < $fpath" "0" "$(escape_expected "Extracted [.*/.roh.git] from [_.roh.git.zip].*ROH_DIR: using [.*/.roh.git].*nothing to commit, working tree clean.*Removed [.*].*Extracted [.*/.roh.git] from [_.roh.git.zip].*nothing to commit, working tree clean.*Removed [.*]")"
+run_test "$ROH_BIN verify < $fpath" "0" "_.roh.git.zip] -- NEW" "true"
 tmp_staged=$($ROH_BIN verify < $fpath 2>/dev/null | sed -n 's/^OK: staging .* in \[\(.*\)\]$/\1/p' | head -1)
 run_test "ls -d $tmp_staged" "1" "No such file or directory"
 run_test "$ROH_BIN va < $fpath" "1" "$(escape_expected "ERROR: [archive] cannot be combined with other commands: [verify archive]")"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.30"
+VERSION="2.2.53"
 
 shopt -s nullglob
 
@@ -1449,9 +1449,17 @@ process_entry()
 
 	# else ...
     elif [ -f "$entry" ]; then
-		case "$entry" in *.$HASH) # && [[ $(basename "$entry") != "_.roh.git.zip" ]]; then
+		case "$entry" in *.$HASH)
 			return 0 ;;
 		esac
+
+		# The archived ROH_DIR at the top of ROOT is structural, never a hashed
+		# file. It is only encountered here with --roh-dir pointing elsewhere
+		# (e.g. readonlyhash verifying/indexing an archive staged in a temp
+		# dir); the default layout aborts on it earlier (see "found archived").
+		if [ "${entry##*/}" = "_.roh.git.zip" ] && [ "${parent%/}" = "${ROOT%/}" ]; then
+			return 0
+		fi
 
 		# stat only feeds the progress bar's byte counter — skip its process
 		# spawn per file when the bar is inactive.
