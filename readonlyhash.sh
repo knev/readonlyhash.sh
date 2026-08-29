@@ -31,7 +31,7 @@ usage() {
     echo "Commands:"
 	echo "      v|verify     Verify files and make sure git repo is clean"
 	echo "      i|index      Index (alone, or while verifying)"
-	echo "                   verify/index work on an archived ROH_DIR too, by unpacking it to a temp dir"
+	echo "                   verify/index work on an archived ROH_DIR too (extract, process, revert)"
 	echo "      a|archive    Archive ROH_DIR and remove an existing index file"
 	echo "      x|extract    Extract _.roh.git.zip as ROH_DIR"
 	echo 
@@ -341,61 +341,13 @@ fi
 ROH_DIR_NAME=".roh.git"
 ARCHIVE_NAME="_${ROH_DIR_NAME}.zip"
 
-# Temp dir holding a ROH_DIR unpacked from an archive (see unpack_archive_to_tmp).
-# Cleaned up on every exit path so a failing verify never leaves it behind.
-TMP_ROH_ROOT=""
-cleanup_tmp_roh_root() {
-	if [ -n "$TMP_ROH_ROOT" ] && [ -d "$TMP_ROH_ROOT" ]; then
-		rm -rf "$TMP_ROH_ROOT"
-		echo "Removed [$TMP_ROH_ROOT]"
-	fi
-	TMP_ROH_ROOT=""
-}
-trap cleanup_tmp_roh_root EXIT
-# On a signal, clean up and stop; a bare trap would resume the loop afterwards.
-trap 'cleanup_tmp_roh_root; trap - EXIT; exit 130' INT TERM
-
-# unpack_archive_to_tmp <dir>
-#   Unpack <dir>/_.roh.git.zip into a fresh temp dir using roh.git's own
-#   extractor (so the archive format lives in exactly one place). Sets
-#   TMP_ROH_ROOT; the unpacked ROH_DIR is "$TMP_ROH_ROOT/$ROH_DIR_NAME".
-unpack_archive_to_tmp() {
-	local dir="$1"
-
-	TMP_ROH_ROOT=$(mktemp -d)
-	if [ $? -ne 0 ] || [ -z "$TMP_ROH_ROOT" ]; then
-		echo "ERROR: could not create a temp dir for [$dir/$ARCHIVE_NAME]"
-		echo
-		exit 1
-	fi
-	echo "OK: staging [$dir/$ARCHIVE_NAME] in [$TMP_ROH_ROOT]"
-
-	if ! cp "$dir/$ARCHIVE_NAME" "$TMP_ROH_ROOT/$ARCHIVE_NAME"; then
-		echo "ERROR: could not copy [$dir/$ARCHIVE_NAME] to [$TMP_ROH_ROOT]"
-		echo
-		exit 1
-	fi
-	$GIT_BIN -xC "$TMP_ROH_ROOT"
-	if [ $? -ne 0 ] || [ ! -d "$TMP_ROH_ROOT/$ROH_DIR_NAME" ]; then
-		echo "ERROR: could not stage archived ROH_DIR from [$dir/$ARCHIVE_NAME]"
-		echo
-		exit 1
-	fi
-}
-
-# run_fpath_commands <dir> <roh_root> <cmd>...
-#   Run roh.fpath <cmd>... on <dir>. If <roh_root> differs from <dir>, hashes
-#   are read from <roh_root>/.roh.git via --roh-dir. The index goes to --db
-#   when given (one database for every listed dir), else next to <dir>.
+# run_fpath_commands <dir> <cmd>...
+#   Run roh.fpath <cmd>... on <dir>, forwarding --db when given.
 run_fpath_commands() {
 	local dir="$1"
-	local roh_root="$2"
-	shift 2
+	shift
 
 	local opts=()
-	if [ "$roh_root" != "$dir" ]; then
-		opts+=(--roh-dir "$roh_root/$ROH_DIR_NAME")
-	fi
 	if [ -n "$db" ]; then
 		opts+=(--db "$db")
 	fi
@@ -408,26 +360,24 @@ run_fpath_commands() {
 	fi
 }
 
-# git_assert_clean <roh_root> <label>
-#   Fail unless the repo in <roh_root>/.roh.git exists and has a clean tree.
-#   <label> names the ROH_DIR (or archive) as the user knows it, so the error
-#   is actionable even when <roh_root> is a temp dir.
+# git_assert_clean <dir>
+#   Fail unless the repo in <dir>/.roh.git exists and has a clean tree.
 git_assert_clean() {
-	local roh_root="$1"
-	local label="$2"
+	local dir="$1"
+	local roh_dir="$dir/$ROH_DIR_NAME"
 	local git_status
 
-	if [ ! -d "$roh_root/$ROH_DIR_NAME/.git" ]; then
-		echo "ERROR: local repo [$label/.git] does not exist"
+	if [ ! -d "$roh_dir/.git" ]; then
+		echo "ERROR: local repo [$roh_dir/.git] does not exist"
 		echo
 		exit 1
 	fi
 
-	git_status=$($GIT_BIN -C "$roh_root" status)
+	git_status=$($GIT_BIN -C "$dir" status)
 	echo "$git_status"
 	if ! [[ "$git_status" =~ "nothing to commit, working tree clean" ]]; then
 		echo
-        echo "ERROR: local repo [$label] not clean"
+        echo "ERROR: local repo [$roh_dir] not clean"
 		echo
 		exit 1
 	fi
@@ -435,43 +385,33 @@ git_assert_clean() {
 
 # verify_index_directory <dir>
 #   verify and/or index <dir>. If its ROH_DIR is archived (_.roh.git.zip
-#   present), unpack it to a temp dir and work from there so the archive is
-#   never extracted in place -- verify/index without extracting.
+#   present) the archive is extracted in place for the duration and then
+#   reverted (roh.git -r), which itself refuses if anything changed -- so a
+#   verify/index never alters the archive. On any failure the directory is
+#   left extracted (with its .roh.git.zip~ backup) for inspection.
 verify_index_directory() {
 	local dir="$1"
-	local roh_dir="$dir/$ROH_DIR_NAME"
-	local roh_root="$dir"
-	local label="$roh_dir"
+	local archived="false"
 
 	if [ -f "$dir/$ARCHIVE_NAME" ]; then
-		if [ -d "$roh_dir" ]; then
-			echo "ERROR: both [$dir/$ARCHIVE_NAME] and [$roh_dir] exist"
-			echo
-			exit 1
-		fi
-		unpack_archive_to_tmp "$dir"
-		roh_root="$TMP_ROH_ROOT"
-		label="$dir/$ARCHIVE_NAME"
+		archived="true"
+		$GIT_BIN -xC "$dir"
+		[ $? -ne 0 ] && exit 1
 	fi
 
 	local cmds=()
 	contains "verify" && cmds+=("verify")
 	contains "index"  && cmds+=("index")
-	run_fpath_commands "$dir" "$roh_root" "${cmds[@]}"
+	run_fpath_commands "$dir" "${cmds[@]}"
 
 	if contains "verify"; then
-		git_assert_clean "$roh_root" "$label"
+		git_assert_clean "$dir"
 	fi
 
-	# roh.fpath keeps its export logs next to ROH_DIR; when that is the temp
-	# dir, move them next to <dir> before the temp dir goes away.
-	if [ "$roh_root" != "$dir" ] && [ -d "$roh_root/.roh.logs" ]; then
-		rm -rf "$dir/.roh.logs"
-		mv "$roh_root/.roh.logs" "$dir/.roh.logs"
-		echo "OK: moved export logs to [$dir/.roh.logs]"
+	if [ "$archived" = "true" ]; then
+		$GIT_BIN --revert -C "$dir"
+		[ $? -ne 0 ] && exit 1
 	fi
-
-	cleanup_tmp_roh_root
 }
 
 archive_directory() {

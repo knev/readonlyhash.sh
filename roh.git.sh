@@ -8,12 +8,14 @@ HASH="sha256"
 
 usage() {
     echo "Usage:"
-	echo "      $(basename "$0") [--force] <[-i|-[a|z]|-x] -[i|[a|z]|x]C PATHSPEC> [ARGUMENTS]"
+	echo "      $(basename "$0") [--force] <[-i|-[a|z]|-x|-_] -[i|[a|z]|x|_]C PATHSPEC> [ARGUMENTS]"
 	echo
     echo "Options:"
 	echo "  -i             Initialize the roh.git storage"
 	echo "  -[a|z]         Archive the roh.git storage"
 	echo "  -x             Extract the roh.git storage"
+	echo "  -_, --revert   Revert an extract: discard the roh.git storage and restore the archive from .roh.git.zip~"
+	echo "                 (refuses if the repo is dirty or its hashes differ from the archive, unless --force)"
 	echo "  -C             Specify the working directory"
     echo "  -f, --force    Force operation"
 	echo "      --v1       Use the legacy tar+zip routine (pre-content-hash format)"
@@ -80,7 +82,7 @@ force_mode="false"
 archive_version="v2"
 
 # Parse command line options
-while getopts ":iazxC:fh-:" opt; do
+while getopts ":iazx_C:fh-:" opt; do
   case $opt in
 	i)
 	  commands+=("init")
@@ -90,6 +92,9 @@ while getopts ":iazxC:fh-:" opt; do
 	  ;;
 	x)
 	  commands+=("extract")
+	  ;;
+	_)
+	  commands+=("revert")
 	  ;;
     C)
 	  CWD="$OPTARG"
@@ -106,6 +111,9 @@ while getopts ":iazxC:fh-:" opt; do
 		force)
           force_mode="true"
           ;;
+		revert)
+		  commands+=("revert")
+		  ;;
 		v1)
 		  archive_version="v1"
 		  ;;
@@ -151,7 +159,7 @@ ROH_DIR=".roh.git"
 # echo "* [$#][$@]"
 
 # Check if any mode is set or if positional arguments are needed
-if ! contains "init" && ! contains "archive" && ! contains "extract"; then
+if ! contains "init" && ! contains "archive" && ! contains "extract" && ! contains "revert"; then
 	if [ $# -eq 0 ]; then
 		echo "ERROR: not enough arguments." >&2
 		echo
@@ -159,11 +167,18 @@ if ! contains "init" && ! contains "archive" && ! contains "extract"; then
 		exit 1
 	fi
 
-elif contains "archive" && contains "extract"; then
-		echo "ERROR: archive and extract operations are mutually exclusive." >&2
+else
+	_ops=0
+	contains "archive" && _ops=$((_ops + 1))
+	contains "extract" && _ops=$((_ops + 1))
+	contains "revert"  && _ops=$((_ops + 1))
+	if [ $_ops -gt 1 ]; then
+		echo "ERROR: archive, extract and revert operations are mutually exclusive." >&2
 		echo
 		usage
 		exit 1
+	fi
+	unset _ops
 fi
 
 if [ -z "$CWD" ] || ! [ -d "$CWD" ]; then
@@ -181,6 +196,7 @@ fi
 reqs=(git)
 contains "archive" && reqs+=(zip unzip tar openssl)
 contains "extract" && reqs+=(unzip tar)
+contains "revert"  && reqs+=(unzip tar openssl)
 check_pre_reqs "${reqs[@]}"
 
 # Archives normalize all mtimes to the epoch for reproducible tar bytes, and
@@ -339,6 +355,113 @@ extract_roh_v1() {
     fi
 }
 
+# CONTENT_TAR / CONTENT_HASH_FILE
+#   The two metadata files an archive carries inside .roh.git/: the tar of the
+#   .sha256 tree, and that tar's hash (the archive's content identity).
+CONTENT_TAR=".SHA256-HASHES.tar"
+CONTENT_HASH_FILE=".SHA256-HASHES.tar.sha256"
+
+# archived_content_hash <dir>
+#   Print the content hash recorded inside <dir>/.roh.git.zip~ (the backup an
+#   extract leaves behind), or nothing if there is no backup / no hash.
+archived_content_hash() {
+	local dir="$1"
+	[ -f "$dir/$ROH_DIR.zip~" ] || return 0
+	unzip -p "$dir/$ROH_DIR.zip~" "$ROH_DIR/$CONTENT_HASH_FILE" 2>/dev/null | tr -d '[:space:]'
+}
+
+# build_content_tar <dir> <out_tar>
+#   Normalize all mtimes under <dir>/.roh.git (including the directory itself,
+#   since file ops/extract bump it) so the tar bytes -- and hence its hash --
+#   are reproducible across cycles; tar the .sha256 tree (excluding .git/ and
+#   the metadata files) to <out_tar>; print the tar's sha256. Shared by
+#   archive (which installs the tar) and revert (which only needs the hash).
+build_content_tar() {
+	local dir="$1"
+	local out_tar="$2"
+
+	find "$dir/$ROH_DIR" -exec touch -t 197001010000.00 {} +
+	tar -cf "$out_tar" -C "$dir/$ROH_DIR" \
+		--exclude=".git" \
+		--exclude="$CONTENT_TAR" \
+		--exclude="$CONTENT_HASH_FILE" \
+		--exclude=".DS_Store" \
+		. 2>/dev/null
+	if [ $? -ne 0 ]; then
+		echo "ERROR: failed to build [$CONTENT_TAR] for [$dir/$ROH_DIR]" >&2
+		echo "Abort." >&2
+		echo >&2
+		return 1
+	fi
+	# stdin feed matches roh.fpath generate_hash() (CRLF- and MSYS-path-safe)
+	openssl sha256 < "$out_tar" | awk '{print $NF}' | head -c 64
+}
+
+# revert_roh <dir> <force>
+#   Undo an extract without re-archiving: discard <dir>/.roh.git and put the
+#   backup .roh.git.zip~ back as _.roh.git.zip. Refuses if that would throw
+#   something away -- a dirty repo, or hash content that differs from what
+#   the backup records (same content hash -z uses) -- unless --force, which
+#   is the "I messed up the extracted tree, the archive is the truth" case.
+revert_roh() {
+    local dir="$1"
+    local force_mode="$2"
+
+    local archive_name="_$ROH_DIR.zip"
+
+	if [ ! -d "$dir/$ROH_DIR" ]; then
+		echo "ERROR: directory [$ROH_DIR] does NOT exist in [$dir]"
+		echo "Abort."
+		echo
+		exit 1
+	fi
+	if [ ! -f "$dir/$ROH_DIR.zip~" ]; then
+		echo "ERROR: backup [$dir/$ROH_DIR.zip~] does NOT exist -- nothing to revert to"
+		echo "Abort."
+		echo
+		exit 1
+	fi
+	if [ -f "$dir/$archive_name" ]; then
+		echo "ERROR: archive [$archive_name] exists in [$dir]."
+		echo "Abort."
+		echo
+		exit 1
+	fi
+
+	if [ "$force_mode" != "true" ]; then
+		if [ -d "$dir/$ROH_DIR/.git" ]; then
+			git_dirty=$(git -C "$(git_path "$dir/$ROH_DIR")" status --porcelain 2>/dev/null)
+			if [ -n "$git_dirty" ]; then
+				echo "ERROR: local repo [$dir/$ROH_DIR] not clean -- archive with -z, or --force to discard"
+				echo "Abort."
+				echo
+				exit 1
+			fi
+		fi
+
+		local prev_hash cur_hash tmp_tar
+		prev_hash=$(archived_content_hash "$dir")
+		tmp_tar=$(mktemp)
+		cur_hash=$(build_content_tar "$dir" "$tmp_tar") || { rm -f "$tmp_tar"; exit 1; }
+		rm -f "$tmp_tar"
+		if [ -n "$prev_hash" ] && [ "$prev_hash" != "$cur_hash" ]; then
+			echo "ERROR: [$dir/$ROH_DIR] content differs from [$dir/$ROH_DIR.zip~] -- archive with -z, or --force to discard"
+			echo "       archived [$prev_hash]"
+			echo "        current [$cur_hash]"
+			echo "Abort."
+			echo
+			exit 1
+		fi
+	else
+		echo "Discarding [$dir/$ROH_DIR] (FORCED)!"
+	fi
+
+	rm -rf "$dir/$ROH_DIR"
+	echo "Removed [$dir/$ROH_DIR]"
+	mv -f "$dir/$ROH_DIR.zip~" "$dir/$archive_name"
+	echo "Reverted [$dir/$ROH_DIR.zip~] to [$dir/$archive_name]"
+}
+
 archive_roh() {
     local dir="$1"
     local force_mode="$2"
@@ -393,40 +516,19 @@ archive_roh() {
 	# Build a content tar of just the .sha256 files (excluding .git/), hash it,
 	# replace the .sha256 tree with the tar + tar's hash file, then zip the
 	# whole .roh.git directory deterministically.
-	local content_tar=".SHA256-HASHES.tar"
-	local content_hash_file=".SHA256-HASHES.tar.sha256"
+	local content_tar="$CONTENT_TAR"
+	local content_hash_file="$CONTENT_HASH_FILE"
 
 	# Carry forward the previous archive's content hash from the backup zip
 	# kept by the last extract ($ROH_DIR.zip~), so we can warn on content
 	# drift across cycles. (The in-tree copy is removed during extract.)
-	local prev_hash=""
-	if [ -f "$dir/$ROH_DIR.zip~" ]; then
-		prev_hash=$(unzip -p "$dir/$ROH_DIR.zip~" "$ROH_DIR/$content_hash_file" 2>/dev/null | tr -d '[:space:]')
-	fi
-
-	# Normalize all mtimes (including the .roh.git/ directory itself, since
-	# its mtime is bumped by file ops/extract) BEFORE tarring, so the tar's
-	# bytes — and hence its hash — are reproducible across archive cycles.
-	find "$dir/$ROH_DIR" -exec touch -t 197001010000.00 {} +
+	local prev_hash
+	prev_hash=$(archived_content_hash "$dir")
 
 	# Tar to a temp file first so the tar isn't archiving itself in-place.
-	local tmp_tar
+	local tmp_tar new_hash
 	tmp_tar=$(mktemp)
-	tar -cf "$tmp_tar" -C "$dir/$ROH_DIR" \
-		--exclude=".git" \
-		--exclude="$content_tar" \
-		--exclude="$content_hash_file" \
-		--exclude=".DS_Store" \
-		. 2>/dev/null
-	if [ $? -ne 0 ]; then
-		rm -f "$tmp_tar"
-		echo "ERROR: failed to build [$content_tar] for [$dir/$ROH_DIR]"
-		echo "Abort."
-		echo
-		exit 1
-	fi
-	local new_hash
-	new_hash=$(openssl sha256 < "$tmp_tar" | awk '{print $NF}' | head -c 64) # stdin feed matches roh.fpath generate_hash() (CRLF- and MSYS-path-safe)
+	new_hash=$(build_content_tar "$dir" "$tmp_tar") || { rm -f "$tmp_tar"; exit 1; }
 
 	if [ -n "$prev_hash" ]; then
 		if [ "$prev_hash" != "$new_hash" ]; then
@@ -513,8 +615,8 @@ extract_roh() {
 		# Restore the .sha256 tree from the embedded content tar, then drop both
 		# metadata files. The backup zip ($ROH_DIR.zip~, created below) keeps
 		# the prior content-hash available for the next archive's drift check.
-		local content_tar=".SHA256-HASHES.tar"
-		local content_hash_file=".SHA256-HASHES.tar.sha256"
+		local content_tar="$CONTENT_TAR"
+		local content_hash_file="$CONTENT_HASH_FILE"
 		if [ -f "$dir/$ROH_DIR/$content_tar" ]; then
 			tar -xf "$dir/$ROH_DIR/$content_tar" $TAR_NO_TS_WARN -C "$dir/$ROH_DIR"
 			rm -f "$dir/$ROH_DIR/$content_tar"
@@ -599,6 +701,9 @@ elif contains "extract"; then
 	else
 		extract_roh "$CWD" "$force_mode"
 	fi
+
+elif contains "revert"; then
+	revert_roh "$CWD" "$force_mode"
 
 else
 	# External drive fatal error, because ownership ids are from another system

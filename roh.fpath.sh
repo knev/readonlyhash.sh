@@ -1483,14 +1483,6 @@ process_entry()
 			return 0 ;;
 		esac
 
-		# The archived ROH_DIR at the top of ROOT is structural, never a hashed
-		# file. It is only encountered here with --roh-dir pointing elsewhere
-		# (e.g. readonlyhash verifying/indexing an archive staged in a temp
-		# dir); the default layout aborts on it earlier (see "found archived").
-		if [ "${entry##*/}" = "_.roh.git.zip" ] && [ "${parent%/}" = "${ROOT%/}" ]; then
-			return 0
-		fi
-
 		# stat only feeds the progress bar's byte counter — skip its process
 		# spawn per file when the bar is inactive.
 		if [ "$_PROG_ACTIVE" = "true" ]; then
@@ -2165,9 +2157,8 @@ run_directory_process() {
 		fi
  	elif contains "verify" || contains "recover" || ( contains "show" && ! contains "write" ); then
 		# An archive at ROOT means "forgot to extract" -- but only when the
-		# ROH_DIR in use is the one that archive would produce. With --roh-dir
-		# pointing elsewhere (e.g. readonlyhash staging the archive in a temp
-		# dir) the archive is expected and irrelevant.
+		# ROH_DIR in use is the one that archive would produce; with --roh-dir
+		# pointing elsewhere the archive is irrelevant.
 		if [ "${ROH_DIR%/}" = "${entry%/}/.roh.git" ] && [ -f "$entry/_.roh.git.zip" ]; then
 			log ERROR "found archived ROH_DIR [$entry/_.roh.git.zip] at [$entry]"
 			return 0
