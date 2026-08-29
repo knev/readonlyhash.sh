@@ -72,9 +72,11 @@ You can instruct `readonlyhash` to continue at a particular line by providing a 
 
 Verify each listed directory, with the added check to see if the git repository for each is also clean.
 
-### Command: `v|index`
+If a listed directory is archived (`_.roh.git.zip` present, no `.roh.git`), `verify` does **not** extract it in place: the archive is unpacked with `roh.git -x` into a temporary directory, `roh.fpath` is run with `--roh-dir` pointing there, and the temporary directory is removed afterwards. The archive is not extracted in place.
 
-Indexing while verifying is basically free, so allow for `verify index` in `readonlyhash`.
+### Command: `i|index`
+
+Indexing while verifying is basically free, so allow for `verify index` in `readonlyhash`. `index` can also be used on its own. Either way, an archived directory is handled as described under `verify`, so hashes can be indexed without extracting; the index (`.roh.sqlite3`) is written next to the listed directory as usual.
 
 ### Command: `a|archive`
 
@@ -82,9 +84,9 @@ Indexing while verifying is basically free, so allow for `verify index` in `read
 
 Archive each listed directory and remove the index file (`.roh.sqlite3`), if it exists.
 
-### Command: `e|extract`
+### Command: `x|extract`
 
-`readonlyhash extract ...
+`readonlyhash extract ...`
 
 Extract each listed directory 
 

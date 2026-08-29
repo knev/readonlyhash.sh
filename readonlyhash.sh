@@ -41,7 +41,7 @@ usage() {
     echo "      --version               Display the version and exit"
     echo "  -h, --help                  Display this help and exit"
 	echo 
-	echo "whie;do:"
+	echo "while;do:"
 	echo "      while IFS= read -r line; do echo \"\$line\"; done < FILENAME.roh.txt"
     echo
 }
@@ -487,9 +487,9 @@ archive_directory() {
 	fi
 
 	# roh.git -zC may leave .roh.git.zip~ behind on content drift — clean it up.
-	if [ -f "$dir/.roh.git.zip~" ]; then
-		rm -f "$dir/.roh.git.zip~"
-		echo "OK: [$dir/.roh.git.zip~] -- removed"
+	if [ -f "$dir/$ROH_DIR_NAME.zip~" ]; then
+		rm -f "$dir/$ROH_DIR_NAME.zip~"
+		echo "OK: [$dir/$ROH_DIR_NAME.zip~] -- removed"
 	fi
 }
 
