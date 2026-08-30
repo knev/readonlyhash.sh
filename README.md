@@ -216,7 +216,7 @@ roh.fpath write -- "Fotos/Uncle Bob"
 
 A `.rohignore` file at the top of `ROOT` (next to `.roh.git` in the default layout) lists additional patterns to silently skip during `write`, `verify`, `show`, `hide`, `delete`, and `recover`.
 
-Hidden (dot) files are skipped structurally regardless of whether `.rohignore` exists; the file cannot opt those back in. Skipped entries — both hidden ones and `.rohignore` matches — are recorded to `.roh.logs/files-ignored.exported.txt` for review.
+Hidden (dot) files are skipped structurally regardless of whether `.rohignore` exists; the file cannot opt those back in. Skipped entries — both hidden ones and `.rohignore` matches — are recorded to `.roh.logs/files-ignored-DATETIME.exported.txt` for review (every export log carries the run's start time, e.g. `files-ignored-2026-08-30_140732.exported.txt`). `roh.fpath` never deletes `.roh.logs`, so logs from successive runs accumulate; `readonlyhash archive` removes the directory.
 
 Patterns are simple shell globs, one per line. Comments start with `#`; blank lines are allowed.
 
@@ -381,7 +381,7 @@ The `--only-hashes` switch skips phase 1. By pointing the recover to an empty `_
 
 Recover will go through the orphaned hashes found in the specified ROH_DIR; look up the hash in the index specified by `--db`; if found, remove the hash; if not state the file is missing. Hashes that were recovered, indicates that the corresponding file was in the index and therefore in the main directory. Those that remaining missing are new to the main.
 
-It is possible to use the LOG output `hashes-deleted.exported.txt` to remove the duplicates. Note: that the entries need to be converted from hashes to files (remove the `.roh.git` directory and the `.sha256` extension). A future update will make this possible via a ROH tool.
+It is possible to use the LOG output `hashes-deleted-DATETIME.exported.txt` to remove the duplicates. Note: that the entries need to be converted from hashes to files (remove the `.roh.git` directory and the `.sha256` extension). A future update will make this possible via a ROH tool.
 
 To get file names instead of hashes, it is possible to run `verify` again. It will generate a new files log with new files (those for which the hashes were removed).
 ```

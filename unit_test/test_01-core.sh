@@ -419,8 +419,8 @@ echo "X" > "$TEST_RI/elsewhere/junk/data.bin"
 run_test "$FPATH_BIN write $TEST_RI" "0" "$(escape_expected "ERROR:")" "true"
 run_test "[ -f \"$TEST_RI/.roh.git/elsewhere/junk/data.bin.$HASH\" ] && echo OK || echo MISS" "0" "OK"
 # files-ignored.exported.txt contains both basename and anchored matches
-run_test "grep -F \"$TEST_RI/__skip.txt\" \"$TEST_RI/.roh.logs/files-ignored.exported.txt\"" "0" "$(escape_expected "$TEST_RI/__skip.txt")"
-run_test "grep -F \"$TEST_RI/projects/old/junk\" \"$TEST_RI/.roh.logs/files-ignored.exported.txt\"" "0" "$(escape_expected "$TEST_RI/projects/old/junk")"
+run_test "grep -F \"$TEST_RI/__skip.txt\" \"$TEST_RI\"/.roh.logs/files-ignored-*.exported.txt" "0" "$(escape_expected "$TEST_RI/__skip.txt")"
+run_test "grep -F \"$TEST_RI/projects/old/junk\" \"$TEST_RI\"/.roh.logs/files-ignored-*.exported.txt" "0" "$(escape_expected "$TEST_RI/projects/old/junk")"
 
 # delete
 echo
@@ -484,9 +484,9 @@ rm "$TEST/file with spaces.txt.sha256"
 # state: hidden only — exclusive-hidden is the post-condition expected by tests downstream
 
 touch "$TEST/.HIDDEN_FILE"
-run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: ignored entries (hidden and/or .rohignore matches) were detected and exported.*[test/.roh.logs/files-ignored.exported.txt]")"
+run_test "$FPATH_BIN verify --verbose $TEST" "0" "$(escape_expected "WARN: ignored entries (hidden and/or .rohignore matches) were detected and exported.*[test/.roh.logs/files-ignored-")"
 rm "$TEST/.HIDDEN_FILE"
-rm "$TEST/.roh.logs/files-ignored.exported.txt"
+rm "$TEST"/.roh.logs/files-ignored-*.exported.txt
 
 run_test "$FPATH_BIN verify index --verbose $TEST" "0" "$(escape_expected "ERROR: ")" "true"
 rm "$TEST/.roh.sqlite3"
@@ -684,9 +684,10 @@ run_test "ls $DEDUP_TMP/roh/sub/c.txt.sha256" "1" "c.txt.sha256.?: No such file 
 run_test "sqlite3 $DEDUP_TMP/.roh.sqlite3 \"SELECT COUNT(*) FROM hashes;\"" "0" "2"
 
 # NEW log contains only the duplicate (c.txt)
-run_test "cat $DEDUP_TMP/.roh.logs/files-new.exported.txt" "0" "$(escape_expected "$DEDUP_TMP/ro/sub/c.txt")"
+run_test "cat $DEDUP_TMP/.roh.logs/files-new-*.exported.txt" "0" "$(escape_expected "$DEDUP_TMP/ro/sub/c.txt")"
 # and nothing else — canonicals must NOT be logged
-run_test "cat $DEDUP_TMP/.roh.logs/files-new.exported.txt" "0" "$(escape_expected "$DEDUP_TMP/ro/a.txt")" "true"
+run_test "cat $DEDUP_TMP/.roh.logs/files-new-*.exported.txt" "0" "$(escape_expected "$DEDUP_TMP/ro/a.txt")" "true"
+run_test "ls $DEDUP_TMP/.roh.logs/" "0" "^files-new-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}\\.exported\\.txt$"
 
 # validation: --dedup without index is rejected
 run_test "$FPATH_BIN write --dedup $DEDUP_TMP/ro" "1" "$(escape_expected "ERROR: [--dedup] can only be used with: index")"

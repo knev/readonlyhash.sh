@@ -4,6 +4,10 @@ VERSION="2.2.60"
 
 shopt -s nullglob
 
+# Start time of this run, stamped into the export log names so logs from
+# different runs never share a name. Portable date(1) format (macOS/Linux/Git Bash).
+START_STAMP=$(date +%Y-%m-%d_%H%M%S)
+
 #set -x
 
 usage() {
@@ -1892,14 +1896,13 @@ case "$_roh_logs_parent" in
     */*) _roh_logs_parent="${_roh_logs_parent%/*}" ;;
     *)   _roh_logs_parent="." ;;
 esac
+# Logs accumulate across runs (each run's files carry START_STAMP); they are
+# only cleared by `readonlyhash archive`.
 ROH_LOGS="$_roh_logs_parent/.roh.logs"
-if [ -d "$ROH_LOGS" ]; then
-	rm -rf "$ROH_LOGS"
-fi
-EXPORT_FILE_NEW="$ROH_LOGS/files-new.exported.txt"
-EXPORT_FILE_MISSING="$ROH_LOGS/files-missing.exported.txt"
-EXPORT_FILE_IGNORED="$ROH_LOGS/files-ignored.exported.txt"
-EXPORT_HASH_DELETED="$ROH_LOGS/hashes-deleted.exported.txt"
+EXPORT_FILE_NEW="$ROH_LOGS/files-new-$START_STAMP.exported.txt"
+EXPORT_FILE_MISSING="$ROH_LOGS/files-missing-$START_STAMP.exported.txt"
+EXPORT_FILE_IGNORED="$ROH_LOGS/files-ignored-$START_STAMP.exported.txt"
+EXPORT_HASH_DELETED="$ROH_LOGS/hashes-deleted-$START_STAMP.exported.txt"
 
 # Append <line> to export log <file>, creating $ROH_LOGS lazily so read-only or
 # no-op runs (verify/show with nothing to report) don't leave an empty .roh.logs
