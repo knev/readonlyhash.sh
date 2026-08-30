@@ -104,7 +104,26 @@ $FPATH_BIN delete sweep "$PWD"/2002.ro >/dev/null 2>&1
 rm -rf "2002.ro/.roh.git"
 $GIT_BIN -iC "2002.ro" >/dev/null 2>&1
 $FPATH_BIN write show "$PWD"/2002.ro >/dev/null 2>&1
-run_test "$GIT_BIN -zC 2002.ro" "1" "$(escape_expected "ERROR: hashes not exclusively hidden in [2002.ro/.roh.git]")"
+run_test "$GIT_BIN -zC 2002.ro" "1" "$(escape_expected "ERROR: hashes not exclusively hidden in [2002.ro/.roh.git].*e.g. [2002.ro/")"
+
+# the shown-hash check honours .rohignore and skips dot entries, like roh.fpath
+$FPATH_BIN hide "$PWD"/2002.ro >/dev/null 2>&1
+mkdir -p "2002.ro/.cache" "2002.ro/ignored-dir" "2002.ro/keep"
+echo "x" > "2002.ro/.cache/junk.txt.sha256"
+echo "x" > "2002.ro/ignored-dir/junk.txt.sha256"
+echo "x" > "2002.ro/keep/stray.bak.sha256"
+printf '# comment\n\n  ignored-dir/  \n*.bak.sha256\n' > "2002.ro/.rohignore"
+git -C "2002.ro/$ROH_DIR" add . >/dev/null 2>&1; git -C "2002.ro/$ROH_DIR" commit -m rohignore. >/dev/null 2>&1
+run_test "$GIT_BIN -zC 2002.ro" "0" "$(escape_expected "Archived [.roh.git] to [2002.ro/_.roh.git.zip]")"
+$GIT_BIN -xC 2002.ro >/dev/null 2>&1
+echo "x" > "2002.ro/keep/shown.txt.sha256"
+run_test "$GIT_BIN -zC 2002.ro" "1" "$(escape_expected "ERROR: hashes not exclusively hidden in [2002.ro/.roh.git].*e.g. [2002.ro/keep/shown.txt.sha256]")"
+rm -rf "2002.ro/.cache" "2002.ro/ignored-dir" "2002.ro/keep" "2002.ro/.rohignore" "2002.ro/.roh.git.zip~"
+# back to the pre-check state: fresh repo, hashes shown
+$FPATH_BIN delete sweep "$PWD"/2002.ro >/dev/null 2>&1
+rm -rf "2002.ro/.roh.git"
+$GIT_BIN -iC "2002.ro" >/dev/null 2>&1
+$FPATH_BIN write show "$PWD"/2002.ro >/dev/null 2>&1
 
 $FPATH_BIN hide "$PWD"/2002.ro >/dev/null 2>&1
 run_test "$ROH_BIN archive < $fpath" "1" "$(escape_expected "ERROR: local repo [$PWD/2002.ro/.roh.git] not clean")"

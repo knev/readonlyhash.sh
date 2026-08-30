@@ -221,7 +221,7 @@ Hidden (dot) files are skipped structurally regardless of whether `.rohignore` e
 Patterns are simple shell globs, one per line. Comments start with `#`; blank lines are allowed.
 
 - **Basename pattern** (no `/` in the pattern): matched against the basename of every entry, at any depth. `__*` skips both `__skip.txt` and `projects/__nested/`.
-- **Anchored path pattern** (contains `/`): matched against the entry path relative to `ROOT`. The leading `/` is optional and stripped — `/foo/bar` and `foo/bar` both pin to `$ROOT/foo/bar`. Use this when you want to skip exactly one subtree without affecting same-named directories elsewhere.
+- **Anchored path pattern** (contains `/`): matched against the entry path relative to `ROOT`. The leading `/` is optional and stripped — `/foo/bar` and `foo/bar` both pin to `$ROOT/foo/bar`. A trailing `/` (the gitignore idiom for "this directory") is stripped too, so `build/` pins `$ROOT/build`; a skipped directory takes its whole subtree with it. Use this when you want to skip exactly one subtree without affecting same-named directories elsewhere.
 
 Example `Fotos/.rohignore`:
 ```
@@ -233,7 +233,10 @@ Thumbs.db
 # Specific subtree only
 projects/old/junk
 /archive/raw_dumps
+build/
 ```
+
+`roh.git -z` applies the same rules (independently implemented) when it checks that no hashes are left shown outside `ROH_DIR`.
 
 When `--roh-dir` relocates `ROH_DIR` outside `ROOT`, `.rohignore` still lives at `$ROOT/.rohignore` — it describes the data tree, not the metadata directory.
 

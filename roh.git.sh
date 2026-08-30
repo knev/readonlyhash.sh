@@ -280,8 +280,11 @@ archive_roh_v1() {
 		exit 1
 	fi
 
-	if [ -n "$(find "$dir" -mindepth 1 -path "*/.roh.git/*" -prune -o -name "*.sha256" -print -quit)" ]; then
+	local shown
+	shown=$(find_shown_hash "$dir")
+	if [ -n "$shown" ]; then
 		echo "ERROR: hashes not exclusively hidden in [$dir/$ROH_DIR]"
+		echo "       e.g. [$shown]"
 		echo "Abort."
 		echo
 		return 1
@@ -353,6 +356,47 @@ extract_roh_v1() {
 		echo
         exit 1
     fi
+}
+
+# find_shown_hash <dir>
+#   Print the first hash file (*.$HASH) that sits OUTSIDE ROH_DIR, i.e. a
+#   hash that is "shown" and would be left behind by an archive. Prints
+#   nothing when all hashes are hidden.
+#
+#   NOTE: this deliberately DUPLICATES roh.fpath's skip rules (load_rohignore /
+#   _rohignore_find_prune_args / structural dot-entry skipping). Calling
+#   `roh.fpath verify hide` here would be the DRY choice, but it re-hashes
+#   every file, which is far too expensive for a pre-archive check. Keep the
+#   two in sync: a pattern accepted in .rohignore by roh.fpath must be pruned
+#   identically here, or -z will refuse trees that verify accepts.
+#     .rohignore: one shell-glob pattern per line, '#' comments, blank lines
+#       ignored, surrounding whitespace trimmed. Patterns containing '/' are
+#       anchored at <dir> (leading '/' optional, trailing '/' stripped: `foo/`
+#       pins the directory <dir>/foo); others match a basename at any depth.
+#     Dot entries (files and directories, so ROH_DIR itself) are always pruned.
+find_shown_hash() {
+	local dir="$1"
+	local prune=() line first=1 clean
+
+	if [ -r "$dir/.rohignore" ]; then
+		while IFS= read -r line || [ -n "$line" ]; do
+			line="${line%%#*}"
+			line="${line#"${line%%[![:space:]]*}"}"
+			line="${line%"${line##*[![:space:]]}"}"
+			[ -z "$line" ] && continue
+			if [ $first -eq 1 ]; then prune=( '(' ); else prune+=( -o ); fi
+			if [[ "$line" == */* ]]; then
+				clean="${line#/}"; clean="${clean%/}"
+				prune+=( -path "$dir/$clean" )
+			else
+				prune+=( -name "$line" )
+			fi
+			first=0
+		done < "$dir/.rohignore"
+		[ $first -eq 0 ] && prune+=( ')' -prune -o )
+	fi
+
+	find "$dir" -mindepth 1 "${prune[@]}" -name '.*' -prune -o -type f -name "*.$HASH" -print -quit 2>/dev/null
 }
 
 # CONTENT_TAR / CONTENT_HASH_FILE
@@ -498,8 +542,11 @@ archive_roh() {
 	fi
 
 	# searching for hashes, because .git exists
-	if [ -n "$(find "$dir" -mindepth 1 -path "*/.roh.git/*" -prune -o -name "*.sha256" -print -quit)" ]; then
+	local shown
+	shown=$(find_shown_hash "$dir")
+	if [ -n "$shown" ]; then
 		echo "ERROR: hashes not exclusively hidden in [$dir/$ROH_DIR]"
+		echo "       e.g. [$shown]"
 		echo "Abort."
 		echo
 		return 1

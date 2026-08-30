@@ -99,8 +99,10 @@ TEST_RI="$TEST-rohignore"
 ZERO_HASH="0000000000000000000000000000000000000000000000000000000000000000"
 ri_setup() {
 	[ -d "$TEST_RI" ] && chmod -R 777 "$TEST_RI" && rm -rf "$TEST_RI"
-	mkdir -p "$TEST_RI/__cachedir" "$TEST_RI/projects/old/junk"
+	mkdir -p "$TEST_RI/__cachedir" "$TEST_RI/projects/old/junk" "$TEST_RI/build/out" "$TEST_RI/sub/build"
 	echo "KEEP"     > "$TEST_RI/keep.txt"
+	echo "BUILT"    > "$TEST_RI/build/out/a.o"
+	echo "KEEP2"    > "$TEST_RI/sub/build/keep.txt"
 	echo "SKIP"     > "$TEST_RI/__skip.txt"
 	echo "DRAFT"    > "$TEST_RI/notes.__.md"
 	echo "INNER"    > "$TEST_RI/__cachedir/inner.txt"
@@ -110,6 +112,7 @@ ri_setup() {
 		__*
 		*.__.md
 		projects/old/junk
+		build/
 	EOF
 }
 
@@ -421,6 +424,10 @@ run_test "[ -f \"$TEST_RI/.roh.git/elsewhere/junk/data.bin.$HASH\" ] && echo OK 
 # files-ignored.exported.txt contains both basename and anchored matches
 run_test "grep -F \"$TEST_RI/__skip.txt\" \"$TEST_RI\"/.roh.logs/files-ignored-*.exported.txt" "0" "$(escape_expected "$TEST_RI/__skip.txt")"
 run_test "grep -F \"$TEST_RI/projects/old/junk\" \"$TEST_RI\"/.roh.logs/files-ignored-*.exported.txt" "0" "$(escape_expected "$TEST_RI/projects/old/junk")"
+# trailing-slash pattern: anchored directory, whole subtree skipped; same-named dir elsewhere untouched
+run_test "grep -F \"$TEST_RI/build\" \"$TEST_RI\"/.roh.logs/files-ignored-*.exported.txt" "0" "$(escape_expected "$TEST_RI/build")"
+run_test "ls $TEST_RI/.roh.git/build" "1" "No such file or directory"
+run_test "ls $TEST_RI/.roh.git/sub/build/keep.txt.$HASH" "0" "keep.txt.$HASH"
 
 # delete
 echo

@@ -84,8 +84,11 @@ KEEP_PROGRESS_BAR="false"
 EXTENSIONS_TO_AVOID="rslsi,rslsv,rslsz,rsls"
 
 # Loaded from $ROOT/.rohignore at startup; one shell-glob pattern per line.
-# Patterns containing '/' are anchored relative to $ROOT (leading '/' optional).
+# Patterns containing '/' are anchored relative to $ROOT (leading '/' optional;
+# a trailing '/' is the gitignore idiom for "this directory" and is stripped,
+# so `foo/` and `foo` both pin $ROOT/foo -- and, being a directory, its contents).
 # Patterns without '/' match against the basename of any entry at any depth.
+# NOTE: roh.git (find_shown_hash) deliberately duplicates these rules; keep in sync.
 # Dotfile skipping is structural (via shell glob defaults) and not configurable here.
 ROHIGNORE_PATTERNS=()
 
@@ -139,7 +142,7 @@ should_ignore() {
     rel="$(remove_top_dir "$ROOT" "$entry")"
     for pat in "${ROHIGNORE_PATTERNS[@]}"; do
         if [[ "$pat" == */* ]]; then
-            clean="${pat#/}"
+            clean="${pat#/}"; clean="${clean%/}"
             # shellcheck disable=SC2053
             [[ "$rel" == $clean ]] && return 0
         else
@@ -161,7 +164,7 @@ _rohignore_find_prune_args() {
     for pat in "${ROHIGNORE_PATTERNS[@]}"; do
         [ $first -eq 1 ] || _ROH_PRUNE_ARGS+=( -o )
         if [[ "$pat" == */* ]]; then
-            clean="${pat#/}"
+            clean="${pat#/}"; clean="${clean%/}"
             _ROH_PRUNE_ARGS+=( -path "$ROOT/$clean" )
         else
             _ROH_PRUNE_ARGS+=( -name "$pat" )
