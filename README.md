@@ -160,7 +160,7 @@ This is a safe `delete` command. Instead of just removing the `ROH_DIR`, this co
 
 Sometimes maintenance must be done on a directory (e.g, rename, moving or delete files). When doing such maintenance, you want to also operate on the hash simultaneously. `roh.fpath` can be instructed to `show` all the hashes, namely moving hashes from the hidden `ROH_DIR` to next to each file. 
 
-Hashes have the same name as each file, but with a hash extension (e.g., `.sha256` representing the hashing algorithm used) appended to it. The algorithm is SHA-256 by default; `--sha 384` or `--sha 512` selects SHA-384/SHA-512, which changes both the openssl digest and the extension (`.sha384` / `.sha512`). Pass the same `--sha` to every `roh.fpath` invocation on a tree: hashes of another algorithm in `ROH_DIR` are reported as orphans by `verify` (switch with `delete --sha OLD` then `write --sha NEW`).
+Hashes have the same name as each file, but with a hash extension (e.g., `.sha256` representing the hashing algorithm used) appended to it. The algorithm is SHA-256 by default; `--SHA 384` or `--SHA 512` selects SHA-384/SHA-512, which changes both the openssl digest and the extension (`.sha384` / `.sha512`). Pass the same `--SHA` to every `roh.fpath` invocation on a tree: hashes of another algorithm in `ROH_DIR` are reported as orphans by `verify` (switch with `delete --SHA OLD` then `write --SHA NEW`).
 
 After the maintenance is complete, hashes can be moved back to `ROH_DIR` using the `hide` command. While hashes are shown you can run `verify show` to check them in place; running plain `verify` (i.e., `verify hide`) on a shown tree will report each shown hash as an `ERROR: hash NOT hidden`.
 

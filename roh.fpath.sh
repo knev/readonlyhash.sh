@@ -45,7 +45,7 @@ usage() {
 	echo "  -f,   --force          Force operation even if hash files do not match"
 	echo "        --roh-dir        Specify the readonly hash path"
 	echo "        --db             Explicity specify the location of the database file"
-	echo "        --sha <BITS>     Hash algorithm: 256 (default), 384 or 512; sets the openssl digest and the .sha<BITS> extension"
+	echo "        --SHA <BITS>     Hash algorithm: 256 (default), 384 or 512; sets the openssl digest and the .sha<BITS> extension"
 	echo "        --only-files     Only process files, do not run hash maintanence"
 	echo "        --only-hashes    Do not process files, only run hash maintanence"
 	echo "  -mfn, --match-filenames When recovering also search for matching filenames"
@@ -97,7 +97,7 @@ PATHSPEC="_INVALID_"
 ROH_DIR="_INVALID_"
 DB_SQL="_INVALID_"
 
-# Hash algorithm, selected with --sha <256|384|512>. HASH names the openssl
+# Hash algorithm, selected with --SHA <256|384|512>. HASH names the openssl
 # digest and the hash-file extension; HASH_LEN is the hex digest length and
 # ZERO_HASH the all-zero sentinel for "no hash" (unreadable, missing, ...).
 # Set via set_hash_algo() so the three never disagree.
@@ -107,7 +107,7 @@ ZERO_HASH=""
 set_hash_algo() {
 	case "$1" in
 		256|384|512) ;;
-		*) echo "ERROR: --sha must be one of 256, 384 or 512 (got [$1])" >&2; exit 1 ;;
+		*) echo "ERROR: --SHA must be one of 256, 384 or 512 (got [$1])" >&2; exit 1 ;;
 	esac
 	HASH="sha$1"
 	HASH_LEN=$(( $1 / 4 ))
@@ -1698,7 +1698,7 @@ while getopts "vfh-:" opt; do
           db="${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;		  
-        sha)
+        SHA)
           set_hash_algo "${!OPTIND}"
           OPTIND=$((OPTIND + 1))
           ;;
